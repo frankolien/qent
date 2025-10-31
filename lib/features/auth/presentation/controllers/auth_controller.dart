@@ -19,6 +19,26 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
+  Future<void> signUp({
+    required String email,
+    required String password,
+    required String fullName,
+    required String country,
+  }) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final user = await ref.read(signUpWithEmailAndPasswordProvider)(
+        email: email,
+        password: password,
+        fullName: fullName,
+        country: country,
+      );
+      state = state.copyWith(isLoading: false, user: user);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+    }
+  }
+
   Future<void> sendResetPassword({required String email}) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {

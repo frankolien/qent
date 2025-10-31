@@ -3,8 +3,16 @@ import 'package:firebase_auth/firebase_auth.dart' as fb;
 /// Abstraction for authentication operations.
 ///
 /// Keeps upper layers independent of Firebase-specific details.
+
 abstract class AuthRepository {
   Future<fb.User?> signInWithEmailAndPassword({required String email, required String password});
+
+  Future<fb.User?> signUpWithEmailAndPassword({
+    required String email,
+    required String password,
+    required String fullName,
+    required String country,
+  });
 
   Future<void> sendPasswordResetEmail({required String email});
 

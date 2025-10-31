@@ -10,6 +10,11 @@ class FirebaseAuthDataSource {
     return credential.user;
   }
 
+  Future<fb.User?> signUpWithEmailAndPassword({required String email, required String password}) async {
+    final credential = await _auth.createUserWithEmailAndPassword(email: email, password: password);
+    return credential.user;
+  }
+
   Future<void> sendPasswordResetEmail({required String email}) {
     return _auth.sendPasswordResetEmail(email: email);
   }

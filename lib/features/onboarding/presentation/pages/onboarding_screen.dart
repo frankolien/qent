@@ -111,9 +111,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           onPressed: () {
             if (isLastPage) {
               // Placeholder: navigate to next route when available
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Get Started tapped')),
-              );
+              Navigator.pushNamed(context, '/login');
             } else {
               _pageController.nextPage(
                 duration: const Duration(milliseconds: 300),
