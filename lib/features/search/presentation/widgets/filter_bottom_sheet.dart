@@ -4,6 +4,7 @@ import 'package:qent/features/search/domain/models/filter_options.dart';
 import 'package:qent/features/search/domain/models/search_filters.dart';
 import 'package:qent/features/search/presentation/providers/search_providers.dart';
 import 'package:qent/features/search/presentation/widgets/custom_date_range_picker.dart';
+import 'package:qent/features/search/presentation/widgets/location_picker.dart';
 
 class FilterBottomSheet extends ConsumerStatefulWidget {
   const FilterBottomSheet({super.key});
@@ -139,9 +140,15 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
           ),
           // Content
           Expanded(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
-              child: Column(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                // Dismiss keyboard when tapping outside input fields
+                FocusScope.of(context).unfocus();
+              },
+              child: SingleChildScrollView(
+                padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 16),
@@ -174,7 +181,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
                   const SizedBox(height: 12),
                   _buildDatePicker(filters),
                   const SizedBox(height: 24),
-                  // Car Location
+                  // Car Locationxx
                   _buildSectionTitle('Car Location'),
                   const SizedBox(height: 12),
                   _buildLocationInput(),
@@ -194,6 +201,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
                   const SizedBox(height: 24),
                 ],
               ),
+           ),
             ),
           ),
           // Footer
@@ -402,15 +410,18 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
         ),
         const SizedBox(height: 16),
         Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Expanded(
+            Container(
+              width: 80,
               child: _buildPriceInput(
                 controller: _minPriceController,
                 label: 'Minimum',
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
+            //const SizedBox(width: 12),
+            Container(
+              width: 80,
               child: _buildPriceInput(
                 controller: _maxPriceController,
                 label: 'Maximum',
@@ -427,7 +438,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
     required String label,
   }) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(
           label,
@@ -439,21 +450,32 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
         ),
         const SizedBox(height: 8),
         Container(
+          constraints: const BoxConstraints(minHeight: 44),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: Colors.grey[100],
+            color: Colors.white,
             borderRadius: BorderRadius.circular(25),
             border: Border.all(color: Colors.grey[300]!),
           ),
           child: TextField(
             controller: controller,
+            textAlign: TextAlign.center,
             keyboardType: TextInputType.number,
-            style: const TextStyle(fontSize: 14),
+            textInputAction: TextInputAction.done,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Colors.black87,
+              fontWeight: FontWeight.w500,
+            ),
             decoration: const InputDecoration(
               border: InputBorder.none,
               isDense: true,
               contentPadding: EdgeInsets.zero,
             ),
+            onSubmitted: (_) {
+              // Dismiss keyboard when Done is pressed
+              FocusScope.of(context).unfocus();
+            },
           ),
         ),
       ],
@@ -493,7 +515,10 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
   }
 
   Widget _buildDatePicker(SearchFilters filters) {
-    String dateText = '05, Jun, 2024';
+    // Use today's date as placeholder if no dates selected
+    final today = DateTime.now();
+    String dateText = _formatDate(today);
+    
     if (filters.startDate != null && filters.endDate != null) {
       dateText = '${_formatDate(filters.startDate!)} - ${_formatDate(filters.endDate!)}';
     } else if (filters.startDate != null) {
@@ -533,30 +558,56 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
     );
   }
 
-  Widget _buildLocationInput() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[300]!),
+  void _openLocationPicker() {
+    final currentFilters = ref.read(searchControllerProvider).filters;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => LocationPicker(
+        initialLocation: _locationController.text.isNotEmpty 
+            ? _locationController.text 
+            : currentFilters.location,
+        onLocationSelected: (location) {
+          final locationText = location.displayName;
+          _locationController.text = locationText;
+          ref.read(searchControllerProvider.notifier).updateLocation(locationText);
+          Navigator.of(context).pop(); // Close location picker
+        },
       ),
-      child: Row(
-        children: [
-          Icon(Icons.location_on, color: Colors.grey[600], size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: TextField(
-              controller: _locationController,
-              style: const TextStyle(fontSize: 14),
-              decoration: const InputDecoration(
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
+    );
+  }
+
+  Widget _buildLocationInput() {
+    return GestureDetector(
+      onTap: _openLocationPicker,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[300]!),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.location_on, color: Colors.grey[600], size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                _locationController.text.isEmpty 
+                    ? 'Select location' 
+                    : _locationController.text,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: _locationController.text.isEmpty 
+                      ? Colors.grey[400] 
+                      : Colors.black87,
+                ),
               ),
             ),
-          ),
-        ],
+            Icon(Icons.arrow_forward_ios, color: Colors.grey[600], size: 16),
+          ],
+        ),
       ),
     );
   }
