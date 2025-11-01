@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:qent/features/home/domain/models/car.dart';
 import 'package:qent/features/home/presentation/widgets/brand_item.dart';
 import 'package:qent/features/home/presentation/widgets/car_card.dart';
-import 'package:qent/features/home/presentation/widgets/custom_bottom_nav.dart';
 import 'package:qent/features/home/presentation/widgets/nearby_car_card.dart';
 
 class HomePage extends StatefulWidget {
@@ -13,7 +12,6 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _currentIndex = 0;
   final List<Car> _bestCars = [
     Car(
       id: '1',
@@ -102,14 +100,6 @@ class _HomePageState extends State<HomePage> {
             ),
           ],
         ),
-      ),
-      bottomNavigationBar: CustomBottomNav(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
       ),
     );
   }

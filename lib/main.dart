@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/features/auth/presentation/pages/login_page.dart';
 import 'package:qent/features/auth/presentation/pages/signup_page.dart';
-import 'package:qent/features/home/presentation/pages/home_page.dart';
+import 'package:qent/features/home/presentation/pages/main_nav_page.dart';
 import 'package:qent/features/onboarding/presentation/pages/onboarding_screen.dart';
 import 'package:qent/firebase_options.dart';
 
@@ -36,7 +36,7 @@ class MainApp extends StatelessWidget {
         '/onboarding': (context) => const OnboardingScreen(),
         '/login': (context) => const LoginPage(),
         '/signup': (context) => const SignUpPage(),
-        '/home': (context) => const HomePage(),
+        '/home': (context) => const MainNavPage(),
       },
     );
   }
