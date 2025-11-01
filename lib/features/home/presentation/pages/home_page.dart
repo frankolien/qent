@@ -3,6 +3,7 @@ import 'package:qent/features/home/domain/models/car.dart';
 import 'package:qent/features/home/presentation/widgets/brand_item.dart';
 import 'package:qent/features/home/presentation/widgets/car_card.dart';
 import 'package:qent/features/home/presentation/widgets/nearby_car_card.dart';
+import 'package:qent/features/search/presentation/widgets/filter_bottom_sheet.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -244,7 +245,14 @@ class _HomePageState extends State<HomePage> {
           ),
           SizedBox(width: screenWidth * 0.03),
           GestureDetector(
-            onTap: () {},
+            onTap: () {
+                showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (context) => const FilterBottomSheet(),
+              );
+            },
             child: Container(
               width: 48,
               height: 48,

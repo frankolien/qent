@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qent/features/home/presentation/pages/home_page.dart';
-import 'package:qent/features/home/presentation/pages/search_page.dart';
 import 'package:qent/features/home/presentation/widgets/custom_bottom_nav.dart';
+import 'package:qent/features/search/presentation/pages/search_page.dart';
 
 class MainNavPage extends StatefulWidget {
   const MainNavPage({super.key});

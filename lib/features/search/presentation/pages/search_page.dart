@@ -1,24 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/features/home/domain/models/car.dart';
+import 'package:qent/features/search/domain/models/filter_options.dart';
+import 'package:qent/features/search/presentation/providers/search_providers.dart';
+import 'package:qent/features/search/presentation/widgets/filter_bottom_sheet.dart';
+import 'package:qent/features/search/presentation/widgets/search_car_card.dart';
 
-class SearchPage extends StatefulWidget {
+class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key});
 
   @override
-  State<SearchPage> createState() => _SearchPageState();
+  ConsumerState<SearchPage> createState() => _SearchPageState();
 }
 
-class _SearchPageState extends State<SearchPage> {
-  String _selectedFilter = 'ALL';
+class _SearchPageState extends ConsumerState<SearchPage> {
   final TextEditingController _searchController = TextEditingController();
-  
-  final List<String> _brandFilters = [
-    'ALL',
-    'Ferrari',
-    'Tesla',
-    'BMW',
-    'Lamborghini',
-  ];
 
   final List<Car> _recommendedCars = [
     Car(
@@ -94,8 +90,16 @@ class _SearchPageState extends State<SearchPage> {
 
   @override
   Widget build(BuildContext context) {
+    final filterOptionsState = ref.watch(filterOptionsControllerProvider);
     final screenHeight = MediaQuery.of(context).size.height;
     final cardHeight = screenHeight * 0.32;
+
+    // Update search query when controller changes
+    _searchController.addListener(() {
+      ref.read(searchControllerProvider.notifier).updateSearchQuery(
+        _searchController.text,
+      );
+    });
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -105,7 +109,7 @@ class _SearchPageState extends State<SearchPage> {
             _buildHeader(context),
             _buildSearchBar(context),
             const SizedBox(height: 16),
-            _buildBrandFilters(context),
+            _buildBrandFilters(context, filterOptionsState.options.brandFilters),
             const SizedBox(height: 24),
             Expanded(
               child: SingleChildScrollView(
@@ -233,7 +237,14 @@ class _SearchPageState extends State<SearchPage> {
           ),
           SizedBox(width: screenWidth * 0.03),
           GestureDetector(
-            onTap: () {},
+            onTap: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (context) => const FilterBottomSheet(),
+              );
+            },
             child: Container(
               width: 50,
               height: 50,
@@ -249,8 +260,10 @@ class _SearchPageState extends State<SearchPage> {
     );
   }
 
-  Widget _buildBrandFilters(BuildContext context) {
+  Widget _buildBrandFilters(BuildContext context, List<BrandFilter> brandFilters) {
     final screenWidth = MediaQuery.of(context).size.width;
+    final searchState = ref.watch(searchControllerProvider);
+    final selectedFilter = searchState.filters.selectedBrandFilter;
     
     return SizedBox(
       height: 50,
@@ -258,24 +271,22 @@ class _SearchPageState extends State<SearchPage> {
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
-        itemCount: _brandFilters.length,
+        itemCount: brandFilters.length,
         itemBuilder: (context, index) {
-          final filter = _brandFilters[index];
-          final isSelected = _selectedFilter == filter;
+          final filter = brandFilters[index];
+          final isSelected = selectedFilter == filter.name;
           
           return Padding(
             padding: EdgeInsets.only(
-              right: index < _brandFilters.length - 1 ? 16 : 0,
+              right: index < brandFilters.length - 1 ? 16 : 0,
             ),
             child: GestureDetector(
               onTap: () {
-                setState(() {
-                  _selectedFilter = filter;
-                });
+                ref.read(searchControllerProvider.notifier).updateBrandFilter(filter.name);
               },
               child: Container(
                 padding: EdgeInsets.symmetric(
-                  horizontal: filter == 'ALL' ? 16 : 12,
+                  horizontal: filter.name == 'ALL' ? 16 : 12,
                   vertical: 12,
                 ),
                 decoration: BoxDecoration(
@@ -285,7 +296,7 @@ class _SearchPageState extends State<SearchPage> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (filter == 'ALL')
+                    if (filter.name == 'ALL')
                       Container(
                         width: 24,
                         height: 24,
@@ -301,8 +312,8 @@ class _SearchPageState extends State<SearchPage> {
                           ),
                         ),
                       ),
-                    if (filter == 'ALL') const SizedBox(width: 8),
-                    if (filter != 'ALL')
+                    if (filter.name == 'ALL') const SizedBox(width: 8),
+                    if (filter.name != 'ALL')
                       Container(
                         width: 32,
                         height: 32,
@@ -314,10 +325,10 @@ class _SearchPageState extends State<SearchPage> {
                           child: _getBrandLogo(filter),
                         ),
                       ),
-                    if (filter != 'ALL') const SizedBox(width: 8),
-                    if (filter != 'Lamborghini')
+                    if (filter.name != 'ALL') const SizedBox(width: 8),
+                    if (filter.name != 'Lamborghini')
                       Text(
-                        filter,
+                        filter.name,
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -334,68 +345,20 @@ class _SearchPageState extends State<SearchPage> {
     );
   }
 
-  Widget _getBrandLogo(String brand) {
-    switch (brand) {
-      case 'Ferrari':
-        return Image.asset(
-          'assets/images/Ferrari.png',
-          width: 20,
-          height: 20,
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) {
-            return const Icon(Icons.directions_car, color: Colors.white, size: 20);
-          },
-        );
-      case 'Tesla':
-        return Image.asset(
-          'assets/images/Tesla.png',
-          width: 20,
-          height: 20,
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) {
-            return const Text(
-              'T',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-            );
-          },
-        );
-      case 'BMW':
-        return Image.asset(
-          'assets/images/Bmw.png',
-          width: 20,
-          height: 20,
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 1),
-              ),
-              child: const Center(
-                child: Text(
-                  'BMW',
-                  style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
-                ),
-              ),
-            );
-          },
-        );
-      case 'Lamborghini':
-        return Image.asset(
-          'assets/images/Lambo.png',
-          width: 20,
-          height: 20,
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) {
-            return const Text(
-              'L',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-            );
-          },
-        );
-      default:
-        return const Icon(Icons.directions_car, color: Colors.white, size: 20);
+  Widget _getBrandLogo(BrandFilter filter) {
+    if (filter.logoUrl == null) {
+      return const Icon(Icons.directions_car, color: Colors.white, size: 20);
     }
+    
+    return Image.asset(
+      filter.logoUrl!,
+      width: 20,
+      height: 20,
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) {
+        return const Icon(Icons.directions_car, color: Colors.white, size: 20);
+      },
+    );
   }
 
   Widget _buildRecommendedSection(BuildContext context, double cardHeight) {
@@ -449,14 +412,10 @@ class _SearchPageState extends State<SearchPage> {
                 padding: EdgeInsets.only(
                   right: index < _recommendedCars.length - 1 ? screenWidth * 0.04 : 0,
                 ),
-                child: _buildSearchCarCard(
+                child: SearchCarCard(
                   car: _recommendedCars[index],
                   onFavoriteTap: () {
-                    setState(() {
-                      _recommendedCars[index] = _recommendedCars[index].copyWith(
-                        isFavorite: !_recommendedCars[index].isFavorite,
-                      );
-                    });
+                    // TODO: Implement favorite toggle with Riverpod
                   },
                 ),
               );
@@ -518,14 +477,10 @@ class _SearchPageState extends State<SearchPage> {
                 padding: EdgeInsets.only(
                   right: index < _popularCars.length - 1 ? screenWidth * 0.04 : 0,
                 ),
-                child: _buildSearchCarCard(
+                child: SearchCarCard(
                   car: _popularCars[index],
                   onFavoriteTap: () {
-                    setState(() {
-                      _popularCars[index] = _popularCars[index].copyWith(
-                        isFavorite: !_popularCars[index].isFavorite,
-                      );
-                    });
+                    // TODO: Implement favorite toggle with Riverpod
                   },
                 ),
               );
@@ -533,169 +488,6 @@ class _SearchPageState extends State<SearchPage> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildSearchCarCard({
-    required Car car,
-    required VoidCallback onFavoriteTap,
-  }) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final cardWidth = screenWidth * 0.47; // Same as homepage
-    
-    return Container(
-      width: cardWidth,
-      constraints: const BoxConstraints(maxWidth: 200), // Same as homepage
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Car Image
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                child: Container(
-                  padding: const EdgeInsets.all(10), // Same as homepage
-                  height: cardWidth * 0.50, // Same as homepage
-                  width: double.infinity,
-                  color: Colors.grey[200],
-                  child: Image.asset(
-                    car.imageUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: Colors.grey[300],
-                        child: const Icon(
-                          Icons.directions_car,
-                          size: 60,
-                          color: Colors.grey,
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-              Positioned(
-                top: 12,
-                right: 12,
-                child: GestureDetector(
-                  onTap: onFavoriteTap,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      car.isFavorite ? Icons.favorite : Icons.favorite_border,
-                      color: car.isFavorite ? Colors.red : Colors.grey,
-                      size: 20,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          // Car Details
-          Padding(
-            padding: const EdgeInsets.all(16), // Same as homepage
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  car.name,
-                  style: const TextStyle(
-                    fontSize: 16, // Same as homepage
-                    fontWeight: FontWeight.w700, // Same as homepage
-                    color: Colors.black,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(Icons.star, color: Colors.amber, size: 16),
-                    const SizedBox(width: 4),
-                    Text(
-                      car.rating.toStringAsFixed(1),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(Icons.location_on, color: Colors.grey[600], size: 16),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        car.location,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey[600],
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      '\$${car.pricePerDay.toInt()}/Day',
-                      style: const TextStyle(
-                        fontSize: 12, // Same as homepage
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black,
-                      ),
-                    ),
-                    ElevatedButton(
-                      onPressed: () {},
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2C2C2C),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        elevation: 0,
-                        minimumSize: const Size(80, 32),
-                      ),
-                      child: const Text(
-                        'Book now',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
