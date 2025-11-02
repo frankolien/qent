@@ -1,54 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:qent/features/home/domain/models/car.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
+import 'package:qent/features/home/presentation/providers/car_providers.dart';
 import 'package:qent/features/home/presentation/widgets/brand_item.dart';
 import 'package:qent/features/home/presentation/widgets/car_card.dart';
 import 'package:qent/features/home/presentation/widgets/nearby_car_card.dart';
 import 'package:qent/features/search/presentation/widgets/filter_bottom_sheet.dart';
 
-class HomePage extends StatefulWidget {
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  ConsumerState<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
-  final List<Car> _bestCars = [
-    Car(
-      id: '1',
-      name: 'Ferrari-FF',
-      brand: 'Ferrari',
-      imageUrl: 'assets/images/ferrari_ff.png',
-      rating: 5.0,
-      location: 'Washington DC',
-      seats: 4,
-      pricePerDay: 200,
-    ),
-    Car(
-      id: '2',
-      name: 'Tesla Model S',
-      brand: 'Tesla',
-      imageUrl: 'assets/images/tesla_model_s.png',
-      rating: 5.0,
-      location: 'Chicago, USA',
-      seats: 5,
-      pricePerDay: 100,
-    ),
-  ];
-
-  final List<Car> _nearbyCars = [
-    Car(
-      id: '3',
-      name: 'BMW M4',
-      brand: 'BMW',
-      imageUrl: 'assets/images/bmw_m4.png',
-      rating: 4.8,
-      location: 'Lagos, Nigeria',
-      seats: 4,
-      pricePerDay: 150,
-    ),
-  ];
-
+class _HomePageState extends ConsumerState<HomePage> {
   final List<String> _brands = [
     'Tesla',
     'Lamborghini',
@@ -364,29 +330,7 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(height: 16),
         SizedBox(
           height: cardHeight,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
-            itemCount: _bestCars.length,
-            itemBuilder: (context, index) {
-              return Padding(
-                padding: EdgeInsets.only(
-                  right: index < _bestCars.length - 1 ? screenWidth * 0.04 : 0,
-                ),
-                child: CarCard(
-                  car: _bestCars[index],
-                  onFavoriteTap: () {
-                    setState(() {
-                      _bestCars[index] = _bestCars[index].copyWith(
-                        isFavorite: !_bestCars[index].isFavorite,
-                      );
-                    });
-                  },
-                ),
-              );
-            },
-          ),
+          child: _buildBestCarsList(context, screenWidth),
         ),
       ],
     );
@@ -431,18 +375,112 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
         const SizedBox(height: 16),
-        if (_nearbyCars.isNotEmpty)
-          NearbyCarCard(
-            car: _nearbyCars[0],
-            onFavoriteTap: () {
-              setState(() {
-                _nearbyCars[0] = _nearbyCars[0].copyWith(
-                  isFavorite: !_nearbyCars[0].isFavorite,
-                );
-              });
-            },
-          ),
+        _buildNearbyCar(context),
       ],
+    );
+  }
+
+  Widget _buildBestCarsList(BuildContext context, double screenWidth) {
+    final carsAsync = ref.watch(carsStreamProvider);
+
+    return carsAsync.when(
+      data: (cars) {
+        // Filter best cars (high rating)
+        final bestCars = cars.where((car) => car.rating >= 4.5).take(10).toList();
+
+        if (bestCars.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Text(
+                'No cars available',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ),
+          );
+        }
+
+        return ListView.builder(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
+          itemCount: bestCars.length,
+          itemBuilder: (context, index) {
+            final car = bestCars[index];
+            final auth = ref.read(firebaseAuthProvider);
+            final userId = auth.currentUser?.uid ?? '';
+
+            return Padding(
+              padding: EdgeInsets.only(
+                right: index < bestCars.length - 1 ? screenWidth * 0.04 : 0,
+              ),
+              child: CarCard(
+                car: car,
+                onFavoriteTap: () {
+                  if (userId.isNotEmpty) {
+                    ref.read(carControllerProvider).toggleFavorite(
+                      userId,
+                      car.id,
+                      !car.isFavorite,
+                    );
+                  }
+                },
+              ),
+            );
+          },
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stack) => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+            const SizedBox(height: 16),
+            Text(
+              'Error loading cars',
+              style: TextStyle(color: Colors.red[600]),
+            ),
+            const SizedBox(height: 8),
+            ElevatedButton(
+              onPressed: () => ref.invalidate(carsStreamProvider),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNearbyCar(BuildContext context) {
+    final carsAsync = ref.watch(carsStreamProvider);
+
+    return carsAsync.when(
+      data: (cars) {
+        if (cars.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        // Get first car as nearby (in real app, filter by location)
+        final nearbyCar = cars.first;
+        final auth = ref.read(firebaseAuthProvider);
+        final userId = auth.currentUser?.uid ?? '';
+
+        return NearbyCarCard(
+          car: nearbyCar,
+          onFavoriteTap: () {
+            if (userId.isNotEmpty) {
+              ref.read(carControllerProvider).toggleFavorite(
+                userId,
+                nearbyCar.id,
+                !nearbyCar.isFavorite,
+              );
+            }
+          },
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stack) => const SizedBox.shrink(),
     );
   }
 }

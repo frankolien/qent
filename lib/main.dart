@@ -1,6 +1,8 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:qent/core/services/cloudinary_service.dart';
+import 'package:qent/core/services/notification_service.dart';
 import 'package:qent/features/auth/presentation/pages/login_page.dart';
 import 'package:qent/features/auth/presentation/pages/signup_page.dart';
 import 'package:qent/features/home/presentation/pages/main_nav_page.dart';
@@ -14,8 +16,13 @@ void main() async {
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
-   
     );
+    
+    // Initialize notification service
+    await NotificationService().initialize();
+    
+    // Initialize Cloudinary
+    CloudinaryService().initialize();
   } catch (e) {
     debugPrint('Firebase initialization error: $e');
     // Continue app startup even if Firebase fails (for development)

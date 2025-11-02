@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:qent/features/chat/presentation/pages/messages_page.dart';
 import 'package:qent/features/home/presentation/pages/home_page.dart';
 import 'package:qent/features/home/presentation/widgets/custom_bottom_nav.dart';
+import 'package:qent/features/profile/presentation/pages/profile_page.dart';
 import 'package:qent/features/search/presentation/pages/search_page.dart';
 
 class MainNavPage extends StatefulWidget {
@@ -40,44 +42,6 @@ class _MainNavPageState extends State<MainNavPage> {
   }
 }
 
-// Placeholder pages
-class MessagesPage extends StatelessWidget {
-  const MessagesPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.email_outlined, size: 64, color: Colors.grey[400]),
-              const SizedBox(height: 16),
-              Text(
-                'Messages',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[600],
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Coming Soon',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey[400],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class NotificationsPage extends StatelessWidget {
   const NotificationsPage({super.key});
@@ -117,41 +81,4 @@ class NotificationsPage extends StatelessWidget {
   }
 }
 
-class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.person_outline, size: 64, color: Colors.grey[400]),
-              const SizedBox(height: 16),
-              Text(
-                'Profile',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[600],
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Coming Soon',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey[400],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 

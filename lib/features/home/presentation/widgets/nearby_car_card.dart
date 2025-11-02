@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:qent/features/car_details/presentation/pages/car_details_page.dart';
 import 'package:qent/features/home/domain/models/car.dart';
 
 class NearbyCarCard extends StatelessWidget {
@@ -16,22 +17,31 @@ class NearbyCarCard extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
     
-    return Container(
-      width: double.infinity,
-      height: screenHeight * 0.20,
-      margin: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CarDetailsPage(car: car),
           ),
-        ],
-      ),
-      child: ClipRRect(
+        );
+      },
+      child: Container(
+        width: double.infinity,
+        height: screenHeight * 0.20,
+        margin: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
         child: Stack(
           children: [
@@ -207,6 +217,7 @@ class NearbyCarCard extends StatelessWidget {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

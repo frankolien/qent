@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:qent/features/car_details/presentation/pages/car_details_page.dart';
 import 'package:qent/features/home/domain/models/car.dart';
 
 class SearchCarCard extends StatelessWidget {
@@ -16,15 +17,24 @@ class SearchCarCard extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
     final cardWidth = screenWidth * 0.47; // Same as homepage
     
-    return Container(
-      width: cardWidth,
-      constraints: const BoxConstraints(maxWidth: 200), // Same as homepage
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Column(
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CarDetailsPage(car: car),
+          ),
+        );
+      },
+      child: Container(
+        width: cardWidth,
+        constraints: const BoxConstraints(maxWidth: 200), // Same as homepage
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey[200]!),
+        ),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Car Image
@@ -140,7 +150,14 @@ class SearchCarCard extends StatelessWidget {
                       ),
                     ),
                     ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => CarDetailsPage(car: car),
+                          ),
+                        );
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF2C2C2C),
                         foregroundColor: Colors.white,
@@ -168,6 +185,7 @@ class SearchCarCard extends StatelessWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }

@@ -48,6 +48,17 @@ class AuthController extends Notifier<AuthState> {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
     }
   }
+
+  Future<void> signOut() async {
+    state = state.copyWith(isLoading: true);
+    try {
+      final repository = ref.read(authRepositoryProvider);
+      await repository.signOut();
+      state = state.copyWith(isLoading: false, user: null);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+    }
+  }
 }
 
 
