@@ -14,12 +14,16 @@ class OnlineStatusService {
   Timer? _lastSeenTimer;
   String? _currentUserId;
   DocumentReference? _userPresenceRef;
+  bool _isInitialized = false;
 
   /// Initialize the service
   void initialize({
     FirebaseFirestore? firestore,
     fb.FirebaseAuth? auth,
   }) {
+    // Skip if already initialized (hot restart scenario)
+    if (_isInitialized) return;
+    
     _firestore = firestore ?? FirebaseFirestore.instance;
     _auth = auth ?? fb.FirebaseAuth.instance;
     _currentUserId = _auth?.currentUser?.uid;
@@ -37,6 +41,8 @@ class OnlineStatusService {
         _cleanup();
       }
     });
+    
+    _isInitialized = true;
   }
 
   /// Setup presence tracking using Firestore onDisconnect

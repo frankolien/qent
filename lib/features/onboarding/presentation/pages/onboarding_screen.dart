@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qent/features/onboarding/presentation/widgets/onboarding_one_screen.dart';
 import 'package:qent/features/onboarding/presentation/widgets/onboarding_two_screen.dart';
+import 'package:qent/main.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -21,7 +22,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Fullscreen pages
           Positioned.fill(
             child: PageView.builder(
               controller: _pageController,
@@ -44,14 +44,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               },
             ),
           ),
-          // Header overlay
           Positioned(
             top: mediaPadding.top + 8,
             left: 16,
             right: 16,
             child: _buildHeader(),
           ),
-          // Bottom controls overlay
           Positioned(
             left: 0,
             right: 0,
@@ -110,14 +108,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           onPressed: () {
             if (isLastPage) {
-              // Placeholder: navigate to next route when available
-              Navigator.pushNamed(context, '/login');
+              OnboardingState.markOnboardingAsSeen();
+              Navigator.pushReplacementNamed(context, '/login');
             } else {
               _pageController.nextPage(
-                duration: const Duration(milliseconds: 300),
+                duration: const Duration(milliseconds: 100),
                 curve: Curves.easeOut,
               );
-            }
+            } 
           },
           child: Text(isLastPage ? 'Get Started' : 'Next'),
         ),

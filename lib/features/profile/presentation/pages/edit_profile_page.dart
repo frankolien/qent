@@ -74,12 +74,14 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
       // Load phone and profile image from Firestore if available
       final firestore = ref.read(firestoreProvider);
       final userDoc = await firestore.collection('users').doc(userId).get();
-      final userData = userDoc.data() ?? {};
-      final phone = userData['phone'] as String?;
-      if (phone != null) {
-        _phoneController.text = phone;
+      if (userDoc.exists) {
+        final userData = userDoc.data() ?? {};
+        final phone = userData['phone'] as String?;
+        if (phone != null) {
+          _phoneController.text = phone;
+        }
+        _profileImageUrl = userData['profileImageUrl'] as String?;
       }
-      _profileImageUrl = userData['profileImageUrl'] as String?;
     } catch (e) {
       debugPrint('Error loading profile: $e');
     } finally {

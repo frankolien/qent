@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:qent/core/widgets/profile_image_widget.dart';
 import 'package:qent/features/chat/domain/models/chat.dart';
 import 'package:qent/features/chat/presentation/controllers/chat_controller.dart';
@@ -18,21 +20,46 @@ class ChatDetailPage extends ConsumerStatefulWidget {
   ConsumerState<ChatDetailPage> createState() => _ChatDetailPageState();
 }
 
-class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
+class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTickerProviderStateMixin {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _focusNode = FocusNode();
   bool _isTyping = false;
   bool _hasMarkedAsRead = false;
-
+  bool _showAttachmentOptions = false;
+  late AnimationController _typingAnimationController;
+  
   @override
   void initState() {
     super.initState();
+    _typingAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat();
+    
+    _messageController.addListener(_onMessageChanged);
+    _focusNode.addListener(_onFocusChanged);
+  }
+  
+  void _onMessageChanged() {
+    setState(() {
+      // Trigger rebuild for input field
+    });
+  }
+  
+  void _onFocusChanged() {
+    // Don't auto-hide attachment options when focus changes
+    // User can toggle it manually
   }
 
   @override
   void dispose() {
+    _messageController.removeListener(_onMessageChanged);
+    _focusNode.removeListener(_onFocusChanged);
     _messageController.dispose();
     _scrollController.dispose();
+    _focusNode.dispose();
+    _typingAnimationController.dispose();
     super.dispose();
   }
 
@@ -42,12 +69,170 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     final period = dateTime.hour >= 12 ? 'pm' : 'am';
     return '$hour:$minute $period';
   }
+  
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final messageDate = DateTime(date.year, date.month, date.day);
+    
+    if (messageDate == today) {
+      return 'Today';
+    } else if (messageDate == yesterday) {
+      return 'Yesterday';
+    } else {
+      return DateFormat('MMMM d, yyyy').format(date);
+    }
+  }
+  
+  bool _shouldShowDateSeparator(List<ChatMessage> messages, int index) {
+    if (index == 0) return true;
+    
+    final currentDate = DateTime(
+      messages[index].timestamp.year,
+      messages[index].timestamp.month,
+      messages[index].timestamp.day,
+    );
+    final previousDate = DateTime(
+      messages[index - 1].timestamp.year,
+      messages[index - 1].timestamp.month,
+      messages[index - 1].timestamp.day,
+    );
+    
+    return currentDate != previousDate;
+  }
+  
+  void _showMessageMenu(BuildContext context, ChatMessage message) {
+    HapticFeedback.mediumImpact();
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildMenuOption(
+                context,
+                icon: Icons.copy,
+                label: 'Copy',
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: message.message));
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Message copied')),
+                  );
+                },
+              ),
+              _buildMenuOption(
+                context,
+                icon: Icons.reply,
+                label: 'Reply',
+                onTap: () {
+                  Navigator.pop(context);
+                  // TODO: Implement reply functionality
+                },
+              ),
+              _buildMenuOption(
+                context,
+                icon: Icons.forward,
+                label: 'Forward',
+                onTap: () {
+                  Navigator.pop(context);
+                  // TODO: Implement forward functionality
+                },
+              ),
+              _buildMenuOption(
+                context,
+                icon: Icons.delete_outline,
+                label: 'Delete',
+                isDestructive: true,
+                onTap: () {
+                  Navigator.pop(context);
+                  _showDeleteConfirmation(context, message);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildMenuOption(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    bool isDestructive = false,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: isDestructive ? Colors.red : Colors.black87,
+              size: 24,
+            ),
+            const SizedBox(width: 16),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 16,
+                color: isDestructive ? Colors.red : Colors.black87,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  void _showDeleteConfirmation(BuildContext context, ChatMessage message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Message'),
+        content: const Text('Are you sure you want to delete this message?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // TODO: Implement delete functionality
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Message deleted')),
+              );
+            },
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   void _sendMessage() {
     if (_messageController.text.trim().isEmpty) return;
 
     final message = _messageController.text.trim();
     _messageController.clear();
+    HapticFeedback.lightImpact();
 
     ref.read(chatControllerProvider).sendMessage(
       chatId: widget.chat.id,
@@ -55,7 +240,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       type: MessageType.text,
     );
 
-    // Auto-scroll to bottom
+    // Auto-scroll to bottom with smooth animation
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -237,16 +422,54 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
           );
         }
 
-        return ListView.builder(
-          controller: _scrollController,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          itemCount: messages.length + (_isTyping ? 1 : 0),
-          itemBuilder: (context, index) {
-            if (index == messages.length) {
-              return _buildTypingIndicator();
-            }
-            return _buildMessageBubble(messages[index]);
+        return RefreshIndicator(
+          onRefresh: () async {
+            ref.invalidate(messagesStreamProvider(widget.chat.id));
+            await Future.delayed(const Duration(milliseconds: 500));
           },
+          child: ListView.builder(
+            controller: _scrollController,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            itemCount: messages.length + (_isTyping ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (index == messages.length) {
+                return _buildTypingIndicator();
+              }
+              
+              final message = messages[index];
+              final auth = ref.read(firebaseAuthProvider);
+              final currentUserId = auth.currentUser?.uid ?? '';
+              final isMe = message.senderId == currentUserId || message.senderId == 'current';
+              
+              // Check if we should show date separator
+              final showDateSeparator = _shouldShowDateSeparator(messages, index);
+              
+              // Check if previous message is from same sender and within 5 minutes
+              final showAvatar = index == 0 || 
+                  messages[index - 1].senderId != message.senderId ||
+                  message.timestamp.difference(messages[index - 1].timestamp).inMinutes > 5;
+              
+              // Check if next message is from same sender and within 5 minutes (to determine if this is last in group)
+              final isLastInGroup = index == messages.length - 1 ||
+                  messages[index + 1].senderId != message.senderId ||
+                  messages[index + 1].timestamp.difference(message.timestamp).inMinutes > 5;
+              
+              return Column(
+                children: [
+                  if (showDateSeparator) _buildDateSeparator(message.timestamp),
+                  GestureDetector(
+                    onLongPress: () => _showMessageMenu(context, message),
+                    child: _buildMessageBubble(
+                      message,
+                      showAvatar: showAvatar,
+                      showTimestamp: isLastInGroup,
+                      isMe: isMe,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
         );
       },
       loading: () => const MessageListSkeleton(),
@@ -275,23 +498,60 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     );
   }
 
-  Widget _buildMessageBubble(ChatMessage message) {
-    final auth = ref.read(firebaseAuthProvider);
-    final currentUserId = auth.currentUser?.uid ?? '';
-    final isMe = message.senderId == currentUserId || message.senderId == 'current';
-    
+  Widget _buildDateSeparator(DateTime date) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      child: Row(
+        children: [
+          Expanded(child: Divider(color: Colors.grey[300], thickness: 1)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                _formatDate(date),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[700],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+          Expanded(child: Divider(color: Colors.grey[300], thickness: 1)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMessageBubble(ChatMessage message, {required bool showAvatar, required bool showTimestamp, required bool isMe}) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: showAvatar ? 8 : 2, // Less spacing between grouped messages
+        bottom: 2,
+      ),
       child: Row(
         mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isMe) ...[
-            ProfileImageWidget(
-              userId: message.senderId,
-              size: 32,
-            ),
-            const SizedBox(width: 8),
+            // Only show avatar if this is the first message in a group
+            if (showAvatar) ...[
+              ProfileImageWidget(
+                userId: message.senderId,
+                size: 32,
+              ),
+              const SizedBox(width: 8),
+            ] else ...[
+              // Spacer to align with messages that have avatars
+              const SizedBox(width: 40),
+            ],
           ],
           Flexible(
             child: Column(
@@ -303,20 +563,32 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
-                    color: isMe ? Colors.blue[50] : Colors.grey[200],
-                    borderRadius: BorderRadius.circular(20),
+                    color: isMe ? Colors.blue[600] : Colors.grey[200],
+                    borderRadius: BorderRadius.only(
+                      topLeft: const Radius.circular(20),
+                      topRight: const Radius.circular(20),
+                      bottomLeft: Radius.circular(isMe ? 20 : 4),
+                      bottomRight: Radius.circular(isMe ? 4 : 20),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: message.type == MessageType.voice
                       ? Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.graphic_eq, color: Colors.grey[700], size: 20),
+                            Icon(Icons.graphic_eq, color: isMe ? Colors.white : Colors.grey[700], size: 20),
                             const SizedBox(width: 8),
                             Text(
                               'Voice message',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: Colors.grey[700],
+                                color: isMe ? Colors.white : Colors.grey[700],
                               ),
                             ),
                           ],
@@ -325,32 +597,36 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                           message.message,
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.black87,
+                            color: isMe ? Colors.white : Colors.black87,
+                            fontWeight: FontWeight.w400,
                           ),
                           softWrap: true,
                         ),
                 ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _formatMessageTime(message.timestamp),
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey[500],
+                // Only show timestamp and read receipts for the last message in a group
+                if (showTimestamp) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _formatMessageTime(message.timestamp),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey[500],
+                        ),
                       ),
-                    ),
-                    if (isMe) ...[
-                      const SizedBox(width: 4),
-                      Icon(
-                        Icons.done_all,
-                        size: 14,
-                        color: message.isRead ? Colors.blue : Colors.grey,
-                      ),
+                      if (isMe) ...[
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.done_all,
+                          size: 14,
+                          color: message.isRead ? Colors.blue[600] : Colors.grey,
+                        ),
+                      ],
                     ],
-                  ],
-                ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -361,25 +637,12 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
 
   Widget _buildTypingIndicator() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.grey[300],
-            ),
-            child: ClipOval(
-              child: Image.asset(
-                widget.chat.userImageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return const Icon(Icons.person, size: 20, color: Colors.grey);
-                },
-              ),
-            ),
+          ProfileImageWidget(
+            userId: widget.chat.userId,
+            size: 32,
           ),
           const SizedBox(width: 8),
           Container(
@@ -388,82 +651,223 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
               color: Colors.grey[200],
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Typing......',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[700],
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ],
+            child: AnimatedBuilder(
+              animation: _typingAnimationController,
+              builder: (context, child) {
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildAnimatedDot(0),
+                    const SizedBox(width: 4),
+                    _buildAnimatedDot(0.3),
+                    const SizedBox(width: 4),
+                    _buildAnimatedDot(0.6),
+                  ],
+                );
+              },
             ),
           ),
         ],
       ),
     );
   }
+  
+  Widget _buildAnimatedDot(double delay) {
+    return AnimatedBuilder(
+      animation: _typingAnimationController,
+      builder: (context, child) {
+        final value = (_typingAnimationController.value + delay) % 1.0;
+        final opacity = value < 0.5 ? value * 2 : (1 - value) * 2;
+        return Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: Colors.grey[600]?.withOpacity(opacity),
+            shape: BoxShape.circle,
+          ),
+        );
+      },
+    );
+  }
 
   Widget _buildMessageInput() {
-    return Container(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).padding.bottom,
-        top: 8,
-        left: 16,
-        right: 16,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
+    final hasText = _messageController.text.trim().isNotEmpty;
+    
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Attachment options (shown when focused)
+        if (_showAttachmentOptions) _buildAttachmentOptions(),
+        Container(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).padding.bottom,
+            top: 8,
+            left: 16,
+            right: 16,
           ),
-        ],
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, -2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              // Attachment button
+              IconButton(
+                icon: Icon(
+                  _showAttachmentOptions ? Icons.close : Icons.attach_file,
+                  color: _showAttachmentOptions ? Colors.blue[600] : Colors.grey,
+                ),
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  setState(() {
+                    _showAttachmentOptions = !_showAttachmentOptions;
+                  });
+                },
+              ),
+              Expanded(
+                child: Container(
+                  constraints: const BoxConstraints(maxHeight: 100),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(25),
+                    border: Border.all(
+                      color: _focusNode.hasFocus ? Colors.blue[300]! : Colors.transparent,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: TextField(
+                    controller: _messageController,
+                    focusNode: _focusNode,
+                    decoration: InputDecoration(
+                      hintText: 'Type a message...',
+                      hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                    maxLines: 4,
+                    minLines: 1,
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) => _sendMessage(),
+                  ),
+                ),
+              ),
+              // Emoji button or Send button
+              if (hasText)
+                IconButton(
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[600],
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.send, color: Colors.white, size: 20),
+                  ),
+                  onPressed: _sendMessage,
+                )
+              else
+                IconButton(
+                  icon: const Icon(Icons.emoji_emotions_outlined, color: Colors.grey),
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    // TODO: Implement emoji picker
+                  },
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildAttachmentOptions() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        border: Border(
+          bottom: BorderSide(color: Colors.grey[200]!, width: 1),
+        ),
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.grey),
-            onPressed: () {},
+          _buildAttachmentOption(
+            icon: Icons.photo_library,
+            label: 'Gallery',
+            onTap: () {
+              HapticFeedback.lightImpact();
+              // TODO: Implement gallery picker
+            },
           ),
-          Expanded(
-            child: Container(
-              constraints: const BoxConstraints(maxHeight: 100),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(25),
-              ),
-              child: TextField(
-                controller: _messageController,
-                decoration: InputDecoration(
-                  hintText: 'Type a message...',
-                  hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                ),
-                maxLines: 4,
-                minLines: 1,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => _sendMessage(),
-              ),
-            ),
+          _buildAttachmentOption(
+            icon: Icons.camera_alt,
+            label: 'Camera',
+            onTap: () {
+              HapticFeedback.lightImpact();
+              // TODO: Implement camera
+            },
           ),
-          IconButton(
-            icon: const Icon(Icons.emoji_emotions_outlined, color: Colors.grey),
-            onPressed: () {},
+          _buildAttachmentOption(
+            icon: Icons.attach_file,
+            label: 'Document',
+            onTap: () {
+              HapticFeedback.lightImpact();
+              // TODO: Implement document picker
+            },
           ),
-          IconButton(
-            icon: const Icon(Icons.send, color: Colors.blue),
-            onPressed: _sendMessage,
+          _buildAttachmentOption(
+            icon: Icons.mic,
+            label: 'Voice',
+            onTap: () {
+              HapticFeedback.lightImpact();
+              // TODO: Implement voice recording
+            },
           ),
         ],
+      ),
+    );
+  }
+  
+  Widget _buildAttachmentOption({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: Colors.blue[700], size: 24),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[700],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -65,15 +65,34 @@ class FirestoreCarDataSource {
       await favoriteRef.delete();
     }
 
-    // Update car favorite count
-    await _firestore.collection('cars').doc(carId).update({
-      'isFavorite': isFavorite,
-    });
+    // Update car favorite count - use set with merge to avoid not-found errors
+    try {
+      final carRef = _firestore.collection('cars').doc(carId);
+      final carDoc = await carRef.get();
+      if (carDoc.exists) {
+        await carRef.update({
+          'isFavorite': isFavorite,
+        });
+      }
+    } catch (e) {
+      // Silently fail if car document doesn't exist
+      // This can happen if the car was deleted but favorites reference it
+    }
   }
 
   // Update car details
   Future<void> updateCar(String carId, Map<String, dynamic> updates) async {
-    await _firestore.collection('cars').doc(carId).update(updates);
+    try {
+      final carRef = _firestore.collection('cars').doc(carId);
+      final carDoc = await carRef.get();
+      if (carDoc.exists) {
+        await carRef.update(updates);
+      } else {
+        throw Exception('Car document not found: $carId');
+      }
+    } catch (e) {
+      rethrow;
+    }
   }
 
   // Helper method

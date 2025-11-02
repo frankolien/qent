@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:qent/core/services/email_verification_service.dart';
+import 'package:qent/features/auth/presentation/pages/verification_code_page.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 
 class SignUpPage extends ConsumerStatefulWidget {
@@ -17,6 +19,8 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
   final _countryController = TextEditingController();
   bool _obscurePassword = true;
   String _selectedCountry = 'Nigeria'; // Default to Nigeria
+  bool _isSendingCode = false;
+  final EmailVerificationService _verificationService = EmailVerificationService();
 
   // Nigeria is prioritized as the main focus
   final List<String> _countries = [
@@ -47,20 +51,134 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
   }
 
   Future<void> _handleSignUp() async {
-    if (_formKey.currentState!.validate()) {
-      await ref.read(authControllerProvider.notifier).signUp(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-            fullName: _fullNameController.text.trim(),
-            country: _selectedCountry,
-          );
+    if (!_formKey.currentState!.validate()) {
+      return;
     }
+
+    final email = _emailController.text.trim();
+
+    setState(() {
+      _isSendingCode = true;
+    });
+
+    try {
+      // Generate verification code
+      final code = _verificationService.generateVerificationCode();
+
+      // Save code to Firestore
+      await _verificationService.saveVerificationCode(email, code);
+
+      // Send email via EmailJS
+      final emailSent = await _verificationService.sendVerificationCode(email, code);
+
+      if (!mounted) return;
+
+      if (emailSent) {
+        // Create masked email for display
+        final maskedEmail = _maskEmail(email);
+
+        // Navigate to verification page
+        final verified = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VerificationCodePage(
+              email: email,
+              maskedEmail: maskedEmail,
+            ),
+          ),
+        );
+
+        // If verification successful, complete signup
+        if (verified == true && mounted) {
+          await ref.read(authControllerProvider.notifier).signUp(
+                email: email,
+                password: _passwordController.text,
+                fullName: _fullNameController.text.trim(),
+                country: _selectedCountry,
+              );
+        } else if (mounted) {
+          // User cancelled or verification failed
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Verification cancelled or failed'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          // Check if it's a Resend domain verification issue
+          final email = _emailController.text.trim();
+          final isDomainIssue = email != 'frankolien123@gmail.com';
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                isDomainIssue
+                    ? 'Verification email setup in progress. For now, please use frankolien123@gmail.com for testing, or verify your domain at resend.com/domains to send to any email.'
+                    : 'Failed to send verification code. Please check your email address and try again.',
+              ),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 6),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error sending code: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSendingCode = false;
+        });
+      }
+    }
+  }
+
+  String _maskEmail(String email) {
+    final parts = email.split('@');
+    if (parts.length != 2) return email;
+
+    final username = parts[0];
+    final domain = parts[1];
+
+    // Mask username (show first char, mask middle, show last char if long enough)
+    String maskedUsername;
+    if (username.length <= 2) {
+      maskedUsername = '*' * username.length;
+    } else {
+      maskedUsername = '${username[0]}${'*' * (username.length - 2)}${username[username.length - 1]}';
+    }
+
+    // Mask domain (show first 3 chars, mask rest)
+    final domainParts = domain.split('.');
+    if (domainParts.isEmpty) return email;
+
+    final domainName = domainParts[0];
+    final domainExtension = domainParts.length > 1 ? '.${domainParts.sublist(1).join('.')}' : '';
+
+    String maskedDomain;
+    if (domainName.length <= 3) {
+      maskedDomain = '*' * domainName.length;
+    } else {
+      maskedDomain = '${domainName.substring(0, 3)}${'*' * (domainName.length - 3)}';
+    }
+
+    return '$maskedUsername@$maskedDomain$domainExtension';
   }
 
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
-    final isLoading = authState.isLoading;
+    final isLoading = authState.isLoading || _isSendingCode;
 
     // Show error message if signup fails
     if (authState.errorMessage != null && mounted) {
@@ -340,9 +458,9 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 )
-              : const Text(
-                  'Sign up',
-                  style: TextStyle(
+              : Text(
+                  _isSendingCode ? 'Sending code...' : 'Sign up',
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),

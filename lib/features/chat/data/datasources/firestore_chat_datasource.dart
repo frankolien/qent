@@ -31,17 +31,93 @@ class FirestoreChatDataSource {
         .snapshots()
         .asyncMap((snapshot) async {
       final chats = <Chat>[];
+      final userIdsToFetch = <String>{};
+      final chatsWithUserIds = <Chat, String>{};
+      
+      // First pass: extract user IDs and use cached/stored data
       for (var doc in snapshot.docs) {
         try {
-          final chat = await _chatFromFirestore(doc);
+          final data = doc.data() as Map<String, dynamic>;
+          final participants = List<String>.from(data['participants'] ?? []);
+          final otherUserId = participants.firstWhere(
+            (id) => id != _currentUserId,
+            orElse: () => participants.isNotEmpty ? participants.first : '',
+          );
+          
+          if (otherUserId.isNotEmpty) {
+            userIdsToFetch.add(otherUserId);
+          }
+          
+          // Create chat with stored data first (fast)
+          final chat = Chat(
+            id: doc.id,
+            userId: otherUserId,
+            userName: data['userName'] ?? 'Unknown',
+            userImageUrl: data['userImageUrl'] ?? '',
+            lastMessage: data['lastMessage'] ?? '',
+            lastMessageTime: (data['lastMessageTime'] as Timestamp?)?.toDate() ?? DateTime.now(),
+            unreadCount: data['unreadCount'] ?? 0,
+            isOnline: false, // Will update from cache if available
+          );
+          
           chats.add(chat);
+          if (otherUserId.isNotEmpty) {
+            chatsWithUserIds[chat] = otherUserId;
+          }
         } catch (e) {
           debugPrint('Error loading chat ${doc.id}: $e');
-          // Continue with other chats even if one fails
         }
       }
       
-      // Sort by lastMessageTime in memory (more reliable than Firestore orderBy)
+      // Batch fetch user data only if needed (optimize: only fetch if data is stale)
+      if (userIdsToFetch.isNotEmpty) {
+        try {
+          final userDocs = await Future.wait(
+            userIdsToFetch.map((id) => _firestore.collection('users').doc(id).get()),
+          );
+          
+          final userDataMap = <String, Map<String, dynamic>>{};
+          for (var i = 0; i < userIdsToFetch.length; i++) {
+            final userId = userIdsToFetch.elementAt(i);
+            final userDoc = userDocs[i];
+            if (userDoc.exists) {
+              userDataMap[userId] = userDoc.data() ?? {};
+            }
+          }
+          
+          // Update chats with fresh user data
+          for (var i = 0; i < chats.length; i++) {
+            final chat = chats[i];
+            final userId = chatsWithUserIds[chat];
+            if (userId != null) {
+              final userData = userDataMap[userId];
+              if (userData != null) {
+                final userName = userData['fullName'] ?? chat.userName;
+                final userImageUrl = userData['profileImageUrl'] ?? chat.userImageUrl;
+                final onlineValue = userData['isOnline'];
+                final isOnline = onlineValue is bool ? onlineValue : (onlineValue == true);
+                
+                // Create new chat instance with updated data
+                chats[i] = Chat(
+                  id: chat.id,
+                  userId: chat.userId,
+                  userName: userName,
+                  userImageUrl: userImageUrl,
+                  lastMessage: chat.lastMessage,
+                  lastMessageTime: chat.lastMessageTime,
+                  unreadCount: chat.unreadCount,
+                  isOnline: isOnline,
+                );
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint('Error batch fetching user data: $e');
+          // Continue with stored data on error
+        }
+      }
+      
+      // Sort by lastMessageTime in memory
       chats.sort((a, b) => b.lastMessageTime.compareTo(a.lastMessageTime));
       
       return chats;
@@ -187,7 +263,7 @@ class FirestoreChatDataSource {
 
     // Get other user's profile data
     final otherUserDoc = await _firestore.collection('users').doc(otherUserId).get();
-    final otherUserData = otherUserDoc.data() ?? {};
+    final otherUserData = otherUserDoc.exists ? (otherUserDoc.data() ?? {}) : {};
 
     // Create new chat
     final chatRef = _firestore.collection('chats').doc();
@@ -208,8 +284,14 @@ class FirestoreChatDataSource {
 
   // Get user data
   Future<Map<String, dynamic>?> getUserData(String userId) async {
-    final doc = await _firestore.collection('users').doc(userId).get();
-    return doc.data();
+    try {
+      final doc = await _firestore.collection('users').doc(userId).get();
+      if (!doc.exists) return null;
+      return doc.data();
+    } catch (e) {
+      debugPrint('Error getting user data: $e');
+      return null;
+    }
   }
 
   // Search for users by name or email

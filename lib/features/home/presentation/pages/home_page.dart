@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/home/presentation/providers/car_providers.dart';
+import 'package:qent/features/home/domain/models/car.dart';
 import 'package:qent/features/home/presentation/widgets/brand_item.dart';
 import 'package:qent/features/home/presentation/widgets/car_card.dart';
 import 'package:qent/features/home/presentation/widgets/nearby_car_card.dart';
@@ -25,6 +26,11 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
+    // Watch cars stream once at top level to avoid multiple watches
+    final carsAsync = ref.watch(carsStreamProvider);
+    // Read providers once (optimization)
+    final userId = ref.read(firebaseAuthProvider).currentUser?.uid ?? '';
+    final carController = ref.read(carControllerProvider);
     
     return Scaffold(
       backgroundColor: Color(0xFFF8F8F8),
@@ -52,9 +58,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                       ),
                       child: Column(
                         children: [
-                          _buildBestCarsSection(context),
+                          _buildBestCarsSection(context, carsAsync, userId, carController),
                           SizedBox(height: screenHeight * 0.025),
-                          _buildNearbySection(context),
+                          _buildNearbySection(context, carsAsync, userId, carController),
                         ],
                       )
                       ),
@@ -270,7 +276,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  Widget _buildBestCarsSection(BuildContext context) {
+  Widget _buildBestCarsSection(BuildContext context, AsyncValue<List<Car>> carsAsync, String userId, CarController carController) {
     final screenWidth = MediaQuery.of(context).size.width;
     final cardHeight = MediaQuery.of(context).size.height * 0.28;
     
@@ -330,13 +336,13 @@ class _HomePageState extends ConsumerState<HomePage> {
         const SizedBox(height: 16),
         SizedBox(
           height: cardHeight,
-          child: _buildBestCarsList(context, screenWidth),
+          child: _buildBestCarsList(context, screenWidth, carsAsync, userId, carController),
         ),
       ],
     );
   }
 
-  Widget _buildNearbySection(BuildContext context) {
+  Widget _buildNearbySection(BuildContext context, AsyncValue<List<Car>> carsAsync, String userId, CarController carController) {
     final screenWidth = MediaQuery.of(context).size.width;
     
     return Column(
@@ -375,17 +381,15 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
         ),
         const SizedBox(height: 16),
-        _buildNearbyCar(context),
+        _buildNearbyCar(context, carsAsync, userId, carController),
       ],
     );
   }
 
-  Widget _buildBestCarsList(BuildContext context, double screenWidth) {
-    final carsAsync = ref.watch(carsStreamProvider);
-
+  Widget _buildBestCarsList(BuildContext context, double screenWidth, AsyncValue<List<Car>> carsAsync, String userId, CarController carController) {
     return carsAsync.when(
       data: (cars) {
-        // Filter best cars (high rating)
+        // Filter best cars (high rating) - memoize this computation
         final bestCars = cars.where((car) => car.rating >= 4.5).take(10).toList();
 
         if (bestCars.isEmpty) {
@@ -407,8 +411,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           itemCount: bestCars.length,
           itemBuilder: (context, index) {
             final car = bestCars[index];
-            final auth = ref.read(firebaseAuthProvider);
-            final userId = auth.currentUser?.uid ?? '';
+            // No ref.read in itemBuilder - all data passed as parameters
 
             return Padding(
               padding: EdgeInsets.only(
@@ -418,7 +421,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 car: car,
                 onFavoriteTap: () {
                   if (userId.isNotEmpty) {
-                    ref.read(carControllerProvider).toggleFavorite(
+                    carController.toggleFavorite(
                       userId,
                       car.id,
                       !car.isFavorite,
@@ -452,9 +455,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  Widget _buildNearbyCar(BuildContext context) {
-    final carsAsync = ref.watch(carsStreamProvider);
-
+  Widget _buildNearbyCar(BuildContext context, AsyncValue<List<Car>> carsAsync, String userId, CarController carController) {
     return carsAsync.when(
       data: (cars) {
         if (cars.isEmpty) {
@@ -463,14 +464,12 @@ class _HomePageState extends ConsumerState<HomePage> {
 
         // Get first car as nearby (in real app, filter by location)
         final nearbyCar = cars.first;
-        final auth = ref.read(firebaseAuthProvider);
-        final userId = auth.currentUser?.uid ?? '';
 
         return NearbyCarCard(
           car: nearbyCar,
           onFavoriteTap: () {
             if (userId.isNotEmpty) {
-              ref.read(carControllerProvider).toggleFavorite(
+              carController.toggleFavorite(
                 userId,
                 nearbyCar.id,
                 !nearbyCar.isFavorite,

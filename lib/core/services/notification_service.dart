@@ -22,8 +22,13 @@ class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
+  
+  bool _isInitialized = false;
 
   Future<void> initialize() async {
+    // Skip if already initialized (hot restart scenario)
+    if (_isInitialized) return;
+    
     // Request permission
     NotificationSettings settings = await _messaging.requestPermission(
       alert: true,
@@ -60,8 +65,14 @@ class NotificationService {
       _handleNotificationTap(initialMessage);
     }
 
-    // Save FCM token to user document
-    await _saveFCMToken();
+    // Save FCM token to user document (non-blocking)
+    _saveFCMToken().catchError((e) {
+      if (kDebugMode) {
+        print('Error saving FCM token: $e');
+      }
+    });
+    
+    _isInitialized = true;
   }
 
   Future<void> _initializeLocalNotifications() async {

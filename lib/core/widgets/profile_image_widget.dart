@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
+import 'package:qent/core/providers/user_cache_provider.dart';
 
 class ProfileImageWidget extends ConsumerWidget {
   final String? userId;
@@ -26,25 +25,22 @@ class ProfileImageWidget extends ConsumerWidget {
       return _buildImageWithUrl(imageUrl!);
     }
 
-    // If userId is provided, fetch from Firestore
+    // If userId is provided, use cached stream provider for better performance
     if (userId != null && userId!.isNotEmpty) {
-      return StreamBuilder<DocumentSnapshot>(
-        stream: ref
-            .watch(firestoreProvider)
-            .collection('users')
-            .doc(userId)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasData && snapshot.data!.exists) {
-            final userData = snapshot.data!.data() as Map<String, dynamic>?;
-            final profileImageUrl = userData?['profileImageUrl'] as String?;
-
+      final userDataAsync = ref.watch(userDataStreamProvider(userId!));
+      
+      return userDataAsync.when(
+        data: (userData) {
+          if (userData != null) {
+            final profileImageUrl = userData['profileImageUrl'] as String?;
             if (profileImageUrl != null && profileImageUrl.isNotEmpty) {
               return _buildImageWithUrl(profileImageUrl);
             }
           }
           return _buildPlaceholder();
         },
+        loading: () => _buildPlaceholder(),
+        error: (_, __) => _buildPlaceholder(),
       );
     }
 

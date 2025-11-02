@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/core/widgets/profile_image_widget.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart' as auth_providers;
@@ -137,13 +138,27 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
   }
 
   Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(25),
+          border: Border.all(
+            color: _searchController.text.isNotEmpty ? Colors.blue[300]! : Colors.transparent,
+            width: 1.5,
+          ),
         ),
         child: Row(
           children: [
@@ -153,12 +168,13 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
               child: TextField(
                 controller: _searchController,
                 onChanged: (value) {
+                  HapticFeedback.selectionClick();
                   setState(() {
                     _searchQuery = value.toLowerCase();
                   });
                 },
                 decoration: InputDecoration(
-                  hintText: 'Search your dream car.....',
+                  hintText: 'Search chats...',
                   hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
                   border: InputBorder.none,
                   isDense: true,
@@ -166,6 +182,17 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                 ),
               ),
             ),
+            if (_searchQuery.isNotEmpty)
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  setState(() {
+                    _searchQuery = '';
+                    _searchController.clear();
+                  });
+                },
+                child: Icon(Icons.clear, color: Colors.grey[600], size: 20),
+              ),
           ],
         ),
       ),
@@ -230,12 +257,18 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
         );
       }
 
-      return ListView.builder(
-        itemCount: filteredChats.length,
-        itemBuilder: (context, index) {
-          final chat = filteredChats[index];
-          return _buildChatItem(chat);
+      return RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(chatsStreamProvider);
+          await Future.delayed(const Duration(milliseconds: 500));
         },
+        child: ListView.builder(
+          itemCount: filteredChats.length,
+          itemBuilder: (context, index) {
+            final chat = filteredChats[index];
+            return _buildSwipeableChatItem(chat);
+          },
+        ),
       );
     }
 
@@ -301,9 +334,90 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
     );
   }
 
+  Widget _buildSwipeableChatItem(Chat chat) {
+    return Dismissible(
+      key: Key(chat.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        decoration: BoxDecoration(
+          color: Colors.red,
+          borderRadius: BorderRadius.circular(0),
+        ),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.delete, color: Colors.white, size: 28),
+            SizedBox(height: 4),
+            Text(
+              'Delete',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+      secondaryBackground: Container(
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.only(left: 20),
+        decoration: BoxDecoration(
+          color: Colors.blue[600],
+          borderRadius: BorderRadius.circular(0),
+        ),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.archive, color: Colors.white, size: 28),
+            SizedBox(height: 4),
+            Text(
+              'Archive',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+      onDismissed: (direction) {
+        HapticFeedback.mediumImpact();
+        if (direction == DismissDirection.endToStart) {
+          // Delete chat
+          // TODO: Implement delete functionality
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Chat deleted'),
+              action: SnackBarAction(
+                label: 'Undo',
+                onPressed: () {
+                  // TODO: Implement undo functionality
+                },
+              ),
+            ),
+          );
+        } else {
+          // Archive chat
+          // TODO: Implement archive functionality
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Chat archived')),
+          );
+        }
+      },
+      confirmDismiss: (direction) async {
+        HapticFeedback.heavyImpact();
+        return direction == DismissDirection.endToStart;
+      },
+      child: _buildChatItem(chat),
+    );
+  }
+
   Widget _buildChatItem(Chat chat) {
     return InkWell(
       onTap: () {
+        HapticFeedback.selectionClick();
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -312,8 +426,9 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
         );
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
+          color: chat.unreadCount > 0 ? Colors.blue[50]?.withOpacity(0.3) : Colors.white,
           border: Border(
             bottom: BorderSide(color: Colors.grey[200]!, width: 0.5),
           ),
@@ -358,24 +473,30 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        chat.userName,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black,
+                      Expanded(
+                        child: Text(
+                          chat.userName,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: chat.unreadCount > 0 ? FontWeight.bold : FontWeight.w600,
+                            color: Colors.black,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Text(
                         _formatTime(chat.lastMessageTime),
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey[600],
+                          color: chat.unreadCount > 0 ? Colors.blue[600] : Colors.grey[600],
+                          fontWeight: chat.unreadCount > 0 ? FontWeight.w600 : FontWeight.normal,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Row(
                     children: [
                       Expanded(
@@ -383,7 +504,8 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                           chat.lastMessage,
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.grey[600],
+                            color: chat.unreadCount > 0 ? Colors.black87 : Colors.grey[600],
+                            fontWeight: chat.unreadCount > 0 ? FontWeight.w500 : FontWeight.normal,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -392,13 +514,13 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                       if (chat.unreadCount > 0) ...[
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: const BoxDecoration(
-                            color: Colors.blue,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.blue[600],
                             shape: BoxShape.circle,
                           ),
                           child: Text(
-                            '${chat.unreadCount}',
+                            chat.unreadCount > 99 ? '99+' : '${chat.unreadCount}',
                             style: const TextStyle(
                               fontSize: 12,
                               color: Colors.white,

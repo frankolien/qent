@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/home/data/datasources/firestore_car_datasource.dart';
@@ -43,7 +44,9 @@ class CarController {
     try {
       await _dataSource.toggleFavorite(userId, carId, isFavorite);
     } catch (e) {
-      rethrow;
+      // Log error but don't throw - favorite toggle should be resilient
+      // The car document might not exist, which is okay
+      debugPrint('Error toggling favorite: $e');
     }
   }
 }

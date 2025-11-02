@@ -76,17 +76,19 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final authState = ref.watch(authControllerProvider);
     final isLoading = authState.isLoading;
 
-    // Show error message if authentication fails
     if (authState.errorMessage != null && mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        showError(_getErrorMessage(authState.errorMessage!));
+        if (mounted) {
+          showError(_getErrorMessage(authState.errorMessage!));
+        }
       });
     }
 
-    // Navigate on successful login
     if (authState.user != null && mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.pushReplacementNamed(context, '/home');
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
       });
     }
 

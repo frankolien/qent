@@ -28,6 +28,7 @@ class FCMNotificationDataSource {
   Future<String?> getFCMToken(String userId) async {
     try {
       final userDoc = await _firestore.collection('users').doc(userId).get();
+      if (!userDoc.exists) return null;
       return userDoc.data()?['fcmToken'] as String?;
     } catch (e) {
       if (kDebugMode) {
