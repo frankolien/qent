@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 /// Service for email verification using Resend
@@ -11,8 +12,8 @@ class EmailVerificationService {
   EmailVerificationService._internal();
 
   // Resend Configuration
-  static const String _apiKey = 're_DgPXrMYA_CzjMNtQ8d34PfgDeiWRzCNyJ';
-  static const String _sender = 'Qent <noreply@qent.online>'; // Your verified domain
+  String get _apiKey => dotenv.env['RESEND_API_KEY'] ?? '';
+  static const String _sender = 'Qent <noreply@qent.online>';
   static const String _resendApiUrl = 'https://api.resend.com/emails';
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;

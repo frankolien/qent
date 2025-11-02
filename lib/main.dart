@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:qent/core/services/cloudinary_service.dart';
 import 'package:qent/core/services/notification_service.dart';
 import 'package:qent/core/services/online_status_service.dart';
@@ -16,6 +17,12 @@ bool _servicesInitialized = false;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (e) {
+    debugPrint('Error loading .env file: $e');
+  }
 
   try {
     if (Firebase.apps.isEmpty) {
@@ -43,7 +50,11 @@ void _initializeServicesAsync() async {
       debugPrint('Notification service init error: $e');
     });
     
-    CloudinaryService().initialize();
+    CloudinaryService().initialize(
+      cloudName: dotenv.env['CLOUDINARY_CLOUD_NAME'],
+      apiKey: dotenv.env['CLOUDINARY_API_KEY'],
+      apiSecret: dotenv.env['CLOUDINARY_API_SECRET'],
+    );
     OnlineStatusService().initialize();
   } catch (e) {
     debugPrint('Async service initialization error: $e');
