@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/core/widgets/profile_image_widget.dart';
 import 'package:qent/features/chat/domain/models/chat.dart';
 import 'package:qent/features/chat/presentation/controllers/chat_controller.dart';
+import 'package:qent/features/chat/presentation/providers/online_status_providers.dart';
 import 'package:qent/features/chat/presentation/widgets/chat_skeleton.dart';
 
 class ChatDetailPage extends ConsumerStatefulWidget {
@@ -82,61 +83,68 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
+        title: Consumer(
+          builder: (context, ref, child) {
+            final onlineStatusAsync = ref.watch(onlineStatusStreamProvider(widget.chat.userId));
+            final isOnline = onlineStatusAsync.value ?? false;
+            
+            return Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                ProfileImageWidget(
-                  userId: widget.chat.userId,
-                  size: 40,
-                ),
-                if (widget.chat.isOnline)
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: Colors.green,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    ProfileImageWidget(
+                      userId: widget.chat.userId,
+                      size: 40,
+                    ),
+                    if (isOnline)
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: Colors.green,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                        ),
                       ),
-                    ),
+                  ],
+                ),
+                const SizedBox(width: 12),
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        widget.chat.userName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                      Text(
+                        isOnline ? 'Online' : 'Offline',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isOnline ? Colors.green : Colors.grey[600],
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ],
                   ),
+                ),
               ],
-            ),
-            const SizedBox(width: 12),
-            Flexible(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    widget.chat.userName,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                  Text(
-                    widget.chat.isOnline ? 'Online' : 'Offline',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: widget.chat.isOnline ? Colors.green : Colors.grey[600],
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                ],
-              ),
-            ),
-          ],
+            );
+          },
         ),
         actions: [
           IconButton(
@@ -336,7 +344,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                     if (isMe) ...[
                       const SizedBox(width: 4),
                       Icon(
-                        message.isRead ? Icons.done_all : Icons.done,
+                        Icons.done_all,
                         size: 14,
                         color: message.isRead ? Colors.blue : Colors.grey,
                       ),
@@ -434,7 +442,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
               child: TextField(
                 controller: _messageController,
                 decoration: InputDecoration(
-                  hintText: 'I\'ll complete the booking now. Thank you!',
+                  hintText: 'Type a message...',
                   hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
                   border: InputBorder.none,
                   isDense: true,

@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:qent/core/services/online_status_service.dart';
 import 'package:qent/features/auth/data/datasources/firebase_auth_datasource.dart';
 import 'package:qent/features/auth/domain/models/user_profile.dart';
 import 'package:qent/features/auth/domain/repositories/auth_repository.dart';
@@ -38,6 +39,9 @@ class AuthRepositoryImpl implements AuthRepository {
         createdAt: DateTime.now(),
       );
       await _profileRepository.createUserProfile(profile);
+      
+      // Set user as online when they sign up
+      OnlineStatusService().setOnline();
     }
 
     return user;

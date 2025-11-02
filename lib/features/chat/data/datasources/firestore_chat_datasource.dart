@@ -287,18 +287,21 @@ class FirestoreChatDataSource {
           final userData = userDoc.data() ?? {};
           userName = userData['fullName'] ?? data['userName'] ?? 'Unknown';
           userImageUrl = userData['profileImageUrl'] ?? data['userImageUrl'] ?? '';
-          isOnline = userData['isOnline'] ?? false;
+          // Check online status - use boolean directly, default to false
+          final onlineValue = userData['isOnline'];
+          isOnline = onlineValue is bool ? onlineValue : (onlineValue == true);
         } else {
           // Fallback to stored data if user doc doesn't exist
           userName = data['userName'] ?? 'Unknown';
           userImageUrl = data['userImageUrl'] ?? '';
-          isOnline = data['isOnline'] ?? false;
+          isOnline = false; // Default to offline if user doc doesn't exist
         }
       } catch (e) {
+        debugPrint('Error fetching user data for chat: $e');
         // Fallback to stored data on error
         userName = data['userName'] ?? 'Unknown';
         userImageUrl = data['userImageUrl'] ?? '';
-        isOnline = data['isOnline'] ?? false;
+        isOnline = false;
       }
     }
 

@@ -6,6 +6,7 @@ import 'package:qent/features/chat/domain/models/chat.dart';
 import 'package:qent/features/chat/presentation/controllers/chat_controller.dart';
 import 'package:qent/features/chat/presentation/pages/chat_detail_page.dart';
 import 'package:qent/features/chat/presentation/pages/new_chat_page.dart';
+import 'package:qent/features/chat/presentation/providers/online_status_providers.dart';
 import 'package:qent/features/chat/presentation/widgets/chat_skeleton.dart';
 
 class MessagesPage extends ConsumerStatefulWidget {
@@ -319,28 +320,35 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
         ),
         child: Row(
           children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                ProfileImageWidget(
-                  userId: chat.userId,
-                  size: 56,
-                ),
-                if (chat.isOnline)
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      width: 14,
-                      height: 14,
-                      decoration: BoxDecoration(
-                        color: Colors.green,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
+            Consumer(
+              builder: (context, ref, child) {
+                final onlineStatusAsync = ref.watch(onlineStatusStreamProvider(chat.userId));
+                final isOnline = onlineStatusAsync.value ?? false;
+                
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    ProfileImageWidget(
+                      userId: chat.userId,
+                      size: 56,
                     ),
-                  ),
-              ],
+                    if (isOnline)
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          width: 14,
+                          height: 14,
+                          decoration: BoxDecoration(
+                            color: Colors.green,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
             const SizedBox(width: 12),
             Expanded(

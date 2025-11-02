@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/core/services/cloudinary_service.dart';
 import 'package:qent/core/services/notification_service.dart';
+import 'package:qent/core/services/online_status_service.dart';
 import 'package:qent/features/auth/presentation/pages/login_page.dart';
 import 'package:qent/features/auth/presentation/pages/signup_page.dart';
 import 'package:qent/features/home/presentation/pages/main_nav_page.dart';
@@ -23,6 +24,9 @@ void main() async {
     
     // Initialize Cloudinary
     CloudinaryService().initialize();
+    
+    // Initialize online status service
+    OnlineStatusService().initialize();
   } catch (e) {
     debugPrint('Firebase initialization error: $e');
     // Continue app startup even if Firebase fails (for development)
