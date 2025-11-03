@@ -52,34 +52,34 @@ class EmailVerificationService {
         const Duration(seconds: 30),
         onTimeout: () {
           if (kDebugMode) {
-            print('❌ Resend request timed out');
+            print('Resend request timed out');
           }
           throw Exception('Request timeout');
         },
       );
 
       if (kDebugMode) {
-        print('📧 Resend response status: ${response.statusCode}');
-        print('📧 Response body: ${response.body}');
+        print('Resend response status: ${response.statusCode}');
+        print('Response body: ${response.body}');
       }
 
       if (response.statusCode == 200) {
         if (kDebugMode) {
-          print('✅ Verification code sent successfully to $email');
+          print('Verification code sent successfully to $email');
         }
         return true;
       } else {
         final responseBody = response.body;
         if (kDebugMode) {
-          print('❌ Failed to send email. Status: ${response.statusCode}');
-          print('❌ Response: $responseBody');
+          print('Failed to send email. Status: ${response.statusCode}');
+          print('Response: $responseBody');
         }
         
         // Check for Resend domain verification error
         if (response.statusCode == 403 && responseBody.contains('verify a domain')) {
           if (kDebugMode) {
-            print('⚠️ Resend domain not verified. Please verify your domain at resend.com/domains');
-            print('⚠️ Currently, Resend sandbox only allows sending to verified email addresses');
+            print('Resend domain not verified. Please verify your domain at resend.com/domains');
+            print('Currently, Resend sandbox only allows sending to verified email addresses');
           }
         }
         
@@ -87,8 +87,8 @@ class EmailVerificationService {
       }
     } catch (e, stackTrace) {
       if (kDebugMode) {
-        print('❌ Error sending verification email: $e');
-        print('❌ Stack trace: $stackTrace');
+        print('Error sending verification email: $e');
+        print('Stack trace: $stackTrace');
       }
       return false;
     }
@@ -192,7 +192,7 @@ class EmailVerificationService {
       });
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error saving verification code: $e');
+        print('Error saving verification code: $e');
       }
       rethrow;
     }
@@ -205,7 +205,7 @@ class EmailVerificationService {
       
       if (!doc.exists) {
         if (kDebugMode) {
-          print('❌ No verification code found for $email');
+          print('No verification code found for $email');
         }
         return false;
       }
@@ -220,7 +220,7 @@ class EmailVerificationService {
       // Check if already verified
       if (verified) {
         if (kDebugMode) {
-          print('❌ Code already used');
+          print('Code already used');
         }
         return false;
       }
@@ -228,7 +228,7 @@ class EmailVerificationService {
       // Check if expired
       if (expiresAt == null || DateTime.now().isAfter(expiresAt)) {
         if (kDebugMode) {
-          print('❌ Verification code expired');
+          print('Verification code expired');
         }
         return false;
       }
@@ -236,7 +236,7 @@ class EmailVerificationService {
       // Check if code matches
       if (storedCode != inputCode) {
         if (kDebugMode) {
-          print('❌ Invalid verification code');
+          print('Invalid verification code');
         }
         return false;
       }
@@ -250,7 +250,7 @@ class EmailVerificationService {
       return true;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error verifying code: $e');
+        print('Error verifying code: $e');
       }
       return false;
     }

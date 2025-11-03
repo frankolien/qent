@@ -11,7 +11,7 @@ class CloudinaryService {
 
   late String _cloudName;
   late String _apiKey;
-  late String _apiSecret;
+  late String _apiSecret; 
 
   // Initialize with your Cloudinary credentials
   void initialize({
