@@ -8,7 +8,9 @@ import 'package:qent/features/chat/domain/models/chat.dart';
 import 'package:qent/features/chat/presentation/widgets/chat_skeleton.dart';
 
 class NewChatPage extends ConsumerStatefulWidget {
-  const NewChatPage({super.key});
+  final bool isForwarding;
+  
+  const NewChatPage({super.key, this.isForwarding = false});
 
   @override
   ConsumerState<NewChatPage> createState() => _NewChatPageState();
@@ -26,6 +28,27 @@ class _NewChatPageState extends ConsumerState<NewChatPage> {
 
   Future<void> _startChat(String userId, String userName, String userImageUrl) async {
     try {
+      if (widget.isForwarding) {
+        final chatController = ref.read(chatControllerProvider);
+        final chatId = await chatController.createOrGetChat(userId);
+        
+        final chat = Chat(
+          id: chatId,
+          userId: userId,
+          userName: userName,
+          userImageUrl: userImageUrl,
+          lastMessage: '',
+          lastMessageTime: DateTime.now(),
+          unreadCount: 0,
+          isOnline: false,
+        );
+        
+        if (mounted) {
+          Navigator.pop(context, chat);
+        }
+        return;
+      }
+
       // Show loading
       showDialog(
         context: context,
@@ -65,7 +88,7 @@ class _NewChatPageState extends ConsumerState<NewChatPage> {
       }
     } catch (e) {
       // Close loading if still open
-      if (mounted) Navigator.pop(context);
+      if (mounted && !widget.isForwarding) Navigator.pop(context);
       
       // Show error
       if (mounted) {

@@ -59,12 +59,44 @@ class ChatController {
     required String chatId,
     required String message,
     MessageType type = MessageType.text,
+    String? replyToMessageId,
+    ReplyInfo? replyTo,
   }) async {
     try {
       await _dataSource.sendMessage(
         chatId: chatId,
         message: message,
         type: type,
+        replyToMessageId: replyToMessageId,
+        replyTo: replyTo,
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> setTypingStatus(String chatId, bool isTyping) async {
+    await _dataSource.setTypingStatus(chatId, isTyping);
+  }
+
+  Future<void> deleteMessage(String chatId, String messageId) async {
+    try {
+      await _dataSource.deleteMessage(chatId, messageId);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> forwardMessage({
+    required String fromChatId,
+    required String toChatId,
+    required ChatMessage message,
+  }) async {
+    try {
+      await _dataSource.forwardMessage(
+        fromChatId: fromChatId,
+        toChatId: toChatId,
+        message: message,
       );
     } catch (e) {
       rethrow;

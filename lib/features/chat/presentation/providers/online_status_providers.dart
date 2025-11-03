@@ -1,5 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
+import 'package:qent/features/chat/presentation/controllers/chat_controller.dart';
+
+final firestoreProvider = Provider<FirebaseFirestore>((ref) => FirebaseFirestore.instance);
+
+final firebaseAuthProvider = Provider<fb.FirebaseAuth>((ref) => fb.FirebaseAuth.instance);
 
 /// Provider for online status stream of a specific user
 final onlineStatusStreamProvider = StreamProvider.family<bool, String>(
@@ -16,6 +22,14 @@ final onlineStatusStreamProvider = StreamProvider.family<bool, String>(
       final onlineValue = data['isOnline'];
       return onlineValue is bool ? onlineValue : (onlineValue == true);
     });
+  },
+);
+
+// Typing status stream provider
+final typingStatusStreamProvider = StreamProvider.family<Map<String, bool>, String>(
+  (ref, chatId) {
+    final dataSource = ref.watch(firestoreChatDataSourceProvider);
+    return dataSource.getTypingStatusStream(chatId);
   },
 );
 

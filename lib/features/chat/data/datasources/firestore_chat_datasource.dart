@@ -37,7 +37,7 @@ class FirestoreChatDataSource {
       // First pass: extract user IDs and use cached/stored data
       for (var doc in snapshot.docs) {
         try {
-          final data = doc.data() as Map<String, dynamic>;
+          final data = doc.data();
           final participants = List<String>.from(data['participants'] ?? []);
           final otherUserId = participants.firstWhere(
             (id) => id != _currentUserId,
@@ -139,11 +139,57 @@ class FirestoreChatDataSource {
     });
   }
 
+  // Set typing status
+  Future<void> setTypingStatus(String chatId, bool isTyping) async {
+    try {
+      await _firestore
+          .collection('chats')
+          .doc(chatId)
+          .collection('typing')
+          .doc(_currentUserId)
+          .set({
+        'isTyping': isTyping,
+        'timestamp': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error setting typing status: $e');
+    }
+  }
+
+  // Get typing status stream
+  Stream<Map<String, bool>> getTypingStatusStream(String chatId) {
+    return _firestore
+        .collection('chats')
+        .doc(chatId)
+        .collection('typing')
+        .snapshots()
+        .map((snapshot) {
+      final typingStatus = <String, bool>{};
+      for (var doc in snapshot.docs) {
+        if (doc.id != _currentUserId) {
+          final data = doc.data();
+          final isTyping = data['isTyping'] ?? false;
+          final timestamp = (data['timestamp'] as Timestamp?)?.toDate();
+          if (timestamp != null) {
+            final now = DateTime.now();
+            final difference = now.difference(timestamp);
+            if (difference.inSeconds < 3 && isTyping) {
+              typingStatus[doc.id] = true;
+            }
+          }
+        }
+      }
+      return typingStatus;
+    });
+  }
+
   // Send a message
   Future<void> sendMessage({
     required String chatId,
     required String message,
     required MessageType type,
+    String? replyToMessageId,
+    ReplyInfo? replyTo,
   }) async {
     final messageRef = _firestore
         .collection('chats')
@@ -155,8 +201,8 @@ class FirestoreChatDataSource {
 
     final batch = _firestore.batch();
 
-    // Add message
-    batch.set(messageRef, {
+    // Prepare message data
+    final messageData = {
       'id': messageRef.id,
       'chatId': chatId,
       'senderId': _currentUserId,
@@ -166,7 +212,21 @@ class FirestoreChatDataSource {
       'timestamp': FieldValue.serverTimestamp(),
       'type': type.name,
       'isRead': false,
-    });
+    };
+
+    if (replyToMessageId != null && replyTo != null) {
+      messageData['replyToMessageId'] = replyToMessageId;
+      messageData['replyTo'] = {
+        'messageId': replyTo.messageId,
+        'senderId': replyTo.senderId,
+        'senderName': replyTo.senderName,
+        'message': replyTo.message,
+        'type': replyTo.type.name,
+      };
+    }
+
+    // Add message
+    batch.set(messageRef, messageData);
 
     // Update chat last message
     batch.update(chatRef, {
@@ -348,60 +408,57 @@ class FirestoreChatDataSource {
     });
   }
 
-  // Helper methods
-  Future<Chat> _chatFromFirestore(DocumentSnapshot doc) async {
-    final data = doc.data() as Map<String, dynamic>;
-    final participants = List<String>.from(data['participants'] ?? []);
-    final otherUserId = participants.firstWhere(
-      (id) => id != _currentUserId,
-      orElse: () => participants.isNotEmpty ? participants.first : '',
-    );
-
-    // Always fetch the other user's current information from Firestore
-    String userName = 'Unknown';
-    String userImageUrl = '';
-    bool isOnline = false;
-
-    if (otherUserId.isNotEmpty) {
-      try {
-        final userDoc = await _firestore.collection('users').doc(otherUserId).get();
-        if (userDoc.exists) {
-          final userData = userDoc.data() ?? {};
-          userName = userData['fullName'] ?? data['userName'] ?? 'Unknown';
-          userImageUrl = userData['profileImageUrl'] ?? data['userImageUrl'] ?? '';
-          // Check online status - use boolean directly, default to false
-          final onlineValue = userData['isOnline'];
-          isOnline = onlineValue is bool ? onlineValue : (onlineValue == true);
-        } else {
-          // Fallback to stored data if user doc doesn't exist
-          userName = data['userName'] ?? 'Unknown';
-          userImageUrl = data['userImageUrl'] ?? '';
-          isOnline = false; // Default to offline if user doc doesn't exist
-        }
-      } catch (e) {
-        debugPrint('Error fetching user data for chat: $e');
-        // Fallback to stored data on error
-        userName = data['userName'] ?? 'Unknown';
-        userImageUrl = data['userImageUrl'] ?? '';
-        isOnline = false;
-      }
+  // Delete a message
+  Future<void> deleteMessage(String chatId, String messageId) async {
+    try {
+      await _firestore
+          .collection('chats')
+          .doc(chatId)
+          .collection('messages')
+          .doc(messageId)
+          .delete();
+    } catch (e) {
+      debugPrint('Error deleting message: $e');
+      rethrow;
     }
+  }
 
-    return Chat(
-      id: doc.id,
-      userId: otherUserId,
-      userName: userName,
-      userImageUrl: userImageUrl,
-      lastMessage: data['lastMessage'] ?? '',
-      lastMessageTime: (data['lastMessageTime'] as Timestamp?)?.toDate() ??
-          DateTime.now(),
-      unreadCount: data['unreadCount'] ?? 0,
-      isOnline: isOnline,
-    );
+  // Forward a message to another chat
+  Future<void> forwardMessage({
+    required String fromChatId,
+    required String toChatId,
+    required ChatMessage message,
+  }) async {
+    try {
+      await sendMessage(
+        chatId: toChatId,
+        message: message.message,
+        type: message.type,
+      );
+    } catch (e) {
+      debugPrint('Error forwarding message: $e');
+      rethrow;
+    }
   }
 
   ChatMessage _messageFromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    
+    ReplyInfo? replyTo;
+    if (data['replyTo'] != null) {
+      final replyData = data['replyTo'] as Map<String, dynamic>;
+      replyTo = ReplyInfo(
+        messageId: replyData['messageId'] ?? '',
+        senderId: replyData['senderId'] ?? '',
+        senderName: replyData['senderName'] ?? 'Unknown',
+        message: replyData['message'] ?? '',
+        type: MessageType.values.firstWhere(
+          (e) => e.name == (replyData['type'] ?? 'text'),
+          orElse: () => MessageType.text,
+        ),
+      );
+    }
+    
     return ChatMessage(
       id: doc.id,
       chatId: data['chatId'] ?? '',
@@ -415,6 +472,7 @@ class FirestoreChatDataSource {
         orElse: () => MessageType.text,
       ),
       isRead: data['isRead'] ?? false,
+      replyTo: replyTo,
     );
   }
 }

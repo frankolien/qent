@@ -16,7 +16,7 @@ class CustomBottomNav extends StatelessWidget {
     
     return Container(
       margin: EdgeInsets.fromLTRB(16, 8, 16, bottomPadding + 8),
-      height: 76,
+      height: 70,
       decoration: BoxDecoration(
         color: const Color(0xFF2C2C2C),
         borderRadius: BorderRadius.circular(60),
@@ -78,7 +78,7 @@ class CustomBottomNav extends StatelessWidget {
         child: Icon(
           isSelected ? icon : iconOutline,
           color: isSelected ? Colors.white : Colors.grey[400],
-          size: 24,
+          size: 27,
         ),
       ),
     );

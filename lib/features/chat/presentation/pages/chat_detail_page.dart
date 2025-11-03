@@ -3,10 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:qent/core/widgets/profile_image_widget.dart';
+import 'package:qent/features/auth/presentation/providers/auth_providers.dart' as auth_providers;
 import 'package:qent/features/chat/domain/models/chat.dart';
 import 'package:qent/features/chat/presentation/controllers/chat_controller.dart';
 import 'package:qent/features/chat/presentation/providers/online_status_providers.dart';
+import 'package:qent/features/chat/presentation/pages/new_chat_page.dart';
 import 'package:qent/features/chat/presentation/widgets/chat_skeleton.dart';
+import 'dart:async';
 
 class ChatDetailPage extends ConsumerStatefulWidget {
   final Chat chat;
@@ -24,10 +27,13 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
-  bool _isTyping = false;
   bool _hasMarkedAsRead = false;
   bool _showAttachmentOptions = false;
+  ReplyInfo? _replyingTo;
+  Timer? _typingTimer;
+  bool _isUserTyping = false;
   late AnimationController _typingAnimationController;
+  ChatController? _chatController;
   
   @override
   void initState() {
@@ -39,23 +45,66 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
     
     _messageController.addListener(_onMessageChanged);
     _focusNode.addListener(_onFocusChanged);
+    
+    // Listen to typing status and update local state
+    _updateTypingStatus();
   }
   
   void _onMessageChanged() {
     setState(() {
       // Trigger rebuild for input field
     });
+    
+    if (_chatController == null) {
+      _chatController = ref.read(chatControllerProvider);
+    }
+    final chatController = _chatController!;
+    
+    // Update typing status in Firestore
+    if (_messageController.text.trim().isNotEmpty && !_isUserTyping) {
+      _isUserTyping = true;
+      chatController.setTypingStatus(widget.chat.id, true);
+    } else if (_messageController.text.trim().isEmpty && _isUserTyping) {
+      _isUserTyping = false;
+      chatController.setTypingStatus(widget.chat.id, false);
+    }
+    
+    // Reset typing timer
+    _typingTimer?.cancel();
+    if (_messageController.text.trim().isNotEmpty) {
+      _typingTimer = Timer(const Duration(seconds: 2), () {
+        if (mounted && _isUserTyping && _chatController != null) {
+          _isUserTyping = false;
+          _chatController!.setTypingStatus(widget.chat.id, false);
+        }
+      });
+    }
   }
   
   void _onFocusChanged() {
     // Don't auto-hide attachment options when focus changes
     // User can toggle it manually
   }
+  
+  void _updateTypingStatus() {
+    // This will be handled by watching the typingStatusStreamProvider in build
+  }
 
   @override
   void dispose() {
+    _typingTimer?.cancel();
     _messageController.removeListener(_onMessageChanged);
     _focusNode.removeListener(_onFocusChanged);
+    
+    // Use stored controller reference to avoid unsafe ref usage during dispose
+    if (_chatController != null && mounted) {
+      try {
+        _chatController!.setTypingStatus(widget.chat.id, false);
+      } catch (e) {
+        // Ignore errors during dispose
+      }
+    }
+    
     _messageController.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
@@ -71,18 +120,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
   }
   
   String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final yesterday = today.subtract(const Duration(days: 1));
-    final messageDate = DateTime(date.year, date.month, date.day);
-    
-    if (messageDate == today) {
-      return 'Today';
-    } else if (messageDate == yesterday) {
-      return 'Yesterday';
-    } else {
-      return DateFormat('MMMM d, yyyy').format(date);
-    }
+    return DateFormat('EEEE, MMMM d').format(date);
   }
   
   bool _shouldShowDateSeparator(List<ChatMessage> messages, int index) {
@@ -135,7 +173,16 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                 label: 'Reply',
                 onTap: () {
                   Navigator.pop(context);
-                  // TODO: Implement reply functionality
+                  setState(() {
+                    _replyingTo = ReplyInfo(
+                      messageId: message.id,
+                      senderId: message.senderId,
+                      senderName: message.senderName,
+                      message: message.message,
+                      type: message.type,
+                    );
+                  });
+                  _focusNode.requestFocus();
                 },
               ),
               _buildMenuOption(
@@ -144,7 +191,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                 label: 'Forward',
                 onTap: () {
                   Navigator.pop(context);
-                  // TODO: Implement forward functionality
+                  _showForwardDialog(context, message);
                 },
               ),
               _buildMenuOption(
@@ -210,12 +257,25 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              // TODO: Implement delete functionality
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Message deleted')),
-              );
+              try {
+                await ref.read(chatControllerProvider).deleteMessage(
+                  widget.chat.id,
+                  message.id,
+                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Message deleted')),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error deleting message: $e')),
+                  );
+                }
+              }
             },
             child: const Text(
               'Delete',
@@ -227,17 +287,89 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
     );
   }
 
+  void _showForwardDialog(BuildContext context, ChatMessage message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Forward Message'),
+        content: const Text('Select a chat to forward this message to'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NewChatPage(isForwarding: true),
+                ),
+              ).then((selectedChat) {
+                if (selectedChat != null && selectedChat is Chat) {
+                  _forwardMessage(context, message, selectedChat);
+                }
+              });
+            },
+            child: const Text('Select Chat'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _forwardMessage(BuildContext context, ChatMessage message, Chat targetChat) async {
+    try {
+      await ref.read(chatControllerProvider).forwardMessage(
+        fromChatId: widget.chat.id,
+        toChatId: targetChat.id,
+        message: message,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Message forwarded')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error forwarding message: $e')),
+        );
+      }
+    }
+  }
+
   void _sendMessage() {
     if (_messageController.text.trim().isEmpty) return;
 
     final message = _messageController.text.trim();
+    final replyTo = _replyingTo;
+    final replyToMessageId = _replyingTo?.messageId;
+    
     _messageController.clear();
+    setState(() {
+      _replyingTo = null;
+      _isUserTyping = false;
+    });
+    
+    // Get chat controller
+    if (_chatController == null) {
+      _chatController = ref.read(chatControllerProvider);
+    }
+    final chatController = _chatController!;
+    
+    // Stop typing status
+    chatController.setTypingStatus(widget.chat.id, false);
+    
     HapticFeedback.lightImpact();
 
-    ref.read(chatControllerProvider).sendMessage(
+    chatController.sendMessage(
       chatId: widget.chat.id,
       message: message,
       type: MessageType.text,
+      replyToMessageId: replyToMessageId,
+      replyTo: replyTo,
     );
 
     // Auto-scroll to bottom with smooth animation
@@ -427,19 +559,24 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
             ref.invalidate(messagesStreamProvider(widget.chat.id));
             await Future.delayed(const Duration(milliseconds: 500));
           },
-          child: ListView.builder(
-            controller: _scrollController,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            itemCount: messages.length + (_isTyping ? 1 : 0),
-            itemBuilder: (context, index) {
-              if (index == messages.length) {
-                return _buildTypingIndicator();
-              }
+          child: Consumer(
+            builder: (context, ref, child) {
+              final typingStatusAsync = ref.watch(typingStatusStreamProvider(widget.chat.id));
+              final isOtherUserTyping = typingStatusAsync.value?.isNotEmpty ?? false;
               
-              final message = messages[index];
-              final auth = ref.read(firebaseAuthProvider);
-              final currentUserId = auth.currentUser?.uid ?? '';
-              final isMe = message.senderId == currentUserId || message.senderId == 'current';
+              return ListView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                itemCount: messages.length + (isOtherUserTyping ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (index == messages.length) {
+                    return _buildTypingIndicator();
+                  }
+                  
+                  final message = messages[index];
+                  final auth = ref.read(auth_providers.firebaseAuthProvider);
+                  final currentUserId = auth.currentUser?.uid ?? '';
+                  final isMe = message.senderId == currentUserId || message.senderId == 'current';
               
               // Check if we should show date separator
               final showDateSeparator = _shouldShowDateSeparator(messages, index);
@@ -449,11 +586,6 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                   messages[index - 1].senderId != message.senderId ||
                   message.timestamp.difference(messages[index - 1].timestamp).inMinutes > 5;
               
-              // Check if next message is from same sender and within 5 minutes (to determine if this is last in group)
-              final isLastInGroup = index == messages.length - 1 ||
-                  messages[index + 1].senderId != message.senderId ||
-                  messages[index + 1].timestamp.difference(message.timestamp).inMinutes > 5;
-              
               return Column(
                 children: [
                   if (showDateSeparator) _buildDateSeparator(message.timestamp),
@@ -462,11 +594,12 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                     child: _buildMessageBubble(
                       message,
                       showAvatar: showAvatar,
-                      showTimestamp: isLastInGroup,
                       isMe: isMe,
                     ),
                   ),
                 ],
+              );
+                },
               );
             },
           ),
@@ -501,34 +634,20 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
   Widget _buildDateSeparator(DateTime date) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-      child: Row(
-        children: [
-          Expanded(child: Divider(color: Colors.grey[300], thickness: 1)),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                _formatDate(date),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[700],
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
+      child: Center(
+        child: Text(
+          _formatDate(date),
+          style: const TextStyle(
+            fontSize: 14,
+            color: Colors.black87,
+            fontWeight: FontWeight.bold,
           ),
-          Expanded(child: Divider(color: Colors.grey[300], thickness: 1)),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildMessageBubble(ChatMessage message, {required bool showAvatar, required bool showTimestamp, required bool isMe}) {
+  Widget _buildMessageBubble(ChatMessage message, {required bool showAvatar, required bool isMe}) {
     return Padding(
       padding: EdgeInsets.only(
         left: 16,
@@ -557,13 +676,56 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
             child: Column(
               crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
+                // Reply indicator
+                if (message.replyTo != null)
+                  Padding(
+                    padding: EdgeInsets.only(
+                      bottom: 4,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.arrow_back, size: 14, color: Colors.grey[600]),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Replying to',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                message.replyTo!.message.length > 40
+                                    ? '${message.replyTo!.message.substring(0, 40)}...'
+                                    : message.replyTo!.message,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey[700],
+                                  fontWeight: FontWeight.w400,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 Container(
                   constraints: BoxConstraints(
                     maxWidth: MediaQuery.of(context).size.width * 0.7,
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
-                    color: isMe ? Colors.blue[600] : Colors.grey[200],
+                    color: isMe ? Colors.black : Colors.grey[200],
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(20),
                       topRight: const Radius.circular(20),
@@ -603,10 +765,10 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                           softWrap: true,
                         ),
                 ),
-                // Only show timestamp and read receipts for the last message in a group
-                if (showTimestamp) ...[
-                  const SizedBox(height: 4),
-                  Row(
+                // Timestamp below each message
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
@@ -616,17 +778,17 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                           color: Colors.grey[500],
                         ),
                       ),
-                      if (isMe) ...[
+                      if (isMe && message.isRead) ...[
                         const SizedBox(width: 4),
                         Icon(
                           Icons.done_all,
                           size: 14,
-                          color: message.isRead ? Colors.blue[600] : Colors.grey,
+                          color: Colors.blue[600],
                         ),
                       ],
                     ],
                   ),
-                ],
+                ),
               ],
             ),
           ),
@@ -696,6 +858,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // Reply preview in input
+        if (_replyingTo != null) _buildInputReplyPreview(),
         // Attachment options (shown when focused)
         if (_showAttachmentOptions) _buildAttachmentOptions(),
         Container(
@@ -717,40 +881,47 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
           ),
           child: Row(
             children: [
-              // Attachment button
-              IconButton(
-                icon: Icon(
-                  _showAttachmentOptions ? Icons.close : Icons.attach_file,
-                  color: _showAttachmentOptions ? Colors.blue[600] : Colors.grey,
+              // Plus button (circular, light grey background)
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  shape: BoxShape.circle,
                 ),
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  setState(() {
-                    _showAttachmentOptions = !_showAttachmentOptions;
-                  });
-                },
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  icon: Icon(
+                    _showAttachmentOptions ? Icons.close : Icons.add,
+                    color: Colors.grey[700],
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    setState(() {
+                      _showAttachmentOptions = !_showAttachmentOptions;
+                    });
+                  },
+                ),
               ),
+              const SizedBox(width: 8),
               Expanded(
                 child: Container(
                   constraints: const BoxConstraints(maxHeight: 100),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     color: Colors.grey[100],
                     borderRadius: BorderRadius.circular(25),
-                    border: Border.all(
-                      color: _focusNode.hasFocus ? Colors.blue[300]! : Colors.transparent,
-                      width: 1.5,
-                    ),
                   ),
                   child: TextField(
                     controller: _messageController,
                     focusNode: _focusNode,
                     decoration: InputDecoration(
-                      hintText: 'Type a message...',
+                      hintText: 'Start a message',
                       hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
                       border: InputBorder.none,
                       isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 4),
                     ),
                     maxLines: 4,
                     minLines: 1,
@@ -759,7 +930,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                   ),
                 ),
               ),
-              // Emoji button or Send button
+              const SizedBox(width: 8),
+              // Microphone button or Send button
               if (hasText)
                 IconButton(
                   icon: Container(
@@ -774,10 +946,10 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                 )
               else
                 IconButton(
-                  icon: const Icon(Icons.emoji_emotions_outlined, color: Colors.grey),
+                  icon: Icon(Icons.mic, color: Colors.grey[700], size: 24),
                   onPressed: () {
                     HapticFeedback.lightImpact();
-                    // TODO: Implement emoji picker
+                    // TODO: Implement voice recording
                   },
                 ),
             ],
@@ -836,6 +1008,66 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
     );
   }
   
+  Widget _buildInputReplyPreview() {
+    final auth = ref.read(auth_providers.firebaseAuthProvider);
+    final currentUserId = auth.currentUser?.uid ?? '';
+    final isReplyFromMe = _replyingTo!.senderId == currentUserId;
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        border: Border(
+          left: BorderSide(
+            color: isReplyFromMe ? Colors.blue : Colors.grey[600]!,
+            width: 3,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Replying to ${isReplyFromMe ? 'yourself' : _replyingTo!.senderName}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.blue[700],
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _replyingTo!.message.length > 60
+                      ? '${_replyingTo!.message.substring(0, 60)}...'
+                      : _replyingTo!.message,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[700],
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: Icon(Icons.close, size: 20, color: Colors.grey[600]),
+            onPressed: () {
+              setState(() {
+                _replyingTo = null;
+              });
+            },
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildAttachmentOption({
     required IconData icon,
     required String label,

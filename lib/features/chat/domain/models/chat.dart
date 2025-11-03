@@ -30,6 +30,7 @@ class ChatMessage {
   final DateTime timestamp;
   final MessageType type;
   final bool isRead;
+  final ReplyInfo? replyTo;
 
   ChatMessage({
     required this.id,
@@ -41,6 +42,23 @@ class ChatMessage {
     required this.timestamp,
     this.type = MessageType.text,
     this.isRead = false,
+    this.replyTo,
+  });
+}
+
+class ReplyInfo {
+  final String messageId;
+  final String senderId;
+  final String senderName;
+  final String message;
+  final MessageType type;
+
+  ReplyInfo({
+    required this.messageId,
+    required this.senderId,
+    required this.senderName,
+    required this.message,
+    this.type = MessageType.text,
   });
 }
 

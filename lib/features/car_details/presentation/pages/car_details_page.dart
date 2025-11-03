@@ -35,7 +35,7 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
       description: 'A car with high specs that are rented at an affordable price.',
       imageUrls: [
         widget.car.imageUrl,
-        widget.car.imageUrl, // In real app, these would be different images
+        widget.car.imageUrl, 
         widget.car.imageUrl,
       ],
       host: Host(
@@ -220,7 +220,9 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
     double screenHeight,
   ) {
     return Container(
-      height: screenHeight * 0.35,
+      //margin: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
+      padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
+      height: screenHeight * 0.30,
       width: double.infinity,
       color: Colors.grey[100],
       child: Stack(
@@ -469,7 +471,7 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
         children: [
           Icon(
             feature.icon,
-            size: 24,
+            size: 22,
             color: Colors.grey[700],
           ),
           const SizedBox(height: 8),
@@ -482,7 +484,7 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 4),
+          //const SizedBox(height: 4),
           Text(
             feature.value,
             style: const TextStyle(
