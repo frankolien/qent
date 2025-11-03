@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/core/widgets/profile_image_widget.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/profile/presentation/pages/edit_profile_page.dart';
-import 'package:qent/main.dart';
 
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
@@ -200,7 +199,7 @@ class ProfilePage extends ConsumerWidget {
           icon: Icons.link,
           title: 'Connected to QENT Partnerships',
           onTap: () {
-            // TODO: Navigate to partnerships screen
+            Navigator.of(context).pushNamed('/partner/onboarding');
           },
         ),
       ],

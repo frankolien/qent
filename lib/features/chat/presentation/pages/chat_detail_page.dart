@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -476,38 +477,58 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
       ),
       body: Column(
         children: [
-          // Partner Banner
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            color: Colors.blue[50],
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.chat.userName,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
+          // Partner Banner (dynamic)
+          Consumer(
+            builder: (context, ref, _) {
+              final firestore = FirebaseFirestore.instance;
+              return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                stream: firestore.collection('users').doc(widget.chat.userId).snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const SizedBox.shrink();
+                  }
+                  final doc = snapshot.data!;
+                  if (!doc.exists) return const SizedBox.shrink();
+                  final data = doc.data() ?? {};
+                  final isPartner = (data['isPartner'] == true);
+                  if (!isPartner) return const SizedBox.shrink();
+                  final partnerName = (data['partnerDisplayName'] ?? data['fullName'] ?? widget.chat.userName).toString();
+
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    color: Colors.blue[50],
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                partnerName,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '$partnerName is a QENT Partner',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Angelina is a partner of QENT',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
           ),
           // Messages List
           Expanded(

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:qent/core/services/cloudinary_service.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:qent/core/services/notification_service.dart';
 import 'package:qent/core/services/online_status_service.dart';
 import 'dart:async';
@@ -12,11 +13,14 @@ import 'package:qent/features/auth/presentation/pages/signup_page.dart';
 import 'package:qent/features/home/presentation/pages/main_nav_page.dart';
 import 'package:qent/features/onboarding/presentation/pages/onboarding_screen.dart';
 import 'package:qent/firebase_options.dart';
+import 'package:qent/features/partner/presentation/pages/partner_onboarding_welcome_page.dart';
 
 bool _servicesInitialized = false;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Disable runtime font fetching - use bundled fonts from assets/fonts/
+  GoogleFonts.config.allowRuntimeFetching = true;
 
   try {
     await dotenv.load(fileName: ".env");
@@ -145,6 +149,7 @@ class _MainAppState extends ConsumerState<MainApp> {
         '/login': (context) => const LoginPage(),
         '/signup': (context) => const SignUpPage(),
         '/home': (context) => const MainNavPage(),
+        '/partner/onboarding': (context) => const PartnerOnboardingWelcomePage(),
       },
     );
   }
