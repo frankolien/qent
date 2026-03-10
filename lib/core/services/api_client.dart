@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Central HTTP client for the Cruise Rust backend.
+/// Central HTTP client for the Qent Rust backend.
 /// Manages JWT token storage, authenticated requests, and base URL config.
 class ApiClient {
   static final ApiClient _instance = ApiClient._internal();
