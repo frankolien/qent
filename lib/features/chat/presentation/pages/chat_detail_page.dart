@@ -4,9 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:qent/core/widgets/profile_image_widget.dart';
-import 'package:qent/features/auth/presentation/providers/auth_providers.dart' as auth_providers;
 import 'package:qent/features/chat/domain/models/chat.dart';
-import 'package:qent/features/chat/presentation/controllers/chat_controller.dart';
+import 'package:qent/features/chat/presentation/controllers/chat_controller.dart' hide firebaseAuthProvider, firestoreProvider;
 import 'package:qent/features/chat/presentation/providers/online_status_providers.dart';
 import 'package:qent/features/chat/presentation/pages/new_chat_page.dart';
 import 'package:qent/features/chat/presentation/widgets/chat_skeleton.dart';
@@ -595,7 +594,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                   }
                   
                   final message = messages[index];
-                  final auth = ref.read(auth_providers.firebaseAuthProvider);
+                  final auth = ref.read(firebaseAuthProvider);
                   final currentUserId = auth.currentUser?.uid ?? '';
                   final isMe = message.senderId == currentUserId || message.senderId == 'current';
               
@@ -1030,7 +1029,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
   }
   
   Widget _buildInputReplyPreview() {
-    final auth = ref.read(auth_providers.firebaseAuthProvider);
+    final auth = ref.read(firebaseAuthProvider);
     final currentUserId = auth.currentUser?.uid ?? '';
     final isReplyFromMe = _replyingTo!.senderId == currentUserId;
     

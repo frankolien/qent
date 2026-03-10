@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:qent/core/services/cloudinary_service.dart';
-import 'package:qent/features/auth/domain/models/user_profile.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 
 class EditProfilePage extends ConsumerStatefulWidget {
@@ -19,10 +18,9 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   late TextEditingController _lastNameController;
   late TextEditingController _emailController;
   late TextEditingController _phoneController;
-  
+
   bool _isLoading = false;
   bool _isInitializing = true;
-  UserProfile? _currentProfile;
   String? _profileImageUrl;
 
   @override
@@ -36,10 +34,10 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   }
 
   Future<void> _loadUserProfile() async {
-    final auth = ref.read(firebaseAuthProvider);
-    final userId = auth.currentUser?.uid;
-    
-    if (userId == null) {
+    final authState = ref.read(authControllerProvider);
+    final user = authState.user;
+
+    if (user == null) {
       setState(() {
         _isInitializing = false;
       });
@@ -47,41 +45,12 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     }
 
     try {
-      final profileRepo = ref.read(userProfileRepositoryProvider);
-      final profile = await profileRepo.getUserProfile(userId);
-      
-      if (profile != null) {
-        _currentProfile = profile;
-        final nameParts = profile.fullName.split(' ');
-        _firstNameController.text = nameParts.isNotEmpty ? nameParts.first : '';
-        _lastNameController.text = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
-        _emailController.text = profile.email;
-      } else {
-        // If no profile exists, use auth user data
-        final user = auth.currentUser;
-        if (user != null) {
-          final email = user.email ?? '';
-          _emailController.text = email;
-          final displayName = user.displayName ?? '';
-          if (displayName.isNotEmpty) {
-            final nameParts = displayName.split(' ');
-            _firstNameController.text = nameParts.isNotEmpty ? nameParts.first : '';
-            _lastNameController.text = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
-          }
-        }
-      }
-      
-      // Load phone and profile image from Firestore if available
-      final firestore = ref.read(firestoreProvider);
-      final userDoc = await firestore.collection('users').doc(userId).get();
-      if (userDoc.exists) {
-        final userData = userDoc.data() ?? {};
-        final phone = userData['phone'] as String?;
-        if (phone != null) {
-          _phoneController.text = phone;
-        }
-        _profileImageUrl = userData['profileImageUrl'] as String?;
-      }
+      final nameParts = user.fullName.split(' ');
+      _firstNameController.text = nameParts.isNotEmpty ? nameParts.first : '';
+      _lastNameController.text = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
+      _emailController.text = user.email;
+      _phoneController.text = user.phone ?? '';
+      _profileImageUrl = user.profilePhotoUrl;
     } catch (e) {
       debugPrint('Error loading profile: $e');
     } finally {
@@ -101,17 +70,8 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     });
 
     try {
-      final auth = ref.read(firebaseAuthProvider);
-      final userId = auth.currentUser?.uid;
-      
-      if (userId == null) {
-        _showError('User not authenticated');
-        return;
-      }
-
       final firstName = _firstNameController.text.trim();
       final lastName = _lastNameController.text.trim();
-      final email = _emailController.text.trim();
       final phone = _phoneController.text.trim();
       final fullName = '$firstName $lastName'.trim();
 
@@ -120,31 +80,13 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
         return;
       }
 
-      // Update user profile
-      final profileRepo = ref.read(userProfileRepositoryProvider);
-      
-      // Get existing profile or create new one
-      final existingProfile = await profileRepo.getUserProfile(userId);
-      
-      final updatedProfile = UserProfile(
-        uid: userId,
-        email: email,
+      final dataSource = ref.read(apiAuthDataSourceProvider);
+      await dataSource.updateProfile(
         fullName: fullName,
-        country: existingProfile?.country ?? 'Nigeria',
-        createdAt: existingProfile?.createdAt ?? DateTime.now(),
+        phone: phone.isNotEmpty ? phone : null,
+        profilePhotoUrl: _profileImageUrl,
       );
 
-      await profileRepo.updateUserProfile(updatedProfile);
-
-      // Save phone number separately (can be added to UserProfile model later)
-      final firestore = ref.read(firestoreProvider);
-      await firestore.collection('users').doc(userId).update({
-        'phone': phone,
-      });
-
-      // Update Firebase Auth display name
-      await auth.currentUser?.updateDisplayName(fullName);
-      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -221,30 +163,20 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
           Navigator.pop(context); // Close loading dialog
 
           if (imageUrl != null) {
-            // Update user profile in Firestore
-            final auth = ref.read(firebaseAuthProvider);
-            final userId = auth.currentUser?.uid;
-            
-            if (userId != null) {
-              final firestore = ref.read(firestoreProvider);
-              await firestore.collection('users').doc(userId).update({
-                'profileImageUrl': imageUrl,
+            // Update profile photo via REST API
+            final dataSource = ref.read(apiAuthDataSourceProvider);
+            await dataSource.updateProfile(profilePhotoUrl: imageUrl);
+
+            if (mounted) {
+              setState(() {
+                _profileImageUrl = imageUrl;
               });
-
-              // Update Firebase Auth photo URL
-              await auth.currentUser?.updatePhotoURL(imageUrl);
-
-              if (mounted) {
-                setState(() {
-                  _profileImageUrl = imageUrl; // Update local state
-                });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Profile picture updated successfully'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Profile picture updated successfully'),
+                  backgroundColor: Colors.green,
+                ),
+              );
             }
           } else {
             if (mounted) {
@@ -402,7 +334,6 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                 const SizedBox(height: 16),
                 // User Name
                 Text(
-                  _currentProfile?.fullName ?? 
                   (() {
                     final fullName = '${_firstNameController.text} ${_lastNameController.text}'.trim();
                     return fullName.isEmpty ? 'User' : fullName;
@@ -558,4 +489,3 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     );
   }
 }
-

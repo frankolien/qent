@@ -30,7 +30,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final userId = ref.watch(auth_providers.firebaseAuthProvider).currentUser?.uid;
+    final userId = ref.watch(auth_providers.authControllerProvider).user?.uid;
     final notificationsAsync = userId != null
         ? ref.watch(notificationsStreamProvider(userId))
         : const AsyncValue<List<NotificationModel>>.data([]);

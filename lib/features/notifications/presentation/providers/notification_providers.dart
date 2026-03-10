@@ -26,7 +26,7 @@ final notificationsStreamProvider = StreamProvider.family<List<NotificationModel
 });
 
 final currentUserNotificationsProvider = StreamProvider<List<NotificationModel>>((ref) {
-  final userId = ref.watch(auth_providers.firebaseAuthProvider).currentUser?.uid;
+  final userId = ref.watch(auth_providers.authControllerProvider).user?.uid;
   if (userId == null) {
     return Stream.value([]);
   }

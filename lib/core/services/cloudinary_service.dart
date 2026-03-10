@@ -19,9 +19,12 @@ class CloudinaryService {
     String? apiKey,
     String? apiSecret,
   }) {
-    _cloudName = cloudName ?? 'dz9nzikbp';
-    _apiKey = apiKey ?? '913914774249252';
-    _apiSecret = apiSecret ?? 'HOl54F8CO4B2o6nxnvElqYskR04';
+    if (cloudName == null || apiKey == null || apiSecret == null) {
+      throw Exception('Cloudinary credentials must be provided via .env');
+    }
+    _cloudName = cloudName;
+    _apiKey = apiKey;
+    _apiSecret = apiSecret;
   }
 
   // Upload image file to Cloudinary

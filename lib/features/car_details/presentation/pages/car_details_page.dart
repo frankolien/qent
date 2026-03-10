@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/booking/presentation/pages/booking_details_page.dart';
 import 'package:qent/features/car_details/domain/models/car_detail.dart';
 import 'package:qent/features/home/domain/models/car.dart';
@@ -642,23 +641,15 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
   }
 
   Widget _buildFavoriteButton(BuildContext context) {
-    final carAsync = ref.watch(carStreamProvider(widget.car.id));
-    
+    final carAsync = ref.watch(carProvider(widget.car.id));
+
     return carAsync.when(
       data: (car) {
         final isFavorite = car?.isFavorite ?? widget.car.isFavorite;
-        final auth = ref.read(firebaseAuthProvider);
-        final userId = auth.currentUser?.uid ?? '';
 
         return GestureDetector(
           onTap: () {
-            if (userId.isNotEmpty) {
-              ref.read(carControllerProvider).toggleFavorite(
-                userId,
-                widget.car.id,
-                !isFavorite,
-              );
-            }
+            ref.read(carControllerProvider).toggleFavorite(widget.car.id);
           },
           child: Container(
             width: 40,

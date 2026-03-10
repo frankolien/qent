@@ -69,20 +69,11 @@ class ProfilePage extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
-    return FutureBuilder(
-      future: ref.read(userProfileRepositoryProvider).getUserProfile(currentUserId),
-      builder: (context, snapshot) {
-        String firstName = 'User';
-        
-        if (snapshot.hasData && snapshot.data != null) {
-          final fullName = snapshot.data!.fullName;
-          final nameParts = fullName.split(' ');
-          firstName = nameParts.isNotEmpty ? nameParts.first : fullName;
-        } else if (snapshot.connectionState == ConnectionState.waiting) {
-          firstName = 'Loading...';
-        }
+    final fullName = authState.user?.fullName ?? 'User';
+    final nameParts = fullName.split(' ');
+    final firstName = nameParts.isNotEmpty ? nameParts.first : fullName;
 
-        return Padding(
+    return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
@@ -149,8 +140,6 @@ class ProfilePage extends ConsumerWidget {
               ),
             ],
           ),
-        );
-      },
     );
   }
 

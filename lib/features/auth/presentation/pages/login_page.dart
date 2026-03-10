@@ -51,20 +51,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () async {
+            onPressed: () {
               Navigator.pop(context);
-              await ref.read(authControllerProvider.notifier).sendResetPassword(
-                    email: _emailController.text.trim(),
-                  );
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Password reset email sent! Check your inbox.'),
+                    content: Text('Password reset is not yet available. Please contact support.'),
                   ),
                 );
               }
             },
-            child: const Text('Send'),
+            child: const Text('OK'),
           ),
         ],
       ),

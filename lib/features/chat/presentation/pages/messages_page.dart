@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/core/widgets/profile_image_widget.dart';
-import 'package:qent/features/auth/presentation/providers/auth_providers.dart' as auth_providers;
 import 'package:qent/features/chat/domain/models/chat.dart';
-import 'package:qent/features/chat/presentation/controllers/chat_controller.dart';
+import 'package:qent/features/chat/presentation/controllers/chat_controller.dart' hide firebaseAuthProvider, firestoreProvider;
 import 'package:qent/features/chat/presentation/pages/chat_detail_page.dart';
 import 'package:qent/features/chat/presentation/pages/new_chat_page.dart';
 import 'package:qent/features/chat/presentation/providers/online_status_providers.dart';
@@ -74,7 +73,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
           margin: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
           child: Consumer(
             builder: (context, ref, child) {
-              final auth = ref.watch(auth_providers.firebaseAuthProvider);
+              final auth = ref.watch(firebaseAuthProvider);
               final userId = auth.currentUser?.uid;
               return ProfileImageWidget(
                 userId: userId,

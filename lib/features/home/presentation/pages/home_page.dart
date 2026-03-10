@@ -26,10 +26,11 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
-    // Watch cars stream once at top level to avoid multiple watches
-    final carsAsync = ref.watch(carsStreamProvider);
-    // Read providers once (optimization)
-    final userId = ref.read(firebaseAuthProvider).currentUser?.uid ?? '';
+    // Watch cars from REST API (replaces Firestore stream)
+    final carsAsync = ref.watch(carsProvider);
+    // Read auth state for user ID
+    final authState = ref.watch(authControllerProvider);
+    final userId = authState.user?.uid ?? '';
     final carController = ref.read(carControllerProvider);
     
     return Scaffold(
@@ -421,11 +422,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 car: car,
                 onFavoriteTap: () {
                   if (userId.isNotEmpty) {
-                    carController.toggleFavorite(
-                      userId,
-                      car.id,
-                      !car.isFavorite,
-                    );
+                    carController.toggleFavorite(car.id);
                   }
                 },
               ),
@@ -446,7 +443,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             ),
             const SizedBox(height: 8),
             ElevatedButton(
-              onPressed: () => ref.invalidate(carsStreamProvider),
+              onPressed: () => ref.invalidate(carsProvider),
               child: const Text('Retry'),
             ),
           ],
@@ -469,11 +466,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           car: nearbyCar,
           onFavoriteTap: () {
             if (userId.isNotEmpty) {
-              carController.toggleFavorite(
-                userId,
-                nearbyCar.id,
-                !nearbyCar.isFavorite,
-              );
+              carController.toggleFavorite(nearbyCar.id);
             }
           },
         );

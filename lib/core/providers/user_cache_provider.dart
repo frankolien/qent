@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
+import 'package:qent/features/chat/presentation/controllers/chat_controller.dart' show firestoreProvider;
 
 /// Cache for user data to avoid repeated Firestore queries
 class UserCache {
