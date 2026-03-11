@@ -16,8 +16,8 @@ class MainNavPage extends StatefulWidget {
 class _MainNavPageState extends State<MainNavPage> {
   int _currentIndex = 0;
 
-  final List<Widget> _pages = [
-    const HomePage(),
+  late final List<Widget> _pages = [
+    HomePage(key: HomePage.globalKey),
     const SearchPage(),
     const MessagesPage(),
     const NotificationsPage(),
@@ -34,9 +34,13 @@ class _MainNavPageState extends State<MainNavPage> {
       bottomNavigationBar: CustomBottomNav(
         currentIndex: _currentIndex,
         onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
+          if (index == _currentIndex && index == 0) {
+            HomePage.globalKey.currentState?.scrollToTopAndRefresh();
+          } else {
+            setState(() {
+              _currentIndex = index;
+            });
+          }
         },
       ),
     );

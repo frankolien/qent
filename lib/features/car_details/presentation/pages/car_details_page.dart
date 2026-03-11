@@ -135,11 +135,11 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
                   children: [
                     //const SizedBox(height: 8),
                     Divider(color: Colors.grey[200], height: 1),
-                    const SizedBox(height: 20),
+           
                     _buildImageCarousel(context),
                     const SizedBox(height: 20),
-                    Divider(color: Colors.grey[200], height: 1),
-                    const SizedBox(height: 20),
+                   
+                    //const SizedBox(height: 5),
                     _buildCarInfo(context),
                     const SizedBox(height: 20),
                     Padding(
@@ -166,7 +166,7 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
 
   Widget _buildHeader(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+      padding: const EdgeInsets.fromLTRB(10, 12, 10, 9),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -211,14 +211,14 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
 
   Widget _buildImageCarousel(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      height: 240,
+      //margin: const EdgeInsets.symmetric(horizontal: 20),
+      height: 300,
       decoration: BoxDecoration(
         color: const Color(0xFFF5F5F5),
         borderRadius: BorderRadius.circular(24),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
+        //borderRadius: BorderRadius.circular(20),
         child: Stack(
           children: [
             PageView.builder(
@@ -286,7 +286,7 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
 
   Widget _buildCarInfo(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

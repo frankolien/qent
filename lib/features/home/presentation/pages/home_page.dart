@@ -10,16 +10,36 @@ import 'package:qent/features/home/presentation/widgets/nearby_car_card.dart';
 import 'package:qent/features/home/presentation/widgets/car_card_skeleton.dart';
 import 'package:qent/features/search/presentation/widgets/filter_bottom_sheet.dart';
 import 'package:qent/features/home/presentation/pages/view_all_cars_page.dart';
+import 'package:qent/features/home/presentation/providers/location_provider.dart';
+import 'package:qent/features/home/presentation/widgets/location_picker_sheet.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
+  static final globalKey = GlobalKey<HomePageState>();
+
   @override
-  ConsumerState<HomePage> createState() => _HomePageState();
+  ConsumerState<HomePage> createState() => HomePageState();
 }
 
-class _HomePageState extends ConsumerState<HomePage> {
+class HomePageState extends ConsumerState<HomePage> {
   String _selectedBrand = 'All';
+  final ScrollController _scrollController = ScrollController();
+
+  void scrollToTopAndRefresh() {
+    _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeOutCubic,
+    );
+    ref.invalidate(carsProvider);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   final List<String> _brands = [
     'All',
@@ -46,6 +66,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             await ref.read(carsProvider.future);
           },
           child: CustomScrollView(
+            controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
             slivers: [
               // App bar
@@ -93,42 +114,73 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Widget _buildAppBar(BuildContext context) {
+    final locationAsync = ref.watch(userLocationProvider);
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1A1A1A),
-                  borderRadius: BorderRadius.circular(14),
+          GestureDetector(
+            onTap: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => const LocationPickerSheet(),
+              );
+            },
+            child: Row(
+              children: [
+                const Icon(Icons.location_on, size: 20, color: Color(0xFF1A1A1A)),
+                const SizedBox(width: 6),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Your location',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Row(
+                      children: [
+                        locationAsync.when(
+                          data: (loc) => Text(
+                            '${loc.city ?? loc.name}, ${loc.country ?? 'Nigeria'}',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1A1A1A),
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                          loading: () => const SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFF1A1A1A)),
+                          ),
+                          error: (_, __) => const Text(
+                            'Lagos, Nigeria',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1A1A1A),
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Colors.grey[600]),
+                      ],
+                    ),
+                  ],
                 ),
-                child: Image.asset(
-                  'assets/images/image_logo.png',
-                  width: 24,
-                  height: 24,
-                  errorBuilder: (_, __, ___) => const Icon(
-                    Icons.directions_car,
-                    color: Colors.white,
-                    size: 22,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              const Text(
-                'Qent',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF1A1A1A),
-                  letterSpacing: -0.5,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
           Row(
             children: [

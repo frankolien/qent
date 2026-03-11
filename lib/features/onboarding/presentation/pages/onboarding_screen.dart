@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qent/features/onboarding/presentation/widgets/onboarding_one_screen.dart';
 import 'package:qent/features/onboarding/presentation/widgets/onboarding_two_screen.dart';
-import 'package:qent/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -108,7 +108,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           onPressed: () {
             if (isLastPage) {
-              OnboardingState.markOnboardingAsSeen();
+              SharedPreferences.getInstance().then((prefs) {
+                prefs.setBool('has_seen_onboarding', true);
+              });
               Navigator.pushReplacementNamed(context, '/login');
             } else {
               _pageController.nextPage(

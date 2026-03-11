@@ -6,12 +6,13 @@ import 'package:qent/firebase_options.dart';
 import 'package:qent/core/services/api_client.dart';
 import 'package:qent/core/services/cloudinary_service.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
+
 import 'package:qent/features/auth/presentation/pages/login_page.dart';
 import 'package:qent/features/auth/presentation/pages/signup_page.dart';
 import 'package:qent/features/home/presentation/pages/main_nav_page.dart';
 import 'package:qent/features/onboarding/presentation/pages/onboarding_screen.dart';
 import 'package:qent/features/partner/presentation/pages/partner_onboarding_welcome_page.dart';
+import 'package:qent/features/splash/presentation/pages/splash_page.dart';
 
 bool _servicesInitialized = false;
 
@@ -56,31 +57,16 @@ void _initializeServicesAsync() async {
   }
 }
 
-class OnboardingState {
-  static bool _hasSeenOnboarding = false;
-
-  static bool get hasSeenOnboarding => _hasSeenOnboarding;
-
-  static void markOnboardingAsSeen() {
-    _hasSeenOnboarding = true;
-  }
-}
-
-class MainApp extends ConsumerWidget {
+class MainApp extends StatelessWidget {
   const MainApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(authControllerProvider);
-
-    final initialRoute = authState.user != null
-        ? '/home'
-        : (OnboardingState.hasSeenOnboarding ? '/login' : '/onboarding');
-
+  Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      initialRoute: initialRoute,
+      initialRoute: '/',
       routes: {
+        '/': (context) => const SplashPage(),
         '/onboarding': (context) => const OnboardingScreen(),
         '/login': (context) => const LoginPage(),
         '/signup': (context) => const SignUpPage(),
