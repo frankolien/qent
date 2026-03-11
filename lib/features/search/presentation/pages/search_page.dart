@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:qent/core/widgets/animated_loading.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/home/domain/models/car.dart';
 import 'package:qent/features/home/presentation/providers/car_providers.dart';
@@ -61,7 +62,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             _buildBrandFilters(context, filterOptionsState.options.brandFilters),
             const SizedBox(height: 24),
             Expanded(
-              child: _buildResults(context, carsAsync, searchState, userId, carController),
+              child: CarPullToRefresh(
+                onRefresh: () async {
+                  ref.invalidate(filteredCarsProvider);
+                  await ref.read(filteredCarsProvider.future);
+                },
+                child: _buildResults(context, carsAsync, searchState, userId, carController),
+              ),
             ),
           ],
         ),
@@ -251,13 +258,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         final recommended = cars.where((car) => car.rating >= 4.5).toList();
 
         if (cars.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.search_off_rounded, size: 64, color: Colors.grey[300]),
-                const SizedBox(height: 12),
-                Text(
+          return ListView(
+            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+            children: [
+              SizedBox(height: MediaQuery.of(context).size.height * 0.2),
+              Icon(Icons.search_off_rounded, size: 64, color: Colors.grey[300]),
+              const SizedBox(height: 12),
+              Center(
+                child: Text(
                   'No cars found',
                   style: TextStyle(
                     fontSize: 16,
@@ -265,18 +273,20 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     color: Colors.grey[400],
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
+              ),
+              const SizedBox(height: 4),
+              Center(
+                child: Text(
                   'Try adjusting your filters',
                   style: TextStyle(fontSize: 13, color: Colors.grey[400]),
                 ),
-              ],
-            ),
+              ),
+            ],
           );
         }
 
         return SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
+          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -303,8 +313,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           ),
         );
       },
-      loading: () => const Center(
-        child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF1A1A1A)),
+      loading: () => Center(
+        child: AnimatedCarLoading(),
       ),
       error: (error, stack) => Center(
         child: Column(

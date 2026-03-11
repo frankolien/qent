@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:qent/core/widgets/animated_loading.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/home/presentation/providers/car_providers.dart';
 import 'package:qent/features/home/domain/models/car.dart';
@@ -39,47 +40,53 @@ class _HomePageState extends ConsumerState<HomePage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F8F8),
       body: SafeArea(
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            // App bar
-            SliverToBoxAdapter(child: _buildAppBar(context)),
-            // Search bar
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
-                child: _buildSearchBar(context),
+        child: CarPullToRefresh(
+          onRefresh: () async {
+            ref.invalidate(carsProvider);
+            await ref.read(carsProvider.future);
+          },
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+            slivers: [
+              // App bar
+              SliverToBoxAdapter(child: _buildAppBar(context)),
+              // Search bar
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+                  child: _buildSearchBar(context),
+                ),
               ),
-            ),
-            // Brands
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 24),
-                child: _buildBrandsSection(context),
+              // Brands
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 24),
+                  child: _buildBrandsSection(context),
+                ),
               ),
-            ),
-            // White content area
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 24),
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-                  ),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 24),
-                      _buildBestCarsSection(context, carsAsync, userId, carController),
-                      const SizedBox(height: 28),
-                      _buildNearbySection(context, carsAsync, userId, carController),
-                      const SizedBox(height: 100),
-                    ],
+              // White content area
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 24),
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                    ),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 24),
+                        _buildBestCarsSection(context, carsAsync, userId, carController),
+                        const SizedBox(height: 28),
+                        _buildNearbySection(context, carsAsync, userId, carController),
+                        const SizedBox(height: 100),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -424,15 +431,18 @@ class _HomePageState extends ConsumerState<HomePage> {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           itemCount: bestCars.length,
           itemBuilder: (context, index) {
-            return Padding(
-              padding: EdgeInsets.only(right: index < bestCars.length - 1 ? 14 : 0),
-              child: CarCard(
-                car: bestCars[index],
-                onFavoriteTap: () {
-                  if (userId.isNotEmpty) {
-                    carController.toggleFavorite(bestCars[index].id);
-                  }
-                },
+            return StaggeredFadeIn(
+              index: index,
+              child: Padding(
+                padding: EdgeInsets.only(right: index < bestCars.length - 1 ? 14 : 0),
+                child: CarCard(
+                  car: bestCars[index],
+                  onFavoriteTap: () {
+                    if (userId.isNotEmpty) {
+                      carController.toggleFavorite(bestCars[index].id);
+                    }
+                  },
+                ),
               ),
             );
           },
@@ -477,16 +487,21 @@ class _HomePageState extends ConsumerState<HomePage> {
         final nearbyCars = cars.take(3).toList();
 
         return Column(
-          children: nearbyCars.map((car) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: NearbyCarCard(
-                car: car,
-                onFavoriteTap: () {
-                  if (userId.isNotEmpty) {
-                    carController.toggleFavorite(car.id);
-                  }
-                },
+          children: nearbyCars.asMap().entries.map((entry) {
+            final index = entry.key;
+            final car = entry.value;
+            return StaggeredFadeIn(
+              index: index,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: NearbyCarCard(
+                  car: car,
+                  onFavoriteTap: () {
+                    if (userId.isNotEmpty) {
+                      carController.toggleFavorite(car.id);
+                    }
+                  },
+                ),
               ),
             );
           }).toList(),

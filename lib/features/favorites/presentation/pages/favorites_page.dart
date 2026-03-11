@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shimmer/shimmer.dart';
+import 'package:qent/core/widgets/animated_loading.dart';
 import 'package:qent/features/car_details/presentation/pages/car_details_page.dart';
 import 'package:qent/features/home/domain/models/car.dart';
 import 'package:qent/features/home/presentation/providers/car_providers.dart';
@@ -18,12 +20,21 @@ class FavoritesPage extends ConsumerWidget {
           children: [
             _buildHeader(context),
             Expanded(
-              child: favoriteCarsAsync.when(
-                data: (cars) => cars.isEmpty
-                    ? _buildEmptyState()
-                    : _buildCarGrid(context, ref, cars),
-                loading: () => _buildLoadingState(),
-                error: (error, stack) => _buildErrorState(ref),
+              child: CarPullToRefresh(
+                onRefresh: () async {
+                  ref.invalidate(favoriteCarsProvider);
+                  await ref.read(favoriteCarsProvider.future);
+                },
+                child: favoriteCarsAsync.when(
+                  data: (cars) => cars.isEmpty
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: [SizedBox(height: MediaQuery.of(context).size.height * 0.2), _buildEmptyState()],
+                        )
+                      : _buildCarGrid(context, ref, cars),
+                  loading: () => _buildLoadingState(),
+                  error: (error, stack) => _buildErrorState(ref),
+                ),
               ),
             ),
           ],
@@ -71,7 +82,7 @@ class FavoritesPage extends ConsumerWidget {
 
   Widget _buildCarGrid(BuildContext context, WidgetRef ref, List<Car> cars) {
     return GridView.builder(
-      physics: const BouncingScrollPhysics(),
+      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
@@ -81,7 +92,10 @@ class FavoritesPage extends ConsumerWidget {
       ),
       itemCount: cars.length,
       itemBuilder: (context, index) {
-        return _buildCarCard(context, ref, cars[index]);
+        return StaggeredFadeIn(
+          index: index,
+          child: _buildCarCard(context, ref, cars[index]),
+        );
       },
     );
   }
@@ -311,72 +325,76 @@ class FavoritesPage extends ConsumerWidget {
   }
 
   Widget _buildLoadingState() {
-    return GridView.builder(
-      physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 14,
-        mainAxisSpacing: 14,
-        childAspectRatio: 0.72,
-      ),
-      itemCount: 4,
-      itemBuilder: (context, index) {
-        return Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0F0F0),
-                    borderRadius:
-                        const BorderRadius.vertical(top: Radius.circular(20)),
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: GridView.builder(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 14,
+          mainAxisSpacing: 14,
+          childAspectRatio: 0.72,
+        ),
+        itemCount: 4,
+        itemBuilder: (context, index) {
+          return Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(20)),
+                    ),
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      height: 14,
-                      width: 100,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF0F0F0),
-                        borderRadius: BorderRadius.circular(4),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        height: 14,
+                        width: 100,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      height: 12,
-                      width: 70,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF0F0F0),
-                        borderRadius: BorderRadius.circular(4),
+                      const SizedBox(height: 8),
+                      Container(
+                        height: 12,
+                        width: 70,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      height: 12,
-                      width: 50,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF0F0F0),
-                        borderRadius: BorderRadius.circular(4),
+                      const SizedBox(height: 8),
+                      Container(
+                        height: 12,
+                        width: 50,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-        );
-      },
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 

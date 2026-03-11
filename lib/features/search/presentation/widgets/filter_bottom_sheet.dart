@@ -28,7 +28,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
     if (filters.location != null && filters.location!.isNotEmpty) {
       _locationController.text = filters.location!;
     } else {
-      _locationController.text = 'Shore Dr, Chicago 0062 Usa';
+      _locationController.text = '';
     }
   }
 
@@ -75,7 +75,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
     final defaultFilters = ref.read(searchControllerProvider).filters;
     _minPriceController.text = '₦${(defaultFilters.priceRange.start / 1000).toInt()}k';
     _maxPriceController.text = '₦${(defaultFilters.priceRange.end / 1000).toInt()}k+';
-    _locationController.text = 'Shore Dr, Chicago 0062 Usa';
+    _locationController.text = '';
     setState(() => _showAllColors = false);
   }
 
@@ -95,8 +95,11 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
             ? _locationController.text
             : currentFilters.location,
         onLocationSelected: (location) {
+          // Use city name (e.g. "Lagos") not displayName (e.g. "Lagos, Lagos State")
+          // because DB stores locations like "Lekki, Lagos" and backend uses LIKE '%Lagos%'
+          final locationQuery = location.city ?? location.name;
           _locationController.text = location.displayName;
-          ref.read(searchControllerProvider.notifier).updateLocation(location.displayName);
+          ref.read(searchControllerProvider.notifier).updateLocation(locationQuery);
           Navigator.of(context).pop();
         },
       ),
@@ -229,9 +232,8 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
                   Expanded(
                     child: GestureDetector(
                       onTap: () {
-                        ref.read(searchControllerProvider.notifier).updateLocation(
-                          _locationController.text.isNotEmpty ? _locationController.text : null,
-                        );
+                        // Location is already updated when user picks from location picker
+                        // Only update if user manually typed something
                         Navigator.of(context).pop();
                       },
                       child: Container(
