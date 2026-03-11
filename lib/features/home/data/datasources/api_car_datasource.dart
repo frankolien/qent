@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:qent/core/services/api_client.dart';
 import 'package:qent/features/home/domain/models/car.dart';
 
@@ -8,16 +9,27 @@ class ApiCarDataSource {
 
   ApiCarDataSource({ApiClient? client}) : _client = client ?? ApiClient();
 
+  void _log(String message) {
+    if (kDebugMode) debugPrint('[Qent Cars] $message');
+  }
+
   /// Fetch all available cars.
   Future<List<Car>> getCars() async {
-    final response = await _client.get('/cars/search', auth: false);
+    _log('> Fetching all cars');
+    final sw = Stopwatch()..start();
+
+    final response = await _client.get('/cars/search', auth: false, queryParams: {'per_page': '100'});
+    sw.stop();
 
     if (!response.isSuccess) {
+      _log('FAIL: getCars failed (${sw.elapsedMilliseconds}ms): ${response.errorMessage}');
       throw Exception(response.errorMessage);
     }
 
     final List<dynamic> data = response.body;
-    return data.map((json) => _carFromJson(json)).toList();
+    final cars = data.map((json) => _carFromJson(json)).toList();
+    _log('OK: Loaded ${cars.length} cars (${sw.elapsedMilliseconds}ms)');
+    return cars;
   }
 
   /// Search cars with filters.
@@ -43,71 +55,116 @@ class ApiCarDataSource {
     if (color != null && color.isNotEmpty) params['color'] = color;
     if (seats != null) params['seats'] = seats.toString();
 
+    _log('> Searching cars | filters: $params');
+    final sw = Stopwatch()..start();
+
     final response = await _client.get('/cars/search', auth: false, queryParams: params);
+    sw.stop();
 
     if (!response.isSuccess) {
+      _log('FAIL: searchCars failed (${sw.elapsedMilliseconds}ms): ${response.errorMessage}');
       throw Exception(response.errorMessage);
     }
 
     final List<dynamic> data = response.body;
-    return data.map((json) => _carFromJson(json)).toList();
+    final cars = data.map((json) => _carFromJson(json)).toList();
+    _log('OK: Search returned ${cars.length} cars (${sw.elapsedMilliseconds}ms)');
+    return cars;
   }
 
   /// Fetch a single car by ID.
   Future<Car?> getCar(String carId) async {
+    _log('> Fetching car: $carId');
+    final sw = Stopwatch()..start();
+
     final response = await _client.get('/cars/$carId', auth: false);
+    sw.stop();
 
-    if (!response.isSuccess) return null;
+    if (!response.isSuccess) {
+      _log('FAIL: getCar failed (${sw.elapsedMilliseconds}ms): ${response.errorMessage}');
+      return null;
+    }
 
-    return _carFromJson(response.body);
+    final car = _carFromJson(response.body);
+    _log('OK: Loaded car: ${car.name} (${sw.elapsedMilliseconds}ms)');
+    return car;
   }
 
   /// Get favorite cars for current user.
   Future<List<Car>> getFavoriteCars() async {
+    _log('> Fetching favorites');
+    final sw = Stopwatch()..start();
+
     final response = await _client.get('/favorites');
+    sw.stop();
 
     if (!response.isSuccess) {
+      _log('FAIL: getFavorites failed (${sw.elapsedMilliseconds}ms): ${response.errorMessage}');
       return [];
     }
 
     final List<dynamic> data = response.body;
-    return data.map((json) => _carFromJson(json, isFavorite: true)).toList();
+    final cars = data.map((json) => _carFromJson(json, isFavorite: true)).toList();
+    _log('OK: Loaded ${cars.length} favorites (${sw.elapsedMilliseconds}ms)');
+    return cars;
   }
 
   /// Toggle favorite status for a car.
   Future<bool> toggleFavorite(String carId) async {
+    _log('> Toggling favorite: $carId');
+    final sw = Stopwatch()..start();
+
     final response = await _client.post('/favorites/$carId');
+    sw.stop();
 
     if (!response.isSuccess) {
+      _log('FAIL: toggleFavorite failed (${sw.elapsedMilliseconds}ms): ${response.errorMessage}');
       throw Exception(response.errorMessage);
     }
 
-    return response.body['favorited'] ?? false;
+    final favorited = response.body['favorited'] ?? false;
+    _log('OK: Favorite toggled: $carId -> ${favorited ? "added" : "removed"} (${sw.elapsedMilliseconds}ms)');
+    return favorited;
   }
 
   /// Check if a car is favorited.
   Future<bool> isFavorited(String carId) async {
+    _log('> Checking favorite: $carId');
+    final sw = Stopwatch()..start();
+
     final response = await _client.get('/favorites/$carId/check');
+    sw.stop();
 
-    if (!response.isSuccess) return false;
+    if (!response.isSuccess) {
+      _log('WARN: isFavorited check failed (${sw.elapsedMilliseconds}ms)');
+      return false;
+    }
 
-    return response.body['favorited'] ?? false;
+    final favorited = response.body['favorited'] ?? false;
+    _log('OK: Favorite check: $carId -> $favorited (${sw.elapsedMilliseconds}ms)');
+    return favorited;
   }
 
   /// Get host's own car listings.
   Future<List<Car>> getHostCars() async {
+    _log('> Fetching host car listings');
+    final sw = Stopwatch()..start();
+
     final response = await _client.get('/cars/my-listings');
+    sw.stop();
 
     if (!response.isSuccess) {
+      _log('FAIL: getHostCars failed (${sw.elapsedMilliseconds}ms): ${response.errorMessage}');
       throw Exception(response.errorMessage);
     }
 
     final List<dynamic> data = response.body;
-    return data.map((json) => _carFromJson(json)).toList();
+    final cars = data.map((json) => _carFromJson(json)).toList();
+    _log('OK: Loaded ${cars.length} host listings (${sw.elapsedMilliseconds}ms)');
+    return cars;
   }
 
   /// Convert API JSON to Car model.
-  /// Maps Rust backend fields to Flutter Car model fields.
   Car _carFromJson(Map<String, dynamic> json, {bool isFavorite = false}) {
     final photos = json['photos'] as List<dynamic>?;
     final imageUrl = (photos != null && photos.isNotEmpty) ? photos[0] as String : '';

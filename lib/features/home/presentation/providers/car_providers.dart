@@ -22,7 +22,58 @@ final favoriteCarsProvider = FutureProvider<List<Car>>((ref) async {
   return dataSource.getFavoriteCars();
 });
 
-// Car controller for actions (toggleFavorite no longer needs userId - backend knows from JWT)
+// Tracks the set of favorited car IDs locally for instant UI updates
+class FavoriteIdsNotifier extends Notifier<Set<String>> {
+  @override
+  Set<String> build() {
+    _load();
+    return <String>{};
+  }
+
+  Future<void> _load() async {
+    try {
+      final dataSource = ref.read(apiCarDataSourceProvider);
+      final favCars = await dataSource.getFavoriteCars();
+      state = favCars.map((c) => c.id).toSet();
+    } catch (e) {
+      debugPrint('[Qent Favorites] FAIL: Could not load favorites: $e');
+    }
+  }
+
+  Future<void> toggle(String carId) async {
+    final wasFavorited = state.contains(carId);
+    // Optimistic update
+    if (wasFavorited) {
+      state = Set<String>.from(state)..remove(carId);
+    } else {
+      state = Set<String>.from(state)..add(carId);
+    }
+
+    try {
+      final dataSource = ref.read(apiCarDataSourceProvider);
+      final serverResult = await dataSource.toggleFavorite(carId);
+      // Reconcile if server disagrees
+      if (serverResult && !state.contains(carId)) {
+        state = Set<String>.from(state)..add(carId);
+      } else if (!serverResult && state.contains(carId)) {
+        state = Set<String>.from(state)..remove(carId);
+      }
+    } catch (e) {
+      debugPrint('[Qent Favorites] ERROR: toggle failed, reverting: $e');
+      // Revert on error
+      if (wasFavorited) {
+        state = Set<String>.from(state)..add(carId);
+      } else {
+        state = Set<String>.from(state)..remove(carId);
+      }
+    }
+  }
+}
+
+final favoriteIdsProvider =
+    NotifierProvider<FavoriteIdsNotifier, Set<String>>(FavoriteIdsNotifier.new);
+
+// Car controller for actions
 class CarController {
   final ApiCarDataSource _dataSource;
 

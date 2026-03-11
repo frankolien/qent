@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
+import 'package:qent/features/auth/presentation/pages/signup_page.dart' show validateEmail; // email typo validator
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -215,15 +216,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           decoration: inputDecoration.copyWith(
             hintText: 'Email/Phone Number',
           ),
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return 'Please enter your email';
-            }
-            if (!value.contains('@')) {
-              return 'Please enter a valid email';
-            }
-            return null;
-          },
+          validator: validateEmail,
         ),
         const SizedBox(height: 14),
         TextFormField(

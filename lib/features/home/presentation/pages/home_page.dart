@@ -60,6 +60,7 @@ class HomePageState extends ConsumerState<HomePage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F8F8),
       body: SafeArea(
+        bottom: true,
         child: CarPullToRefresh(
           onRefresh: () async {
             ref.invalidate(carsProvider);
@@ -487,12 +488,18 @@ class HomePageState extends ConsumerState<HomePage> {
               index: index,
               child: Padding(
                 padding: EdgeInsets.only(right: index < bestCars.length - 1 ? 14 : 0),
-                child: CarCard(
-                  car: bestCars[index],
-                  onFavoriteTap: () {
-                    if (userId.isNotEmpty) {
-                      carController.toggleFavorite(bestCars[index].id);
-                    }
+                child: Consumer(
+                  builder: (context, ref, _) {
+                    final favIds = ref.watch(favoriteIdsProvider);
+                    final car = bestCars[index];
+                    return CarCard(
+                      car: car.copyWith(isFavorite: favIds.contains(car.id)),
+                      onFavoriteTap: () {
+                        if (userId.isNotEmpty) {
+                          ref.read(favoriteIdsProvider.notifier).toggle(car.id);
+                        }
+                      },
+                    );
                   },
                 ),
               ),
@@ -546,12 +553,17 @@ class HomePageState extends ConsumerState<HomePage> {
               index: index,
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 14),
-                child: NearbyCarCard(
-                  car: car,
-                  onFavoriteTap: () {
-                    if (userId.isNotEmpty) {
-                      carController.toggleFavorite(car.id);
-                    }
+                child: Consumer(
+                  builder: (context, ref, _) {
+                    final favIds = ref.watch(favoriteIdsProvider);
+                    return NearbyCarCard(
+                      car: car.copyWith(isFavorite: favIds.contains(car.id)),
+                      onFavoriteTap: () {
+                        if (userId.isNotEmpty) {
+                          ref.read(favoriteIdsProvider.notifier).toggle(car.id);
+                        }
+                      },
+                    );
                   },
                 ),
               ),

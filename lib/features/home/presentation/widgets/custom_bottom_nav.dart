@@ -22,8 +22,9 @@ class CustomBottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
-    return Container(
-      margin: EdgeInsets.fromLTRB(16, 0, 16, bottomPadding + 8),
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 0, 16, bottomPadding + 8),
+      child: Container(
       height: 70,
       decoration: BoxDecoration(
         color: const Color(0xFF2C2C2C),
@@ -40,6 +41,7 @@ class CustomBottomNav extends StatelessWidget {
           );
         }).toList(),
       ),
+    ),
     );
   }
 

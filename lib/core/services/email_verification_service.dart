@@ -12,65 +12,65 @@ class EmailVerificationService {
 
   final ApiClient _api = ApiClient();
 
+  void _log(String message) {
+    if (kDebugMode) debugPrint('[Qent Email] $message');
+  }
+
   /// Request the backend to generate and send a verification code.
-  /// Returns true if the code was sent successfully.
   Future<bool> sendVerificationCode(String email) async {
+    _log('> Sending verification code to $email');
+    final sw = Stopwatch()..start();
     try {
       final resp = await _api.post(
         '/auth/send-code',
         body: {'email': email},
         auth: false,
       );
+      sw.stop();
 
       if (resp.isSuccess) {
-        if (kDebugMode) {
-          print('Verification code sent to $email');
-        }
+        _log('OK: Code sent to $email (${sw.elapsedMilliseconds}ms)');
         return true;
       } else {
-        if (kDebugMode) {
-          print('Failed to send code: ${resp.errorMessage}');
-        }
+        _log('FAIL: Failed to send code: ${resp.errorMessage} (${sw.elapsedMilliseconds}ms)');
         return false;
       }
     } catch (e) {
-      if (kDebugMode) {
-        print('Error sending verification code: $e');
-      }
+      sw.stop();
+      _log('ERROR: Error sending code: $e (${sw.elapsedMilliseconds}ms)');
       return false;
     }
   }
 
   /// Verify the code entered by the user against the backend.
   Future<bool> verifyCode(String email, String code) async {
+    _log('> Verifying code for $email (code: ${code.replaceRange(1, code.length - 1, '**')})');
+    final sw = Stopwatch()..start();
     try {
       final resp = await _api.post(
         '/auth/verify-code',
         body: {'email': email, 'code': code},
         auth: false,
       );
+      sw.stop();
 
       if (resp.isSuccess && resp.body['verified'] == true) {
-        if (kDebugMode) {
-          print('Email $email verified successfully');
-        }
+        _log('OK: Email $email verified (${sw.elapsedMilliseconds}ms)');
         return true;
       } else {
-        if (kDebugMode) {
-          print('Verification failed: ${resp.errorMessage}');
-        }
+        _log('FAIL: Verification failed: ${resp.errorMessage} (${sw.elapsedMilliseconds}ms)');
         return false;
       }
     } catch (e) {
-      if (kDebugMode) {
-        print('Error verifying code: $e');
-      }
+      sw.stop();
+      _log('ERROR: Error verifying code: $e (${sw.elapsedMilliseconds}ms)');
       return false;
     }
   }
 
   /// Resend verification code (just calls sendVerificationCode again).
   Future<bool> resendVerificationCode(String email) async {
+    _log('> Resending verification code to $email');
     return sendVerificationCode(email);
   }
 }

@@ -23,17 +23,20 @@ class ApiClient {
     if (baseUrl != null) _baseUrl = baseUrl;
     _prefs = await SharedPreferences.getInstance();
     _token = _prefs?.getString('auth_token');
+    _log('ApiClient initialized | baseUrl: $_baseUrl | hasToken: ${_token != null}');
   }
 
   /// Set the base URL (useful for switching environments).
   void setBaseUrl(String url) {
     _baseUrl = url;
+    _log('Base URL changed to: $url');
   }
 
   /// Store JWT token after login/signup.
   Future<void> setToken(String token) async {
     _token = token;
     await _prefs?.setString('auth_token', token);
+    _log('Token stored (${token.length} chars)');
   }
 
   /// Get current token.
@@ -46,6 +49,7 @@ class ApiClient {
   Future<void> clearToken() async {
     _token = null;
     await _prefs?.remove('auth_token');
+    _log('Token cleared');
   }
 
   /// Build headers with optional auth token.
@@ -59,21 +63,61 @@ class ApiClient {
     return headers;
   }
 
+  /// Debug logger — only prints in debug mode
+  void _log(String message) {
+    if (kDebugMode) {
+      debugPrint('[Qent API] $message');
+    }
+  }
+
+  /// Log request details
+  void _logRequest(String method, String url, {Map<String, dynamic>? body, bool auth = true}) {
+    _log('> $method $url');
+    if (auth) _log('  Auth: ${_token != null ? "Bearer ${_token!.substring(0, 20)}..." : "none"}');
+    if (body != null) {
+      // Redact sensitive fields
+      final safeBody = Map<String, dynamic>.from(body);
+      for (final key in ['password', 'token', 'card_number', 'cvc']) {
+        if (safeBody.containsKey(key)) safeBody[key] = '***';
+      }
+      _log('  Body: ${jsonEncode(safeBody)}');
+    }
+  }
+
+  /// Log response details
+  void _logResponse(String method, String url, int statusCode, dynamic body, Duration elapsed) {
+    final tag = statusCode >= 200 && statusCode < 300 ? 'OK' : 'FAIL';
+    _log('$tag $method $url -> $statusCode (${elapsed.inMilliseconds}ms)');
+    if (body != null) {
+      final bodyStr = body is Map ? jsonEncode(body) : body.toString();
+      // Truncate long responses
+      final truncated = bodyStr.length > 500 ? '${bodyStr.substring(0, 500)}...' : bodyStr;
+      _log('  Response: $truncated');
+    }
+  }
+
   /// GET request.
   Future<ApiResponse> get(
     String path, {
     bool auth = true,
     Map<String, String>? queryParams,
   }) async {
+    final url = '$_baseUrl$path';
+    _logRequest('GET', url, auth: auth);
+    final stopwatch = Stopwatch()..start();
     try {
-      var uri = Uri.parse('$_baseUrl$path');
+      var uri = Uri.parse(url);
       if (queryParams != null) {
         uri = uri.replace(queryParameters: queryParams);
       }
       final response = await http.get(uri, headers: _headers(auth: auth));
-      return ApiResponse.fromHttpResponse(response);
+      stopwatch.stop();
+      final apiResponse = ApiResponse.fromHttpResponse(response);
+      _logResponse('GET', url, response.statusCode, apiResponse.body, stopwatch.elapsed);
+      return apiResponse;
     } catch (e) {
-      debugPrint('API GET error: $e');
+      stopwatch.stop();
+      _log('ERROR GET $url FAILED (${stopwatch.elapsed.inMilliseconds}ms): $e');
       return ApiResponse(statusCode: 0, body: {'error': e.toString()});
     }
   }
@@ -84,15 +128,22 @@ class ApiClient {
     Map<String, dynamic>? body,
     bool auth = true,
   }) async {
+    final url = '$_baseUrl$path';
+    _logRequest('POST', url, body: body, auth: auth);
+    final stopwatch = Stopwatch()..start();
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl$path'),
+        Uri.parse(url),
         headers: _headers(auth: auth),
         body: body != null ? jsonEncode(body) : null,
       );
-      return ApiResponse.fromHttpResponse(response);
+      stopwatch.stop();
+      final apiResponse = ApiResponse.fromHttpResponse(response);
+      _logResponse('POST', url, response.statusCode, apiResponse.body, stopwatch.elapsed);
+      return apiResponse;
     } catch (e) {
-      debugPrint('API POST error: $e');
+      stopwatch.stop();
+      _log('ERROR POST $url FAILED (${stopwatch.elapsed.inMilliseconds}ms): $e');
       return ApiResponse(statusCode: 0, body: {'error': e.toString()});
     }
   }
@@ -103,15 +154,22 @@ class ApiClient {
     Map<String, dynamic>? body,
     bool auth = true,
   }) async {
+    final url = '$_baseUrl$path';
+    _logRequest('PUT', url, body: body, auth: auth);
+    final stopwatch = Stopwatch()..start();
     try {
       final response = await http.put(
-        Uri.parse('$_baseUrl$path'),
+        Uri.parse(url),
         headers: _headers(auth: auth),
         body: body != null ? jsonEncode(body) : null,
       );
-      return ApiResponse.fromHttpResponse(response);
+      stopwatch.stop();
+      final apiResponse = ApiResponse.fromHttpResponse(response);
+      _logResponse('PUT', url, response.statusCode, apiResponse.body, stopwatch.elapsed);
+      return apiResponse;
     } catch (e) {
-      debugPrint('API PUT error: $e');
+      stopwatch.stop();
+      _log('ERROR PUT $url FAILED (${stopwatch.elapsed.inMilliseconds}ms): $e');
       return ApiResponse(statusCode: 0, body: {'error': e.toString()});
     }
   }
@@ -121,14 +179,21 @@ class ApiClient {
     String path, {
     bool auth = true,
   }) async {
+    final url = '$_baseUrl$path';
+    _logRequest('DELETE', url, auth: auth);
+    final stopwatch = Stopwatch()..start();
     try {
       final response = await http.delete(
-        Uri.parse('$_baseUrl$path'),
+        Uri.parse(url),
         headers: _headers(auth: auth),
       );
-      return ApiResponse.fromHttpResponse(response);
+      stopwatch.stop();
+      final apiResponse = ApiResponse.fromHttpResponse(response);
+      _logResponse('DELETE', url, response.statusCode, apiResponse.body, stopwatch.elapsed);
+      return apiResponse;
     } catch (e) {
-      debugPrint('API DELETE error: $e');
+      stopwatch.stop();
+      _log('ERROR DELETE $url FAILED (${stopwatch.elapsed.inMilliseconds}ms): $e');
       return ApiResponse(statusCode: 0, body: {'error': e.toString()});
     }
   }

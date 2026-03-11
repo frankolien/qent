@@ -399,13 +399,15 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             itemCount: cars.length,
             itemBuilder: (context, index) {
+              final favIds = ref.watch(favoriteIdsProvider);
+              final car = cars[index].copyWith(isFavorite: favIds.contains(cars[index].id));
               return Padding(
                 padding: EdgeInsets.only(right: index < cars.length - 1 ? 14 : 0),
                 child: SearchCarCard(
-                  car: cars[index],
+                  car: car,
                   onFavoriteTap: () {
                     if (userId.isNotEmpty) {
-                      carController.toggleFavorite(cars[index].id);
+                      ref.read(favoriteIdsProvider.notifier).toggle(car.id);
                     }
                   },
                 ),

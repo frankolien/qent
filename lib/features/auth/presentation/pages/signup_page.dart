@@ -4,6 +4,65 @@ import 'package:qent/core/services/email_verification_service.dart';
 import 'package:qent/features/auth/presentation/pages/verification_code_page.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 
+String? validateEmail(String? value) {
+  if (value == null || value.trim().isEmpty) {
+    return 'Please enter your email';
+  }
+  final email = value.trim().toLowerCase();
+
+  // Basic format check
+  final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+  if (!emailRegex.hasMatch(email)) {
+    return 'Please enter a valid email address';
+  }
+
+  final domain = email.split('@').last;
+
+  // Common domain typo corrections
+  const domainTypos = {
+    // Gmail
+    'gimal.com': 'gmail.com',
+    'gmial.com': 'gmail.com',
+    'gmla.com': 'gmail.com',
+    'gmali.com': 'gmail.com',
+    'gmai.com': 'gmail.com',
+    'gamil.com': 'gmail.com',
+    'gnail.com': 'gmail.com',
+    'gmaill.com': 'gmail.com',
+    'gmaik.com': 'gmail.com',
+    'gmil.com': 'gmail.com',
+    'gmaol.com': 'gmail.com',
+    'gmail.con': 'gmail.com',
+    'gmail.cm': 'gmail.com',
+    'gmail.co': 'gmail.com',
+    'gmail.vom': 'gmail.com',
+    'gmail.cim': 'gmail.com',
+    'gmail.om': 'gmail.com',
+    // Yahoo
+    'yaho.com': 'yahoo.com',
+    'yahooo.com': 'yahoo.com',
+    'yhoo.com': 'yahoo.com',
+    'yahoo.con': 'yahoo.com',
+    'yaoo.com': 'yahoo.com',
+    // Hotmail
+    'hotmal.com': 'hotmail.com',
+    'hotmial.com': 'hotmail.com',
+    'hotamil.com': 'hotmail.com',
+    'hotmail.con': 'hotmail.com',
+    // Outlook
+    'outllok.com': 'outlook.com',
+    'outlok.com': 'outlook.com',
+    'outlook.con': 'outlook.com',
+    'outook.com': 'outlook.com',
+  };
+
+  if (domainTypos.containsKey(domain)) {
+    return 'Did you mean ${email.split('@').first}@${domainTypos[domain]}?';
+  }
+
+  return null;
+}
+
 class SignUpPage extends ConsumerStatefulWidget {
   const SignUpPage({super.key});
 
@@ -348,15 +407,7 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
               ),
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             ),
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Please enter your email';
-              }
-              if (!value.contains('@') || !value.contains('.')) {
-                return 'Please enter a valid email';
-              }
-              return null;
-            },
+            validator: validateEmail,
           ),
           const SizedBox(height: 16),
           TextFormField(

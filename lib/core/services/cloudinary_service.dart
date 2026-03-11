@@ -11,9 +11,12 @@ class CloudinaryService {
 
   late String _cloudName;
   late String _apiKey;
-  late String _apiSecret; 
+  late String _apiSecret;
 
-  // Initialize with your Cloudinary credentials
+  void _log(String message) {
+    if (kDebugMode) debugPrint('[Qent Cloudinary] $message');
+  }
+
   void initialize({
     String? cloudName,
     String? apiKey,
@@ -25,168 +28,137 @@ class CloudinaryService {
     _cloudName = cloudName;
     _apiKey = apiKey;
     _apiSecret = apiSecret;
+    _log('Initialized | cloud: $_cloudName');
   }
 
-  // Upload image file to Cloudinary
   Future<String?> uploadImage({
     required File imageFile,
     String? folder,
     String? publicId,
   }) async {
+    _log('> Uploading file: ${imageFile.path} | folder: $folder');
+    final sw = Stopwatch()..start();
     try {
       final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-      
-      // For authenticated uploads using API key and signature
       final url = 'https://api.cloudinary.com/v1_1/$_cloudName/image/upload';
-      
+
       final request = http.MultipartRequest('POST', Uri.parse(url));
-      
-      // Add timestamp and public_id if provided
       request.fields['timestamp'] = timestamp;
-      if (folder != null) {
-        request.fields['folder'] = folder;
-      }
-      if (publicId != null) {
-        request.fields['public_id'] = publicId;
-      }
-      
-      // Add file
+      if (folder != null) request.fields['folder'] = folder;
+      if (publicId != null) request.fields['public_id'] = publicId;
+
       request.files.add(
-        await http.MultipartFile.fromPath(
-          'file',
-          imageFile.path,
-        ),
+        await http.MultipartFile.fromPath('file', imageFile.path),
       );
 
-      // Generate signature for authenticated upload
-      final params = <String, String>{
-        'timestamp': timestamp,
-      };
+      final params = <String, String>{'timestamp': timestamp};
       if (folder != null) params['folder'] = folder;
       if (publicId != null) params['public_id'] = publicId;
-      
+
       final sortedParams = Map.fromEntries(
         params.entries.toList()..sort((a, b) => a.key.compareTo(b.key))
       );
-      
       final queryString = sortedParams.entries
           .map((e) => '${e.key}=${e.value}')
           .join('&');
-      
-      final signatureString = '$queryString$_apiSecret';
-      final signature = sha1.convert(utf8.encode(signatureString)).toString();
-      
+      final signature = sha1.convert(utf8.encode('$queryString$_apiSecret')).toString();
+
       request.fields['api_key'] = _apiKey;
       request.fields['signature'] = signature;
 
       final response = await request.send();
       final responseBody = await response.stream.bytesToString();
-      
+      sw.stop();
+
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(responseBody) as Map<String, dynamic>;
         final secureUrl = jsonResponse['secure_url'] as String?;
+        _log('OK: Upload success (${sw.elapsedMilliseconds}ms) -> $secureUrl');
         return secureUrl;
       } else {
-        if (kDebugMode) {
-          print('Cloudinary upload error: ${response.statusCode} - $responseBody');
-        }
+        _log('FAIL: Upload failed: ${response.statusCode} (${sw.elapsedMilliseconds}ms)');
+        _log('  Response: $responseBody');
         return null;
       }
     } catch (e) {
-      if (kDebugMode) {
-        print('Error uploading image to Cloudinary: $e');
-      }
+      sw.stop();
+      _log('ERROR: Upload error (${sw.elapsedMilliseconds}ms): $e');
       return null;
     }
   }
 
-  // Upload image from bytes
   Future<String?> uploadImageFromBytes({
     required List<int> imageBytes,
     required String fileName,
     String? folder,
   }) async {
+    _log('> Uploading bytes: $fileName (${imageBytes.length} bytes) | folder: $folder');
+    final sw = Stopwatch()..start();
     try {
       final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
       final url = 'https://api.cloudinary.com/v1_1/$_cloudName/image/upload';
-      
+
       final request = http.MultipartRequest('POST', Uri.parse(url));
-      
       request.fields['timestamp'] = timestamp;
-      if (folder != null) {
-        request.fields['folder'] = folder;
-      }
-      
+      if (folder != null) request.fields['folder'] = folder;
+
       request.files.add(
-        http.MultipartFile.fromBytes(
-          'file',
-          imageBytes,
-          filename: fileName,
-        ),
+        http.MultipartFile.fromBytes('file', imageBytes, filename: fileName),
       );
 
-      // Generate signature
-      final params = <String, String>{
-        'timestamp': timestamp,
-      };
+      final params = <String, String>{'timestamp': timestamp};
       if (folder != null) params['folder'] = folder;
-      
+
       final sortedParams = Map.fromEntries(
         params.entries.toList()..sort((a, b) => a.key.compareTo(b.key))
       );
-      
       final queryString = sortedParams.entries
           .map((e) => '${e.key}=${e.value}')
           .join('&');
-      
-      final signatureString = '$queryString$_apiSecret';
-      final signature = sha1.convert(utf8.encode(signatureString)).toString();
-      
+      final signature = sha1.convert(utf8.encode('$queryString$_apiSecret')).toString();
+
       request.fields['api_key'] = _apiKey;
       request.fields['signature'] = signature;
 
       final response = await request.send();
       final responseBody = await response.stream.bytesToString();
-      
+      sw.stop();
+
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(responseBody) as Map<String, dynamic>;
         final secureUrl = jsonResponse['secure_url'] as String?;
+        _log('OK: Bytes upload success (${sw.elapsedMilliseconds}ms) -> $secureUrl');
         return secureUrl;
       } else {
-        if (kDebugMode) {
-          print('Cloudinary upload error: ${response.statusCode} - $responseBody');
-        }
+        _log('FAIL: Bytes upload failed: ${response.statusCode} (${sw.elapsedMilliseconds}ms)');
+        _log('  Response: $responseBody');
         return null;
       }
     } catch (e) {
-      if (kDebugMode) {
-        print('Error uploading image to Cloudinary: $e');
-      }
+      sw.stop();
+      _log('ERROR: Bytes upload error (${sw.elapsedMilliseconds}ms): $e');
       return null;
     }
   }
 
-  // Delete image from Cloudinary
   Future<bool> deleteImage(String publicId) async {
+    _log('> Deleting image: $publicId');
+    final sw = Stopwatch()..start();
     try {
       final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-      
+
       final params = <String, String>{
         'public_id': publicId,
         'timestamp': timestamp,
       };
-      
       final sortedParams = Map.fromEntries(
         params.entries.toList()..sort((a, b) => a.key.compareTo(b.key))
       );
-      
       final queryString = sortedParams.entries
           .map((e) => '${e.key}=${e.value}')
           .join('&');
-      
-      final signatureString = '$queryString$_apiSecret';
-      final signature = sha1.convert(utf8.encode(signatureString)).toString();
-      
+      final signature = sha1.convert(utf8.encode('$queryString$_apiSecret')).toString();
+
       final url = Uri.parse('https://api.cloudinary.com/v1_1/$_cloudName/image/destroy').replace(
         queryParameters: {
           'public_id': publicId,
@@ -195,41 +167,36 @@ class CloudinaryService {
           'signature': signature,
         },
       );
-      
+
       final response = await http.delete(url);
-      
+      sw.stop();
+
       if (response.statusCode == 200) {
+        _log('OK: Deleted $publicId (${sw.elapsedMilliseconds}ms)');
         return true;
       } else {
-        if (kDebugMode) {
-          print('Cloudinary delete error: ${response.statusCode} - ${response.body}');
-        }
+        _log('FAIL: Delete failed: ${response.statusCode} (${sw.elapsedMilliseconds}ms) - ${response.body}');
         return false;
       }
     } catch (e) {
-      if (kDebugMode) {
-        print('Error deleting image from Cloudinary: $e');
-      }
+      sw.stop();
+      _log('ERROR: Delete error (${sw.elapsedMilliseconds}ms): $e');
       return false;
     }
   }
 
-  // Extract public ID from Cloudinary URL
   String? getPublicIdFromUrl(String url) {
     try {
       final uri = Uri.parse(url);
       final pathSegments = uri.pathSegments;
       if (pathSegments.isNotEmpty) {
         final lastSegment = pathSegments.last;
-        // Remove extension
         final publicId = lastSegment.split('.').first;
         return publicId;
       }
       return null;
     } catch (e) {
-      if (kDebugMode) {
-        print('Error extracting public ID: $e');
-      }
+      _log('ERROR: Error extracting public ID from $url: $e');
       return null;
     }
   }

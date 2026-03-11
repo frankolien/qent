@@ -664,17 +664,14 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
   }
 
   Widget _buildFavoriteButton(BuildContext context) {
-    final carAsync = ref.watch(carProvider(widget.car.id));
-    return carAsync.when(
-      data: (car) => _buildFavIcon(car?.isFavorite ?? widget.car.isFavorite),
-      loading: () => _buildFavIcon(widget.car.isFavorite),
-      error: (_, __) => _buildFavIcon(widget.car.isFavorite),
-    );
+    final favIds = ref.watch(favoriteIdsProvider);
+    final isFavorite = favIds.contains(widget.car.id);
+    return _buildFavIcon(isFavorite);
   }
 
   Widget _buildFavIcon(bool isFavorite) {
     return GestureDetector(
-      onTap: () => ref.read(carControllerProvider).toggleFavorite(widget.car.id),
+      onTap: () => ref.read(favoriteIdsProvider.notifier).toggle(widget.car.id),
       child: Container(
         width: 42,
         height: 42,

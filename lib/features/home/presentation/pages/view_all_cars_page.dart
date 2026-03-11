@@ -113,18 +113,24 @@ class ViewAllCarsPage extends ConsumerWidget {
         final car = cars[index];
         return Padding(
           padding: const EdgeInsets.only(bottom: 16),
-          child: _ViewAllCarCard(
-            car: car,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => CarDetailsPage(car: car),
-                ),
+          child: Consumer(
+            builder: (context, ref, _) {
+              final favIds = ref.watch(favoriteIdsProvider);
+              final favCar = car.copyWith(isFavorite: favIds.contains(car.id));
+              return _ViewAllCarCard(
+                car: favCar,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CarDetailsPage(car: favCar),
+                    ),
+                  );
+                },
+                onFavoriteTap: () {
+                  ref.read(favoriteIdsProvider.notifier).toggle(car.id);
+                },
               );
-            },
-            onFavoriteTap: () {
-              ref.read(carControllerProvider).toggleFavorite(car.id);
             },
           ),
         );

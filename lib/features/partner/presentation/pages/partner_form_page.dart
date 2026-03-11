@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:qent/core/services/api_client.dart';
+import 'package:qent/core/services/email_verification_service.dart';
+import 'package:qent/features/partner/presentation/pages/partner_otp_page.dart';
 import 'package:qent/features/partner/presentation/providers/partner_providers.dart';
 
 class PartnerFormPage extends ConsumerStatefulWidget {
@@ -704,7 +706,20 @@ class _PartnerFormPageState extends ConsumerState<PartnerFormPage> {
       if (!mounted) return;
 
       if (response.isSuccess) {
-        _showSuccessDialog();
+        // Send OTP to the partner's email
+        final email = _emailController.text.trim();
+        final verificationService = EmailVerificationService();
+        await verificationService.sendVerificationCode(email);
+
+        if (!mounted) return;
+
+        // Navigate to OTP page
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PartnerOtpPage(email: email),
+          ),
+        );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -724,65 +739,6 @@ class _PartnerFormPageState extends ConsumerState<PartnerFormPage> {
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
-  }
-
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.check_circle_rounded, color: Colors.green, size: 36),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Application Submitted!',
-                  style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w700, color: const Color(0xFF1A1A1A)),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Your partnership application has been submitted successfully. We will review it and get back to you soon.',
-                  style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[600]),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    onPressed: () {
-                      Navigator.of(dialogContext).pop();
-                      Navigator.of(context).pop();
-                    },
-                    child: Text(
-                      'Done',
-                      style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
   }
 
   Widget _buildInputWithIcon({

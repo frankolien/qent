@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:qent/core/widgets/profile_image_widget.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/profile/presentation/pages/edit_profile_page.dart';
@@ -15,36 +16,120 @@ class ProfilePage extends ConsumerWidget {
     final userId = user?.uid;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F8F8),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 16),
+          child: Center(
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).maybePop(),
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.grey[300]!, width: 1),
+                ),
+                child: const Icon(Icons.arrow_back_ios_new, size: 16, color: Colors.black),
+              ),
+            ),
+          ),
+        ),
+        centerTitle: true,
+        title: Text(
+          'Profile',
+          style: GoogleFonts.roboto(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            color: Colors.black,
+          ),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.grey[300]!, width: 1),
+              ),
+              child: const Icon(Icons.more_horiz, size: 20, color: Colors.black),
+            ),
+          ),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: Colors.grey[200], height: 1),
+        ),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildHeader(),
               const SizedBox(height: 24),
-              _buildProfileCard(context, ref, userId),
-              const SizedBox(height: 24),
-              _buildMenuSection(context, 'General', [
-                _MenuItem(Icons.favorite_rounded, 'Favorite Cars', () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const FavoritesPage()));
-                }),
-                _MenuItem(Icons.access_time_rounded, 'Previous Rentals', () {}),
-                _MenuItem(Icons.notifications_rounded, 'Notifications', () {}),
-                _MenuItem(Icons.link_rounded, 'QENT Partnerships', () {
-                  Navigator.of(context).pushNamed('/partner/onboarding');
-                }),
-              ]),
-              const SizedBox(height: 16),
-              _buildMenuSection(context, 'Support', [
-                _MenuItem(Icons.settings_rounded, 'Settings', () {}),
-                _MenuItem(Icons.language_rounded, 'Languages', () {}),
-                _MenuItem(Icons.person_add_rounded, 'Invite Friends', () {}),
-                _MenuItem(Icons.privacy_tip_rounded, 'Privacy Policy', () {}),
-                _MenuItem(Icons.headset_mic_rounded, 'Help & Support', () {}),
-              ]),
-              const SizedBox(height: 16),
-              _buildLogoutButton(context, ref),
+              _buildProfileHeader(context, ref, userId),
+              const SizedBox(height: 32),
+              _buildSectionTitle('General'),
+              const SizedBox(height: 12),
+              _buildMenuItem(
+                'assets/images/Profile/heart.png',
+                'Favorite Cars',
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FavoritesPage())),
+              ),
+              _buildMenuItem(
+                'assets/images/Profile/time.png',
+                'Previous Rant',
+                onTap: () {},
+              ),
+              _buildMenuItem(
+                'assets/images/Profile/notification.png',
+                'Notification',
+                onTap: () {},
+              ),
+              _buildMenuItem(
+                'assets/images/Profile/connect.png',
+                'Connected to QENT Partnerships',
+                onTap: () => Navigator.of(context).pushNamed('/partner/onboarding'),
+              ),
+              const SizedBox(height: 28),
+              _buildSectionTitle('Support'),
+              const SizedBox(height: 12),
+              _buildMenuItem(
+                'assets/images/Profile/settings.png',
+                'Settings',
+                onTap: () {},
+              ),
+              _buildMenuItem(
+                'assets/images/Profile/language.png',
+                'Languages',
+                onTap: () {},
+              ),
+              _buildMenuItem(
+                'assets/images/Profile/invite_friend.png',
+                'Invite Friends',
+                onTap: () {},
+              ),
+              _buildMenuItem(
+                'assets/images/Profile/privacy.png',
+                'privacy policy',
+                onTap: () {},
+              ),
+              _buildMenuItem(
+                'assets/images/Profile/support.png',
+                'Help Support',
+                onTap: () {},
+              ),
+              _buildMenuItem(
+                'assets/images/Profile/log_out.png',
+                'Log out',
+                onTap: () => _showLogoutDialog(context, ref),
+              ),
               const SizedBox(height: 40),
             ],
           ),
@@ -53,224 +138,139 @@ class ProfilePage extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      child: Row(
-        children: [
-          const Text(
-            'Profile',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF1A1A1A),
-            ),
-          ),
-          const Spacer(),
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(Icons.more_horiz_rounded, size: 22, color: Color(0xFF1A1A1A)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProfileCard(BuildContext context, WidgetRef ref, String? userId) {
+  Widget _buildProfileHeader(BuildContext context, WidgetRef ref, String? userId) {
     final authState = ref.watch(authControllerProvider);
+    final fullName = authState.user?.fullName ?? 'User';
+    final email = authState.user?.email ?? '';
     final currentUserId = userId ?? authState.user?.uid;
 
-    if (currentUserId == null) return const SizedBox.shrink();
-
-    final fullName = authState.user?.fullName ?? 'User';
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFFEEEEEE), width: 2),
-              ),
-              child: ProfileImageWidget(
-                userId: currentUserId,
-                size: 72,
-                showEditIcon: false,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    fullName,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF1A1A1A),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    authState.user?.email ?? '',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[500],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const EditProfilePage()),
-                );
-              },
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5F5F5),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.edit_rounded, size: 18, color: Color(0xFF1A1A1A)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMenuSection(BuildContext context, String title, List<_MenuItem> items) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[500],
-            ),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              children: items.asMap().entries.map((entry) {
-                final index = entry.key;
-                final item = entry.value;
-                final isLast = index == items.length - 1;
-                return _buildMenuTile(item, isLast);
-              }).toList(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMenuTile(_MenuItem item, bool isLast) {
-    return GestureDetector(
-      onTap: item.onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          border: isLast
-              ? null
-              : Border(bottom: BorderSide(color: Colors.grey[100]!, width: 1)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF5F5F5),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(item.icon, size: 18, color: const Color(0xFF1A1A1A)),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                item.title,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF1A1A1A),
-                ),
-              ),
-            ),
-            Icon(Icons.chevron_right_rounded, size: 20, color: Colors.grey[400]),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLogoutButton(BuildContext context, WidgetRef ref) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: GestureDetector(
-        onTap: () => _showLogoutDialog(context, ref),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          decoration: BoxDecoration(
-            color: Colors.red.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          // Profile photo with camera icon
+          Stack(
             children: [
-              Icon(Icons.logout_rounded, size: 20, color: Colors.red),
-              SizedBox(width: 10),
-              Text(
-                'Log Out',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.red,
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.grey[200]!, width: 2),
+                ),
+                child: ProfileImageWidget(
+                  userId: currentUserId ?? '',
+                  size: 72,
+                  showEditIcon: false,
+                ),
+              ),
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: const Icon(Icons.camera_alt, size: 13, color: Colors.black54),
                 ),
               ),
             ],
           ),
+          const SizedBox(width: 14),
+          // Name and email
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  fullName,
+                  style: GoogleFonts.roboto(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  email,
+                  style: GoogleFonts.roboto(
+                    fontSize: 13,
+                    color: Colors.grey[500],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Edit profile button
+          GestureDetector(
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfilePage()));
+            },
+            child: Column(
+              children: [
+                Icon(Icons.edit_outlined, size: 18, color: Colors.grey[600]),
+                const SizedBox(height: 2),
+                Text(
+                  'Edit profile',
+                  style: GoogleFonts.roboto(
+                    fontSize: 11,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Text(
+        title,
+        style: GoogleFonts.roboto(
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+          color: Colors.black,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuItem(String assetPath, String title, {required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        child: Row(
+          children: [
+            Center(
+              child: Image.asset(
+                assetPath,
+                width: 20,
+                height: 20,
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                title,
+                style: GoogleFonts.roboto(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black,
+                ),
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 22, color: Colors.grey[400]),
+          ],
         ),
       ),
     );
@@ -297,14 +297,14 @@ class ProfilePage extends ConsumerWidget {
                   child: const Icon(Icons.logout_rounded, color: Colors.red, size: 28),
                 ),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'Log Out',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A)),
+                  style: GoogleFonts.roboto(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.black),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Are you sure you want to log out?',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  style: GoogleFonts.roboto(fontSize: 14, color: Colors.grey[600]),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
@@ -319,8 +319,11 @@ class ProfilePage extends ConsumerWidget {
                             color: const Color(0xFFF5F5F5),
                             borderRadius: BorderRadius.circular(14),
                           ),
-                          child: const Center(
-                            child: Text('Cancel', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF1A1A1A))),
+                          child: Center(
+                            child: Text(
+                              'Cancel',
+                              style: GoogleFonts.roboto(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.black),
+                            ),
                           ),
                         ),
                       ),
@@ -338,8 +341,11 @@ class ProfilePage extends ConsumerWidget {
                             color: Colors.red,
                             borderRadius: BorderRadius.circular(14),
                           ),
-                          child: const Center(
-                            child: Text('Log Out', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white)),
+                          child: Center(
+                            child: Text(
+                              'Log Out',
+                              style: GoogleFonts.roboto(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white),
+                            ),
                           ),
                         ),
                       ),
@@ -353,12 +359,4 @@ class ProfilePage extends ConsumerWidget {
       },
     );
   }
-}
-
-class _MenuItem {
-  final IconData icon;
-  final String title;
-  final VoidCallback onTap;
-
-  const _MenuItem(this.icon, this.title, this.onTap);
 }

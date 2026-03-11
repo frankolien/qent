@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:qent/features/search/domain/models/location.dart';
@@ -5,25 +6,40 @@ import 'package:qent/features/search/domain/models/location.dart';
 /// Data source for location services
 /// Handles GPS coordinates and reverse geocoding (coordinates to address)
 class LocationDataSource {
+  void _log(String message) {
+    if (kDebugMode) debugPrint('[Qent Location] $message');
+  }
+
   /// Check if location services are enabled
   Future<bool> isLocationServiceEnabled() async {
-    return await Geolocator.isLocationServiceEnabled();
+    final enabled = await Geolocator.isLocationServiceEnabled();
+    _log('Location services enabled: $enabled');
+    return enabled;
   }
 
   /// Check location permissions
   Future<LocationPermission> checkLocationPermission() async {
-    return await Geolocator.checkPermission();
+    final perm = await Geolocator.checkPermission();
+    _log('Permission status: $perm');
+    return perm;
   }
 
   /// Request location permissions
   Future<LocationPermission> requestLocationPermission() async {
-    return await Geolocator.requestPermission();
+    _log('> Requesting location permission');
+    final perm = await Geolocator.requestPermission();
+    _log('Permission result: $perm');
+    return perm;
   }
 
   /// Get current position (GPS coordinates only)
   Future<Position> getCurrentPosition() async {
+    _log('> Getting current GPS position');
+    final sw = Stopwatch()..start();
+
     bool serviceEnabled = await isLocationServiceEnabled();
     if (!serviceEnabled) {
+      _log('FAIL: Location services disabled');
       throw Exception('Location services are disabled.');
     }
 
@@ -31,40 +47,47 @@ class LocationDataSource {
     if (permission == LocationPermission.denied) {
       permission = await requestLocationPermission();
       if (permission == LocationPermission.denied) {
+        _log('FAIL: Location permission denied');
         throw Exception('Location permissions are denied');
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
+      _log('FAIL: Location permission permanently denied');
       throw Exception(
           'Location permissions are permanently denied, we cannot request permissions.');
     }
 
-    return await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
+    final position = await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+      ),
     );
+    sw.stop();
+    _log('OK: GPS position: ${position.latitude}, ${position.longitude} (${sw.elapsedMilliseconds}ms)');
+    return position;
   }
 
   /// Convert coordinates to address (Reverse Geocoding)
-  /// This is what gives you the actual location name/address
   Future<LocationModel> getLocationFromCoordinates({
     required double latitude,
     required double longitude,
   }) async {
+    _log('> Reverse geocoding: $latitude, $longitude');
+    final sw = Stopwatch()..start();
     try {
-      // Reverse geocoding: coordinates -> address
       List<Placemark> placemarks = await placemarkFromCoordinates(
         latitude,
         longitude,
       );
 
       if (placemarks.isEmpty) {
+        _log('FAIL: No address found');
         throw Exception('No address found for these coordinates');
       }
 
       final placemark = placemarks.first;
-
-      return LocationModel(
+      final location = LocationModel(
         id: 'current-${DateTime.now().millisecondsSinceEpoch}',
         name: placemark.name ?? 'Current Location',
         address: _buildAddressString(placemark),
@@ -75,32 +98,41 @@ class LocationDataSource {
         country: placemark.country ?? 'Nigeria',
         isCurrentLocation: true,
       );
+      sw.stop();
+      _log('OK: Address: ${location.address} | city: ${location.city} (${sw.elapsedMilliseconds}ms)');
+      return location;
     } catch (e) {
+      sw.stop();
+      _log('ERROR: Reverse geocoding failed (${sw.elapsedMilliseconds}ms): $e');
       throw Exception('Failed to get address from coordinates: $e');
     }
   }
 
   /// Get current location with address
-  /// This combines GPS + Reverse Geocoding
   Future<LocationModel> getCurrentLocationWithAddress() async {
-    // Step 1: Get GPS coordinates
-    final position = await getCurrentPosition();
+    _log('> Getting full location (GPS + address)');
+    final sw = Stopwatch()..start();
 
-    // Step 2: Convert coordinates to address
-    return await getLocationFromCoordinates(
+    final position = await getCurrentPosition();
+    final location = await getLocationFromCoordinates(
       latitude: position.latitude,
       longitude: position.longitude,
     );
+
+    sw.stop();
+    _log('OK: Full location resolved: ${location.address} (${sw.elapsedMilliseconds}ms total)');
+    return location;
   }
 
   /// Convert address to coordinates (Forward Geocoding)
-  /// Useful if you want to search by address name
   Future<List<LocationModel>> searchLocationsByName(String query) async {
+    _log('> Forward geocoding: "$query"');
+    final sw = Stopwatch()..start();
     try {
-      // Forward geocoding: address -> coordinates
       List<Location> locations = await locationFromAddress(query);
+      sw.stop();
 
-      return locations.map((location) {
+      final results = locations.map((location) {
         return LocationModel(
           id: 'search-${DateTime.now().millisecondsSinceEpoch}-${location.hashCode}',
           name: query,
@@ -110,8 +142,12 @@ class LocationDataSource {
           isCurrentLocation: false,
         );
       }).toList();
+
+      _log('OK: Found ${results.length} results for "$query" (${sw.elapsedMilliseconds}ms)');
+      return results;
     } catch (e) {
-      // If no results, return empty list
+      sw.stop();
+      _log('WARN: No results for "$query" (${sw.elapsedMilliseconds}ms): $e');
       return [];
     }
   }
@@ -119,8 +155,7 @@ class LocationDataSource {
   /// Build a formatted address string from placemark
   String _buildAddressString(Placemark placemark) {
     final parts = <String>[];
-    
-    // Build street address (avoid duplicates)
+
     final streetAddress = StringBuffer();
     if (placemark.subThoroughfare != null && placemark.subThoroughfare!.isNotEmpty) {
       streetAddress.write(placemark.subThoroughfare!);
@@ -131,34 +166,24 @@ class LocationDataSource {
       }
       streetAddress.write(placemark.thoroughfare!);
     }
-    // Use street if thoroughfare/subThoroughfare don't give us a good address
     if (streetAddress.isEmpty && placemark.street != null && placemark.street!.isNotEmpty) {
       streetAddress.write(placemark.street!);
     }
-    
+
     if (streetAddress.isNotEmpty) {
       parts.add(streetAddress.toString());
     }
-    
-    // Add city/locality
+
     if (placemark.locality != null && placemark.locality!.isNotEmpty) {
       parts.add(placemark.locality!);
     } else if (placemark.subLocality != null && placemark.subLocality!.isNotEmpty) {
       parts.add(placemark.subLocality!);
     }
-    
-    // Add state/administrative area
+
     if (placemark.administrativeArea != null && placemark.administrativeArea!.isNotEmpty) {
       parts.add(placemark.administrativeArea!);
     }
-    
-    // Add country (optional, often redundant)
-    // Only add country if it's not obvious from state/city
-    // if (placemark.country != null && placemark.country!.isNotEmpty) {
-    //   parts.add(placemark.country!);
-    // }
 
     return parts.isNotEmpty ? parts.join(', ') : 'Current Location';
   }
 }
-
