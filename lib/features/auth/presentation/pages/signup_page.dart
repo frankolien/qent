@@ -22,24 +22,55 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
   bool _isSendingCode = false;
   final EmailVerificationService _verificationService = EmailVerificationService();
 
-  // Nigeria is prioritized as the main focus
-  final List<String> _countries = [
-    'Nigeria',
-    'United States',
-    'United Kingdom',
-    'Canada',
-    'Australia',
-    'Germany',
-    'France',
-    'Spain',
-    'Italy',
-    'Japan',
-    'China',
-    'India',
-    'Brazil',
-    'Mexico',
-    'Other',
+  // Country data with flag emojis — Nigeria prioritized
+  static final List<_CountryData> _countries = [
+    _CountryData('🇳🇬', 'Nigeria'),
+    _CountryData('🇬🇭', 'Ghana'),
+    _CountryData('🇰🇪', 'Kenya'),
+    _CountryData('🇿🇦', 'South Africa'),
+    _CountryData('🇺🇸', 'United States'),
+    _CountryData('🇬🇧', 'United Kingdom'),
+    _CountryData('🇨🇦', 'Canada'),
+    _CountryData('🇦🇺', 'Australia'),
+    _CountryData('🇩🇪', 'Germany'),
+    _CountryData('🇫🇷', 'France'),
+    _CountryData('🇪🇸', 'Spain'),
+    _CountryData('🇮🇹', 'Italy'),
+    _CountryData('🇯🇵', 'Japan'),
+    _CountryData('🇨🇳', 'China'),
+    _CountryData('🇮🇳', 'India'),
+    _CountryData('🇧🇷', 'Brazil'),
+    _CountryData('🇲🇽', 'Mexico'),
+    _CountryData('🇦🇪', 'UAE'),
+    _CountryData('🇸🇦', 'Saudi Arabia'),
+    _CountryData('🇪🇬', 'Egypt'),
+    _CountryData('🇹🇿', 'Tanzania'),
+    _CountryData('🇷🇼', 'Rwanda'),
+    _CountryData('🌍', 'Other'),
   ];
+
+  String get _selectedFlag {
+    return _countries.firstWhere(
+      (c) => c.name == _selectedCountry,
+      orElse: () => _CountryData('🌍', 'Other'),
+    ).flag;
+  }
+
+  void _showCountryPicker() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _CountryPickerSheet(
+        countries: _countries,
+        selected: _selectedCountry,
+        onSelected: (country) {
+          setState(() => _selectedCountry = country);
+          Navigator.pop(context);
+        },
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -62,14 +93,8 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
     });
 
     try {
-      // Generate verification code
-      final code = _verificationService.generateVerificationCode();
-
-      // Save code to Firestore
-      await _verificationService.saveVerificationCode(email, code);
-
-      // Send email via EmailJS
-      final emailSent = await _verificationService.sendVerificationCode(email, code);
+      // Request backend to generate and send verification code
+      final emailSent = await _verificationService.sendVerificationCode(email);
 
       if (!mounted) return;
 
@@ -107,19 +132,10 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
         }
       } else {
         if (mounted) {
-          // Check if it's a Resend domain verification issue
-          final email = _emailController.text.trim();
-          final isDomainIssue = email != 'frankolien123@gmail.com';
-          
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                isDomainIssue
-                    ? 'Verification email setup in progress. For now, please use frankolien123@gmail.com for testing, or verify your domain at resend.com/domains to send to any email.'
-                    : 'Failed to send verification code. Please check your email address and try again.',
-              ),
+            const SnackBar(
+              content: Text('Failed to send verification code. Please try again.'),
               backgroundColor: Colors.orange,
-              duration: const Duration(seconds: 6),
             ),
           );
         }
@@ -387,46 +403,32 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
             },
           ),
           const SizedBox(height: 16),
-          DropdownButtonFormField<String>(
-            value: _selectedCountry,
-            decoration: InputDecoration(
-              hintText: 'Country',
-              hintStyle: TextStyle(color: Colors.grey[400]),
-              filled: true,
-              fillColor: Colors.grey[50],
-              border: OutlineInputBorder(
+          GestureDetector(
+            onTap: _showCountryPicker,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+                border: Border.all(color: Colors.grey[300]!),
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+              child: Row(
+                children: [
+                  Text(
+                    _selectedFlag,
+                    style: const TextStyle(fontSize: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _selectedCountry,
+                      style: const TextStyle(fontSize: 16, color: Colors.black),
+                    ),
+                  ),
+                  Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey[500]),
+                ],
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Colors.black),
-              ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             ),
-            items: _countries.map((country) {
-              return DropdownMenuItem<String>(
-                value: country,
-                child: Text(country),
-              );
-            }).toList(),
-            onChanged: (value) {
-              if (value != null) {
-                setState(() {
-                  _selectedCountry = value;
-                });
-              }
-            },
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please select a country';
-              }
-              return null;
-            },
           ),
         ],
       ),
@@ -635,6 +637,141 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
         ),
       );
     }
+  }
+}
+
+// ---------- Country data model ----------
+
+class _CountryData {
+  final String flag;
+  final String name;
+  const _CountryData(this.flag, this.name);
+}
+
+// ---------- Searchable country picker bottom sheet ----------
+
+class _CountryPickerSheet extends StatefulWidget {
+  final List<_CountryData> countries;
+  final String selected;
+  final ValueChanged<String> onSelected;
+
+  const _CountryPickerSheet({
+    required this.countries,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  @override
+  State<_CountryPickerSheet> createState() => _CountryPickerSheetState();
+}
+
+class _CountryPickerSheetState extends State<_CountryPickerSheet> {
+  String _query = '';
+
+  List<_CountryData> get _filtered {
+    if (_query.isEmpty) return widget.countries;
+    final q = _query.toLowerCase();
+    return widget.countries.where((c) => c.name.toLowerCase().contains(q)).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPad = MediaQuery.of(context).viewInsets.bottom;
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.65 + bottomPad,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          // Drag handle
+          const SizedBox(height: 10),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Title
+          const Text(
+            'Select Country',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 14),
+          // Search bar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: TextField(
+              autofocus: false,
+              onChanged: (v) => setState(() => _query = v),
+              style: const TextStyle(fontSize: 15),
+              decoration: InputDecoration(
+                hintText: 'Search country...',
+                hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
+                prefixIcon: Icon(Icons.search, color: Colors.grey[400], size: 20),
+                filled: true,
+                fillColor: const Color(0xFFF5F5F5),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Country list
+          Expanded(
+            child: _filtered.isEmpty
+                ? Center(
+                    child: Text(
+                      'No countries found',
+                      style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    itemCount: _filtered.length,
+                    itemBuilder: (context, index) {
+                      final c = _filtered[index];
+                      final isSelected = c.name == widget.selected;
+                      return ListTile(
+                        onTap: () => widget.onSelected(c.name),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        selected: isSelected,
+                        selectedTileColor: const Color(0xFFF0F0F0),
+                        leading: Text(
+                          c.flag,
+                          style: const TextStyle(fontSize: 26),
+                        ),
+                        title: Text(
+                          c.name,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                            color: Colors.black,
+                          ),
+                        ),
+                        trailing: isSelected
+                            ? const Icon(Icons.check_circle, color: Colors.black, size: 20)
+                            : null,
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

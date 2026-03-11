@@ -58,7 +58,7 @@ class _OnboardingTwoScreenState extends State<OnboardingTwoScreen> with Automati
                   mainAxisSize: MainAxisSize.min,
                   children: const [
                     Text(
-                      'Lets Start',
+                      'Skip the',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 32,
@@ -66,7 +66,7 @@ class _OnboardingTwoScreenState extends State<OnboardingTwoScreen> with Automati
                       ),
                     ),
                     Text(
-                      'A New Experience',
+                      'Dealership.',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 34,
@@ -75,7 +75,7 @@ class _OnboardingTwoScreenState extends State<OnboardingTwoScreen> with Automati
                       ),
                     ),
                     Text(
-                      'With Car rental.',
+                      'Rent Peer-to-Peer.',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 34,
@@ -102,7 +102,7 @@ class _OnboardingTwoScreenState extends State<OnboardingTwoScreen> with Automati
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: const Text(
-                  "Discover your next adventure with Qent, we're here to\nprovide you with a seamless car rental experience.\nLet's get started on your journey.",
+                  "Browse cars from trusted owners near you.\nBook in seconds. Drive away in minutes.\nQent makes car rental simple.",
                   style: TextStyle(
                     color: Colors.white70,
                     fontSize: 13,

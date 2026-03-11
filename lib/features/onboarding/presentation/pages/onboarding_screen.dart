@@ -100,7 +100,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         width: double.infinity,
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.black.withOpacity(0.8),
+            backgroundColor: Colors.black.withValues(alpha: 0.8),
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(28),

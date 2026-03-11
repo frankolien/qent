@@ -14,18 +14,22 @@ class FilterBottomSheet extends ConsumerStatefulWidget {
 }
 
 class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
-  final TextEditingController _minPriceController = TextEditingController(text: '\$10');
-  final TextEditingController _maxPriceController = TextEditingController(text: '\$230+');
-  final TextEditingController _locationController = TextEditingController(text: 'Shore Dr, Chicago 0062 Usa');
+  final TextEditingController _minPriceController = TextEditingController();
+  final TextEditingController _maxPriceController = TextEditingController();
+  final TextEditingController _locationController = TextEditingController();
   bool _showAllColors = false;
 
   @override
   void initState() {
     super.initState();
-    // Initialize with default values, will be updated in build
-    _minPriceController.text = '\$10';
-    _maxPriceController.text = '\$230+';
-    _locationController.text = 'Shore Dr, Chicago 0062 Usa';
+    final filters = ref.read(searchControllerProvider).filters;
+    _minPriceController.text = '₦${(filters.priceRange.start / 1000).toInt()}k';
+    _maxPriceController.text = '₦${(filters.priceRange.end / 1000).toInt()}k+';
+    if (filters.location != null && filters.location!.isNotEmpty) {
+      _locationController.text = filters.location!;
+    } else {
+      _locationController.text = 'Shore Dr, Chicago 0062 Usa';
+    }
   }
 
   @override
@@ -38,8 +42,8 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
 
   void _updatePriceControllers() {
     final filters = ref.read(searchControllerProvider).filters;
-    _minPriceController.text = '\$${filters.priceRange.start.toInt()}';
-    _maxPriceController.text = '\$${filters.priceRange.end.toInt()}+';
+    _minPriceController.text = '₦${(filters.priceRange.start / 1000).toInt()}k';
+    _maxPriceController.text = '₦${(filters.priceRange.end / 1000).toInt()}k+';
   }
 
   Future<void> _selectDate() async {
@@ -55,7 +59,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
         initialDropTime: filters.dropTime,
       ),
     );
-    
+
     if (result != null) {
       ref.read(searchControllerProvider.notifier).updateDateRange(
         startDate: result['startDate'] as DateTime?,
@@ -69,72 +73,82 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
   void _clearAllFilters() {
     ref.read(searchControllerProvider.notifier).clearAllFilters();
     final defaultFilters = ref.read(searchControllerProvider).filters;
-    _minPriceController.text = '\$${defaultFilters.priceRange.start.toInt()}';
-    _maxPriceController.text = '\$${defaultFilters.priceRange.end.toInt()}+';
+    _minPriceController.text = '₦${(defaultFilters.priceRange.start / 1000).toInt()}k';
+    _maxPriceController.text = '₦${(defaultFilters.priceRange.end / 1000).toInt()}k+';
     _locationController.text = 'Shore Dr, Chicago 0062 Usa';
-    setState(() {
-      _showAllColors = false;
-    });
+    setState(() => _showAllColors = false);
   }
 
   String _formatDate(DateTime date) {
-    final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ];
-    return '${date.day.toString().padLeft(2, '0')}, ${months[date.month - 1]}, ${date.year}';
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${date.day.toString().padLeft(2, '0')},${months[date.month - 1]},${date.year}';
+  }
+
+  void _openLocationPicker() {
+    final currentFilters = ref.read(searchControllerProvider).filters;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => LocationPicker(
+        initialLocation: _locationController.text.isNotEmpty
+            ? _locationController.text
+            : currentFilters.location,
+        onLocationSelected: (location) {
+          _locationController.text = location.displayName;
+          ref.read(searchControllerProvider.notifier).updateLocation(location.displayName);
+          Navigator.of(context).pop();
+        },
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
     final searchState = ref.watch(searchControllerProvider);
     final filterOptionsState = ref.watch(filterOptionsControllerProvider);
     final filters = searchState.filters;
     final options = filterOptionsState.options;
-
-    // Update controllers based on current filters
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _minPriceController.text = '\$${filters.priceRange.start.toInt()}';
-        _maxPriceController.text = '\$${filters.priceRange.end.toInt()}+';
-        if (filters.location != null && filters.location!.isNotEmpty) {
-          _locationController.text = filters.location!;
-        }
-      }
-    });
+    final filteredCars = ref.watch(filteredCarsProvider);
 
     return Container(
       height: screenHeight * 0.9,
       decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
         children: [
+          // Handle
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+            ),
+          ),
           // Header
           Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: screenWidth * 0.04,
-              vertical: 16,
-            ),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 GestureDetector(
                   onTap: () => Navigator.of(context).pop(),
-                  child: const Icon(Icons.close, size: 24, color: Colors.black),
-                ),
-                const Text(
-                  'Filters',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(color: const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(10)),
+                    child: const Icon(Icons.close_rounded, size: 20, color: Color(0xFF1A1A1A)),
                   ),
                 ),
-                const SizedBox(width: 24), // Balance for close icon
+                const Expanded(
+                  child: Center(
+                    child: Text('Filters', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A))),
+                  ),
+                ),
+                const SizedBox(width: 36),
               ],
             ),
           ),
@@ -142,126 +156,99 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
           Expanded(
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTap: () {
-                // Dismiss keyboard when tapping outside input fields
-                FocusScope.of(context).unfocus();
-              },
+              onTap: () => FocusScope.of(context).unfocus(),
               child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 16),
-                  // Type of Cars
-                  _buildSectionTitle('Type of Cars'),
-                  const SizedBox(height: 12),
-                  _buildCarTypeOptions(options.carTypes, filters.selectedCarType),
-                  const SizedBox(height: 24),
-                  Divider(
-                    color: Colors.grey[300],
-                    thickness: 1,
-                  ),
-                  // Price range
-                  _buildSectionTitle('Price range'),
-                  const SizedBox(height: 12),
-                  _buildPriceRangeSection(filters.priceRange),
-                  const SizedBox(height: 30),
-                  Divider(
-                    color: Colors.grey[300],
-                    thickness: 1,
-                  ),
-                  const SizedBox(height: 24),
-                  // Rental Time
-                  _buildSectionTitle('Rental Time'),
-                  const SizedBox(height: 12),
-                  _buildRentalTimeOptions(options.rentalTimes, filters.selectedRentalTime),
-                  const SizedBox(height: 24),
-                  // Pick up and Drop Date
-                  _buildSectionTitle('Pick up and Drop Date'),
-                  const SizedBox(height: 12),
-                  _buildDatePicker(filters),
-                  const SizedBox(height: 24),
-                  // Car Locationxx
-                  _buildSectionTitle('Car Location'),
-                  const SizedBox(height: 12),
-                  _buildLocationInput(),
-                  const SizedBox(height: 24),
-                  // Colors
-                  _buildColorsSection(options.colors, filters.selectedColor),
-                  const SizedBox(height: 24),
-                  // Seating Capacity
-                  _buildSectionTitle('Siting Capacity'),
-                  const SizedBox(height: 12),
-                  _buildCapacityOptions(options.capacities, filters.selectedCapacity),
-                  const SizedBox(height: 24),
-                  // Fuel Type
-                  _buildSectionTitle('Fuel Type'),
-                  const SizedBox(height: 12),
-                  _buildFuelTypeOptions(options.fuelTypes, filters.selectedFuelType),
-                  const SizedBox(height: 24),
-                ],
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 20),
+                    _buildSectionTitle('Type of Cars'),
+                    const SizedBox(height: 14),
+                    _buildCarTypeSelector(options.carTypes, filters.selectedCarType),
+                    const SizedBox(height: 28),
+                    _buildSectionTitle('Price range'),
+                    const SizedBox(height: 14),
+                    _buildPriceRange(filters.priceRange),
+                    const SizedBox(height: 28),
+                    _buildSectionTitle('Rental Time'),
+                    const SizedBox(height: 14),
+                    _buildChipRow(
+                      options: options.rentalTimes,
+                      selected: filters.selectedRentalTime,
+                      onTap: (val) => ref.read(searchControllerProvider.notifier).updateRentalTime(filters.selectedRentalTime == val ? null : val),
+                    ),
+                    const SizedBox(height: 28),
+                    _buildSectionTitle('Pick up and Drop Date'),
+                    const SizedBox(height: 14),
+                    _buildDatePicker(filters),
+                    const SizedBox(height: 28),
+                    _buildSectionTitle('Car Location'),
+                    const SizedBox(height: 14),
+                    _buildLocationInput(),
+                    const SizedBox(height: 28),
+                    _buildColorsSection(options.colors, filters.selectedColor),
+                    const SizedBox(height: 28),
+                    _buildSectionTitle('Siting Capacity'),
+                    const SizedBox(height: 14),
+                    _buildChipRow(
+                      options: options.capacities,
+                      selected: filters.selectedCapacity,
+                      onTap: (val) => ref.read(searchControllerProvider.notifier).updateCapacity(filters.selectedCapacity == val ? null : val),
+                    ),
+                    const SizedBox(height: 28),
+                    _buildSectionTitle('Fuel Type'),
+                    const SizedBox(height: 14),
+                    _buildChipRow(
+                      options: options.fuelTypes,
+                      selected: filters.selectedFuelType,
+                      onTap: (val) => ref.read(searchControllerProvider.notifier).updateFuelType(filters.selectedFuelType == val ? null : val),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
               ),
-           ),
             ),
           ),
           // Footer
           Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: screenWidth * 0.04,
-              vertical: 16,
-            ),
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
             decoration: BoxDecoration(
               color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
-                ),
-              ],
+              border: Border(top: BorderSide(color: Colors.grey[200]!)),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton(
-                  onPressed: _clearAllFilters,
-                  child: const Text(
-                    'Clear All',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.black,
-                      fontWeight: FontWeight.w500,
+            child: SafeArea(
+              top: false,
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: _clearAllFilters,
+                    child: const Text('Clear All', style: TextStyle(fontSize: 15, color: Color(0xFF1A1A1A), fontWeight: FontWeight.w500)),
+                  ),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        ref.read(searchControllerProvider.notifier).updateLocation(
+                          _locationController.text.isNotEmpty ? _locationController.text : null,
+                        );
+                        Navigator.of(context).pop();
+                      },
+                      child: Container(
+                        height: 52,
+                        decoration: BoxDecoration(color: const Color(0xFF1A1A1A), borderRadius: BorderRadius.circular(26)),
+                        child: Center(
+                          child: filteredCars.when(
+                            data: (cars) => Text('Show ${cars.length}+ Cars', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white)),
+                            loading: () => const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+                            error: (_, __) => const Text('Show Cars', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white)),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    ref.read(searchControllerProvider.notifier).updateLocation(
-                      _locationController.text.isNotEmpty ? _locationController.text : null,
-                    );
-                    Navigator.of(context).pop();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2C2C2C),
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(
-                      horizontal: screenWidth * 0.15,
-                      vertical: 16,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    'Show 100+ Cars',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -270,76 +257,42 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
   }
 
   Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.bold,
-        color: Colors.black,
-      ),
-    );
+    return Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A)));
   }
 
-  Widget _buildCarTypeOptions(List<String> options, String? selectedCarType) {
-    final currentSelected = selectedCarType ?? options.first;
-    final selectedIndex = options.indexWhere((option) => option == currentSelected);
-    
+  Widget _buildCarTypeSelector(List<String> types, String? selected) {
+    final current = selected ?? types.first;
+    final selectedIndex = types.indexWhere((t) => t == current);
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        final containerWidth = constraints.maxWidth;
-        final itemWidth = containerWidth / options.length;
-        
+        final itemWidth = constraints.maxWidth / types.length;
         return Container(
-          height: 48,
-          decoration: BoxDecoration(
-            color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(25),
-            border: Border.all(color: Colors.grey[300]!),
-          ),
+          height: 46,
+          decoration: BoxDecoration(color: const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(23)),
           child: Stack(
             children: [
-              // Animated sliding indicator
               AnimatedPositioned(
-                duration: const Duration(milliseconds: 350),
+                duration: const Duration(milliseconds: 300),
                 curve: Curves.easeInOutCubic,
-                left: selectedIndex >= 0 ? selectedIndex * itemWidth + 2 : 2,
-                top: 2,
-                bottom: 2,
-                width: itemWidth - 4,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2C2C2C),
-                    borderRadius: BorderRadius.circular(23),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.15),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                ),
+                left: selectedIndex >= 0 ? selectedIndex * itemWidth + 3 : 3,
+                top: 3,
+                bottom: 3,
+                width: itemWidth - 6,
+                child: Container(decoration: BoxDecoration(color: const Color(0xFF1A1A1A), borderRadius: BorderRadius.circular(21))),
               ),
-              // Option buttons
               Row(
-                children: options.map((option) {
-                  final isSelected = currentSelected == option;
-                  
+                children: types.map((type) {
+                  final isSelected = current == type;
                   return Expanded(
                     child: GestureDetector(
-                      onTap: () {
-                        ref.read(searchControllerProvider.notifier).updateCarType(option);
-                      },
+                      onTap: () => ref.read(searchControllerProvider.notifier).updateCarType(type),
                       child: Container(
                         alignment: Alignment.center,
                         child: AnimatedDefaultTextStyle(
-                          duration: const Duration(milliseconds: 350),
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: isSelected ? Colors.white : Colors.grey[700],
-                          ),
-                          child: Text(option),
+                          duration: const Duration(milliseconds: 300),
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isSelected ? Colors.white : Colors.grey[600]!),
+                          child: Text(type),
                         ),
                       ),
                     ),
@@ -353,161 +306,98 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
     );
   }
 
-  Widget _buildPriceRangeSection(RangeValues priceRange) {
+  Widget _buildPriceRange(RangeValues priceRange) {
     return Column(
       children: [
-        // Price histogram placeholder
-        Container(
-          height: 60,
-          decoration: BoxDecoration(
-            color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Stack(
-            children: [
-              // Simple bar representation
-              Positioned.fill(
-                child: Row(
-                  children: List.generate(20, (index) {
-                    final height = (20 - index % 5) * 2.0;
-                    return Expanded(
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 1),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                        alignment: Alignment.bottomCenter,
-                        child: Container(
-                          height: height,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF2C2C2C),
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      ),
-                    );
-                  }),
+        SizedBox(
+          height: 50,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: List.generate(20, (i) {
+              final heights = [18, 28, 22, 38, 30, 42, 35, 48, 25, 40, 32, 45, 20, 36, 28, 50, 22, 34, 26, 44];
+              final h = heights[i].toDouble();
+              final barPos = 10000 + (190000 / 20) * i;
+              final inRange = barPos >= priceRange.start && barPos <= priceRange.end;
+              return Expanded(
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                  height: h,
+                  decoration: BoxDecoration(color: inRange ? const Color(0xFF1A1A1A) : Colors.grey[300], borderRadius: BorderRadius.circular(2)),
                 ),
-              ),
-              // Range slider overlay
-              RangeSlider(
-                values: priceRange,
-                min: 10,
-                max: 230,
-                divisions: 220,
-                activeColor: const Color(0xFF2C2C2C),
-                inactiveColor: Colors.transparent,
-                onChanged: (values) {
-                  ref.read(searchControllerProvider.notifier).updatePriceRange(values);
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    _updatePriceControllers();
-                  });
-                },
-              ),
-            ],
+              );
+            }),
           ),
         ),
-        const SizedBox(height: 16),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            trackHeight: 2,
+            activeTrackColor: const Color(0xFF1A1A1A),
+            inactiveTrackColor: Colors.grey[300],
+            thumbColor: Colors.white,
+            overlayColor: const Color(0xFF1A1A1A).withValues(alpha: 0.1),
+            rangeThumbShape: _CircleThumbShape(radius: 12),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 20),
+          ),
+          child: RangeSlider(
+            values: priceRange,
+            min: 10000,
+            max: 200000,
+            divisions: 19,
+            onChanged: (values) {
+              ref.read(searchControllerProvider.notifier).updatePriceRange(values);
+              WidgetsBinding.instance.addPostFrameCallback((_) => _updatePriceControllers());
+            },
+          ),
+        ),
+        const SizedBox(height: 8),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Container(
-              width: 80,
-              child: _buildPriceInput(
-                controller: _minPriceController,
-                label: 'Minimum',
-              ),
-            ),
-            //const SizedBox(width: 12),
-            Container(
-              width: 80,
-              child: _buildPriceInput(
-                controller: _maxPriceController,
-                label: 'Maximum',
-              ),
-            ),
+            _buildPriceLabel('Minimum', _minPriceController),
+            _buildPriceLabel('Maximum', _maxPriceController),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildPriceInput({
-    required TextEditingController controller,
-    required String label,
-  }) {
+  Widget _buildPriceLabel(String label, TextEditingController controller) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 8),
+        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[500], fontWeight: FontWeight.w500)),
+        const SizedBox(height: 6),
         Container(
-          constraints: const BoxConstraints(minHeight: 44),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(25),
-            border: Border.all(color: Colors.grey[300]!),
-          ),
-          child: TextField(
-            controller: controller,
-            textAlign: TextAlign.center,
-            keyboardType: TextInputType.number,
-            textInputAction: TextInputAction.done,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Colors.black87,
-              fontWeight: FontWeight.w500,
+          width: 80,
+          height: 40,
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.grey[300]!)),
+          child: Center(
+            child: TextField(
+              controller: controller,
+              textAlign: TextAlign.center,
+              keyboardType: TextInputType.number,
+              textInputAction: TextInputAction.done,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF1A1A1A)),
+              decoration: const InputDecoration(border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.zero),
+              onSubmitted: (_) => FocusScope.of(context).unfocus(),
             ),
-            decoration: const InputDecoration(
-              border: InputBorder.none,
-              isDense: true,
-              contentPadding: EdgeInsets.zero,
-            ),
-            onSubmitted: (_) {
-              // Dismiss keyboard when Done is pressed
-              FocusScope.of(context).unfocus();
-            },
           ),
         ),
       ],
     );
   }
 
-  Widget _buildRentalTimeOptions(List<String> options, String? selectedRentalTime) {
+  Widget _buildChipRow({required List<String> options, required String? selected, required void Function(String) onTap}) {
     return Wrap(
-      spacing: 12,
-      runSpacing: 12,
+      spacing: 10,
+      runSpacing: 10,
       children: options.map((option) {
-        final isSelected = selectedRentalTime == option;
+        final isSelected = selected == option;
         return GestureDetector(
-          onTap: () {
-            ref.read(searchControllerProvider.notifier).updateRentalTime(
-              isSelected ? null : option,
-            );
-          },
+          onTap: () => onTap(option),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            decoration: BoxDecoration(
-              color: isSelected ? const Color(0xFF2C2C2C) : Colors.grey[100],
-              borderRadius: BorderRadius.circular(25),
-            ),
-            child: Text(
-              option,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: isSelected ? Colors.white : Colors.grey[700],
-              ),
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+            decoration: BoxDecoration(color: isSelected ? const Color(0xFF1A1A1A) : const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(23)),
+            child: Text(option, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isSelected ? Colors.white : Colors.grey[600])),
           ),
         );
       }).toList(),
@@ -515,65 +405,29 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
   }
 
   Widget _buildDatePicker(SearchFilters filters) {
-    // Use today's date as placeholder if no dates selected
     final today = DateTime.now();
     String dateText = _formatDate(today);
-    
     if (filters.startDate != null && filters.endDate != null) {
       dateText = '${_formatDate(filters.startDate!)} - ${_formatDate(filters.endDate!)}';
     } else if (filters.startDate != null) {
       dateText = _formatDate(filters.startDate!);
     }
-    
+
     return GestureDetector(
       onTap: _selectDate,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey[300]!),
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(color: const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(14)),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              children: [
-                Icon(Icons.calendar_today, color: Colors.grey[600], size: 20),
-                const SizedBox(width: 12),
-                Text(
-                  dateText,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[800],
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
+            Icon(Icons.calendar_today_rounded, color: Colors.grey[500], size: 18),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(dateText, style: TextStyle(fontSize: 13, color: filters.startDate != null ? const Color(0xFF1A1A1A) : Colors.grey[500], fontWeight: FontWeight.w500)),
             ),
-            Icon(Icons.keyboard_arrow_down, color: Colors.grey[600], size: 20),
+            Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey[500], size: 20),
           ],
         ),
-      ),
-    );
-  }
-
-  void _openLocationPicker() {
-    final currentFilters = ref.read(searchControllerProvider).filters;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => LocationPicker(
-        initialLocation: _locationController.text.isNotEmpty 
-            ? _locationController.text 
-            : currentFilters.location,
-        onLocationSelected: (location) {
-          final locationText = location.displayName;
-          _locationController.text = locationText;
-          ref.read(searchControllerProvider.notifier).updateLocation(locationText);
-          Navigator.of(context).pop(); // Close location picker
-        },
       ),
     );
   }
@@ -582,30 +436,19 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
     return GestureDetector(
       onTap: _openLocationPicker,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey[300]!),
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(color: const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(14)),
         child: Row(
           children: [
-            Icon(Icons.location_on, color: Colors.grey[600], size: 20),
+            Icon(Icons.location_on_outlined, color: Colors.grey[500], size: 18),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                _locationController.text.isEmpty 
-                    ? 'Select location' 
-                    : _locationController.text,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: _locationController.text.isEmpty 
-                      ? Colors.grey[400] 
-                      : Colors.black87,
-                ),
+                _locationController.text.isEmpty ? 'Select location' : _locationController.text,
+                style: TextStyle(fontSize: 13, color: _locationController.text.isEmpty ? Colors.grey[400] : const Color(0xFF1A1A1A), fontWeight: FontWeight.w500),
               ),
             ),
-            Icon(Icons.arrow_forward_ios, color: Colors.grey[600], size: 16),
+            Icon(Icons.arrow_forward_ios_rounded, color: Colors.grey[400], size: 14),
           ],
         ),
       ),
@@ -613,8 +456,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
   }
 
   Widget _buildColorsSection(List<ColorOption> colors, String? selectedColor) {
-    final displayedColors = _showAllColors ? colors : colors.take(4).toList();
-
+    final displayed = _showAllColors ? colors : colors.take(4).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -624,57 +466,37 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
             _buildSectionTitle('Colors'),
             if (colors.length > 4)
               GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _showAllColors = !_showAllColors;
-                  });
-                },
-                child: Text(
-                  _showAllColors ? 'Show Less' : 'See All',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.blue,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+                onTap: () => setState(() => _showAllColors = !_showAllColors),
+                child: Text(_showAllColors ? 'Show Less' : 'See All', style: const TextStyle(fontSize: 13, color: Color(0xFF2196F3), fontWeight: FontWeight.w500)),
               ),
           ],
         ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 16,
-          runSpacing: 12,
-          children: displayedColors.map((colorOption) {
-            final isSelected = selectedColor == colorOption.name;
-            return GestureDetector(
-              onTap: () {
-                ref.read(searchControllerProvider.notifier).updateColor(
-                  isSelected ? null : colorOption.name,
-                );
-              },
-              child: Column(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Color(colorOption.colorValue),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isSelected ? Colors.blue : Colors.transparent,
-                        width: 3,
+        const SizedBox(height: 14),
+        Row(
+          children: displayed.map((colorOpt) {
+            final isSelected = selectedColor == colorOpt.name;
+            final isWhite = colorOpt.colorValue == 0xFFFFFFFF;
+            return Expanded(
+              child: GestureDetector(
+                onTap: () => ref.read(searchControllerProvider.notifier).updateColor(isSelected ? null : colorOpt.name),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Color(colorOpt.colorValue),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isSelected ? const Color(0xFF2196F3) : isWhite ? Colors.grey[300]! : Colors.transparent,
+                          width: isSelected ? 3 : 1,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    colorOption.name,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                ],
+                    const SizedBox(height: 6),
+                    Text(colorOpt.name, style: TextStyle(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.w500)),
+                  ],
+                ),
               ),
             );
           }).toList(),
@@ -682,69 +504,32 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
       ],
     );
   }
-
-  Widget _buildCapacityOptions(List<String> options, String? selectedCapacity) {
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: options.map((option) {
-        final isSelected = selectedCapacity == option;
-        return GestureDetector(
-          onTap: () {
-            ref.read(searchControllerProvider.notifier).updateCapacity(
-              isSelected ? null : option,
-            );
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            decoration: BoxDecoration(
-              color: isSelected ? const Color(0xFF2C2C2C) : Colors.grey[100],
-              borderRadius: BorderRadius.circular(25),
-            ),
-            child: Text(
-              option,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: isSelected ? Colors.white : Colors.grey[700],
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildFuelTypeOptions(List<String> options, String? selectedFuelType) {
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: options.map((option) {
-        final isSelected = selectedFuelType == option;
-        return GestureDetector(
-          onTap: () {
-            ref.read(searchControllerProvider.notifier).updateFuelType(
-              isSelected ? null : option,
-            );
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            decoration: BoxDecoration(
-              color: isSelected ? const Color(0xFF2C2C2C) : Colors.grey[100],
-              borderRadius: BorderRadius.circular(25),
-            ),
-            child: Text(
-              option,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: isSelected ? Colors.white : Colors.grey[700],
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
 }
 
+class _CircleThumbShape extends RangeSliderThumbShape {
+  final double radius;
+  _CircleThumbShape({required this.radius});
+
+  @override
+  Size getPreferredSize(bool isEnabled, bool isDiscrete) => Size(radius * 2, radius * 2);
+
+  @override
+  void paint(
+    PaintingContext context,
+    Offset center, {
+    required Animation<double> activationAnimation,
+    required Animation<double> enableAnimation,
+    bool isDiscrete = false,
+    bool isEnabled = true,
+    bool? isOnTop,
+    required SliderThemeData sliderTheme,
+    TextDirection? textDirection,
+    Thumb? thumb,
+    bool? isPressed,
+  }) {
+    final canvas = context.canvas;
+    canvas.drawCircle(center + const Offset(0, 1), radius, Paint()..color = Colors.black.withValues(alpha: 0.1)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3));
+    canvas.drawCircle(center, radius, Paint()..color = Colors.white);
+    canvas.drawCircle(center, radius, Paint()..color = Colors.grey[300]!..style = PaintingStyle.stroke..strokeWidth = 1.5);
+  }
+}

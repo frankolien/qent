@@ -69,52 +69,16 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: GestureDetector(
-          onTap: () => Navigator.of(context).pop(),
-          child: Container(
-            margin: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.arrow_back, size: 20, color: Colors.black),
-          ),
-        ),
-        title: const Text(
-          'Payment methods',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          GestureDetector(
-            onTap: () {},
-            child: Container(
-              margin: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.more_vert, size: 20, color: Colors.black),
-            ),
-          ),
-        ],
-      ),
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
-            _buildProgressIndicator(),
+            _buildHeader(context),
+            _buildStepper(activeStep: 1),
             Expanded(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-                padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
+                padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.05),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -145,71 +109,62 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
     );
   }
 
-  Widget _buildProgressIndicator() {
+  Widget _buildHeader(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F5F5),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(Icons.arrow_back_rounded, size: 20, color: Color(0xFF1A1A1A)),
+            ),
+          ),
+          const Expanded(
+            child: Center(
+              child: Text(
+                'Payment Methods',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A1A1A),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 42),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStepper({required int activeStep}) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
       child: Column(
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Step 1 - Completed
-              _buildCompletedStepNode(),
-              // Solid line connector
-              Expanded(
-                child: Container(
-                  height: 2,
-                  color: Colors.black87,
-                ),
-              ),
-              // Step 2 - Active
-              _buildStepNode(isActive: true),
-              // Solid line connector
-              Expanded(
-                child: Container(
-                  height: 2,
-                  color: Colors.black87,
-                ),
-              ),
-              // Step 3 - Inactive
-              _buildStepNode(isActive: false),
+              _buildStepCircle(0, activeStep),
+              Expanded(child: Container(height: 2, color: activeStep > 0 ? const Color(0xFF1A1A1A) : Colors.grey[300])),
+              _buildStepCircle(1, activeStep),
+              Expanded(child: Container(height: 2, color: activeStep > 1 ? const Color(0xFF1A1A1A) : Colors.grey[300])),
+              _buildStepCircle(2, activeStep),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: Text(
-                  'Booking details',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  'Payment methods',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11,
-                    color: Colors.black87,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  'confirmation',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 11,
-                  ),
-                ),
-              ),
+              Text('Details', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w400, color: Colors.grey[500])),
+              Text('Payment', style: TextStyle(fontSize: 11, fontWeight: activeStep == 1 ? FontWeight.w600 : FontWeight.w400, color: activeStep == 1 ? const Color(0xFF1A1A1A) : Colors.grey[500])),
+              Text('Confirm', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w400, color: Colors.grey[500])),
             ],
           ),
         ],
@@ -217,43 +172,33 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
     );
   }
 
-  Widget _buildCompletedStepNode() {
-    return Container(
-      width: 24,
-      height: 24,
-      decoration: BoxDecoration(
-        color: Colors.black87,
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 2),
-      ),
-      child: const Icon(
-        Icons.check,
-        color: Colors.white,
-        size: 14,
-      ),
-    );
-  }
+  Widget _buildStepCircle(int step, int activeStep) {
+    final isCompleted = step < activeStep;
+    final isActive = step == activeStep;
 
-  Widget _buildStepNode({required bool isActive}) {
     return Container(
-      width: 24,
-      height: 24,
+      width: 28,
+      height: 28,
       decoration: BoxDecoration(
-        color: Colors.black87,
+        color: (isActive || isCompleted) ? const Color(0xFF1A1A1A) : Colors.white,
         shape: BoxShape.circle,
-        border: isActive
-            ? Border.all(color: Colors.white, width: 2)
-            : null,
+        border: Border.all(
+          color: (isActive || isCompleted) ? const Color(0xFF1A1A1A) : Colors.grey[300]!,
+          width: 2,
+        ),
       ),
-      child: isActive
-          ? Container(
-              margin: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
+      child: Center(
+        child: isCompleted
+            ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
+            : Text(
+                '${step + 1}',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: isActive ? Colors.white : Colors.grey[500],
+                ),
               ),
-            )
-          : null,
+      ),
     );
   }
 
@@ -262,8 +207,8 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
       height: 200,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2C),
-        borderRadius: BorderRadius.circular(16),
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(20),
       ),
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -275,7 +220,6 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
             children: [
               Row(
                 children: [
-                  // Mastercard logo (simplified)
                   Container(
                     width: 40,
                     height: 25,
@@ -290,7 +234,7 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
                           child: Container(
                             width: 25,
                             height: 25,
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               color: Colors.orange,
                               shape: BoxShape.circle,
                             ),
@@ -300,11 +244,9 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // Chip icon
                   Icon(Icons.sim_card, color: Colors.amber[700], size: 30),
                 ],
               ),
-              // VISA logo (simplified)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -326,7 +268,7 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              const Text(
                 '9655 9655 9655 9655',
                 style: TextStyle(
                   color: Colors.white,
@@ -339,21 +281,16 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'BANJAMIN JACK',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                    ],
+                  const Text(
+                    'BENJAMIN JACK',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1,
+                    ),
                   ),
-                  Text(
+                  const Text(
                     'Expire: 10-5-2030',
                     style: TextStyle(
                       color: Colors.white,
@@ -374,11 +311,11 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'select payment method',
+          'Select Payment Method',
           style: TextStyle(
             fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF1A1A1A),
           ),
         ),
         const SizedBox(height: 12),
@@ -391,9 +328,8 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[200]!),
+              color: const Color(0xFFF8F8F8),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
               children: [
@@ -404,14 +340,14 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
                     'Cash payment',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.grey[400],
+                      color: Colors.grey[600],
                     ),
                   ),
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.grey[100],
+                    color: const Color(0xFF1A1A1A),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Text(
@@ -419,7 +355,7 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
-                      color: Colors.grey,
+                      color: Colors.white,
                     ),
                   ),
                 ),
@@ -436,32 +372,21 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Card information',
+          'Card Information',
           style: TextStyle(
             fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF1A1A1A),
           ),
         ),
         const SizedBox(height: 12),
-        _buildInputField(
-          controller: _fullNameController,
-          hintText: 'Full Name',
-        ),
-        const SizedBox(height: 16),
-        _buildInputField(
-          controller: _emailController,
-          hintText: 'Email Address',
-          keyboardType: TextInputType.emailAddress,
-        ),
-        const SizedBox(height: 16),
+        _buildInputField(controller: _fullNameController, hintText: 'Full Name'),
+        const SizedBox(height: 14),
+        _buildInputField(controller: _emailController, hintText: 'Email Address', keyboardType: TextInputType.emailAddress),
+        const SizedBox(height: 14),
         Stack(
           children: [
-            _buildInputField(
-              controller: _cardNumberController,
-              hintText: 'Number',
-              keyboardType: TextInputType.number,
-            ),
+            _buildInputField(controller: _cardNumberController, hintText: 'Number', keyboardType: TextInputType.number),
             Positioned(
               right: 16,
               top: 0,
@@ -480,34 +405,20 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
         Row(
           children: [
-            Expanded(
-              child: _buildInputField(
-                controller: _expiryMonthController,
-                hintText: 'MM / YY',
-                keyboardType: TextInputType.number,
-              ),
-            ),
+            Expanded(child: _buildInputField(controller: _expiryMonthController, hintText: 'MM / YY', keyboardType: TextInputType.number)),
             const SizedBox(width: 12),
             Expanded(
               child: Stack(
                 children: [
-                  _buildInputField(
-                    controller: _cvcController,
-                    hintText: 'CVC',
-                    keyboardType: TextInputType.number,
-                  ),
+                  _buildInputField(controller: _cvcController, hintText: 'CVC', keyboardType: TextInputType.number),
                   Positioned(
                     right: 16,
                     top: 0,
                     bottom: 0,
-                    child: Icon(
-                      Icons.credit_card,
-                      color: Colors.grey[600],
-                      size: 18,
-                    ),
+                    child: Icon(Icons.credit_card, color: Colors.grey[500], size: 18),
                   ),
                 ],
               ),
@@ -526,9 +437,8 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
+        color: const Color(0xFFF8F8F8),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: TextFormField(
         controller: controller,
@@ -569,34 +479,33 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Country or region',
+          'Country or Region',
           style: TextStyle(
             fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF1A1A1A),
           ),
         ),
         const SizedBox(height: 12),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           decoration: BoxDecoration(
-            color: Colors.grey[50],
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey[200]!),
+            color: const Color(0xFFF8F8F8),
+            borderRadius: BorderRadius.circular(14),
           ),
           child: DropdownButtonFormField<String>(
             value: _selectedCountry,
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               border: InputBorder.none,
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(vertical: 14),
+              contentPadding: EdgeInsets.symmetric(vertical: 14),
             ),
             items: _countries.map((country) {
               return DropdownMenuItem(
                 value: country,
                 child: Text(
                   country,
-                  style: const TextStyle(fontSize: 14, color: Colors.black87),
+                  style: const TextStyle(fontSize: 14, color: Color(0xFF1A1A1A)),
                 ),
               );
             }).toList(),
@@ -607,15 +516,11 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
                 });
               }
             },
-            icon: Icon(Icons.keyboard_arrow_down, color: Colors.grey[600]),
+            icon: Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey[500]),
           ),
         ),
-        const SizedBox(height: 16),
-        _buildInputField(
-          controller: _zipController,
-          hintText: 'ZIP',
-          keyboardType: TextInputType.number,
-        ),
+        const SizedBox(height: 14),
+        _buildInputField(controller: _zipController, hintText: 'ZIP', keyboardType: TextInputType.number),
       ],
     );
   }
@@ -630,22 +535,18 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
             });
           },
           child: Container(
-            width: 20,
-            height: 20,
+            width: 22,
+            height: 22,
             decoration: BoxDecoration(
-              color: _termsAccepted ? Colors.black87 : Colors.white,
-              borderRadius: BorderRadius.circular(4),
+              color: _termsAccepted ? const Color(0xFF1A1A1A) : Colors.white,
+              borderRadius: BorderRadius.circular(6),
               border: Border.all(
-                color: Colors.grey[400]!,
+                color: _termsAccepted ? const Color(0xFF1A1A1A) : Colors.grey[400]!,
                 width: 1.5,
               ),
             ),
             child: _termsAccepted
-                ? const Icon(
-                    Icons.check,
-                    size: 14,
-                    color: Colors.white,
-                  )
+                ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
                 : null,
           ),
         ),
@@ -653,19 +554,12 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
         Expanded(
           child: Row(
             children: [
-              Text(
-                'Trams & continue',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.black87,
-                ),
+              const Text(
+                'Terms & Conditions',
+                style: TextStyle(fontSize: 14, color: Color(0xFF1A1A1A)),
               ),
               const SizedBox(width: 4),
-              Icon(
-                Icons.keyboard_arrow_down,
-                size: 16,
-                color: Colors.grey[600],
-              ),
+              Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Colors.grey[500]),
             ],
           ),
         ),
@@ -683,10 +577,7 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
                 'Pay with card Or',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
               ),
             ),
             Expanded(child: Divider(color: Colors.grey[300])),
@@ -695,7 +586,7 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
         const SizedBox(height: 16),
         _buildPaymentButton(
           icon: Icons.apple,
-          label: 'Apple pay',
+          label: 'Apple Pay',
           onTap: () {
             setState(() {
               _selectedPaymentMethod = PaymentMethodType.applePay;
@@ -726,21 +617,20 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey[300]!),
+          color: const Color(0xFFF8F8F8),
+          borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: Colors.black, size: 24),
+            Icon(icon, color: const Color(0xFF1A1A1A), size: 24),
             const SizedBox(width: 12),
             Text(
               label,
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: Colors.black87,
+                color: Color(0xFF1A1A1A),
               ),
             ),
           ],
@@ -752,8 +642,8 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
   Widget _buildContinueButton(BuildContext context, double screenWidth) {
     return Container(
       padding: EdgeInsets.only(
-        left: screenWidth * 0.04,
-        right: screenWidth * 0.04,
+        left: screenWidth * 0.05,
+        right: screenWidth * 0.05,
         top: 16,
         bottom: MediaQuery.of(context).padding.bottom + 16,
       ),
@@ -761,7 +651,7 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -782,11 +672,11 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
           }
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF2C2C2C),
+          backgroundColor: const Color(0xFF1A1A1A),
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(25),
+            borderRadius: BorderRadius.circular(16),
           ),
           elevation: 0,
         ),
@@ -801,4 +691,3 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
     );
   }
 }
-

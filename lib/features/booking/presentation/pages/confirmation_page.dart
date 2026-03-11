@@ -21,52 +21,16 @@ class ConfirmationPage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: GestureDetector(
-          onTap: () => Navigator.of(context).pop(),
-          child: Container(
-            margin: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.arrow_back, size: 20, color: Colors.black),
-          ),
-        ),
-        title: const Text(
-          'Confirmation',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          GestureDetector(
-            onTap: () {},
-            child: Container(
-              margin: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.more_vert, size: 20, color: Colors.black),
-            ),
-          ),
-        ],
-      ),
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
-            _buildProgressIndicator(),
+            _buildHeader(context),
+            _buildStepper(activeStep: 2),
             Expanded(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-                padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
+                padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.05),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -88,72 +52,62 @@ class ConfirmationPage extends StatelessWidget {
     );
   }
 
-  Widget _buildProgressIndicator() {
+  Widget _buildHeader(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F5F5),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(Icons.arrow_back_rounded, size: 20, color: Color(0xFF1A1A1A)),
+            ),
+          ),
+          const Expanded(
+            child: Center(
+              child: Text(
+                'Confirmation',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A1A1A),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 42),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStepper({required int activeStep}) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
       child: Column(
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Step 1 - Completed
-              _buildCompletedStepNode(),
-              // Solid line connector
-              Expanded(
-                child: Container(
-                  height: 2,
-                  color: Colors.black87,
-                ),
-              ),
-              // Step 2 - Completed
-              _buildCompletedStepNode(),
-              // Solid line connector
-              Expanded(
-                child: Container(
-                  height: 2,
-                  color: Colors.black87,
-                ),
-              ),
-              // Step 3 - Active
-              _buildActiveStepNode(),
+              _buildStepCircle(0, activeStep),
+              Expanded(child: Container(height: 2, color: const Color(0xFF1A1A1A))),
+              _buildStepCircle(1, activeStep),
+              Expanded(child: Container(height: 2, color: const Color(0xFF1A1A1A))),
+              _buildStepCircle(2, activeStep),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: Text(
-                  'Booking details',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11,
-                    color: Colors.black87,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  'Payment methods',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  'confirmation',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11,
-                    color: Colors.black87,
-                  ),
-                ),
-              ),
+              Text('Details', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w400, color: Colors.grey[500])),
+              Text('Payment', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w400, color: Colors.grey[500])),
+              Text('Confirm', style: TextStyle(fontSize: 11, fontWeight: activeStep == 2 ? FontWeight.w600 : FontWeight.w400, color: activeStep == 2 ? const Color(0xFF1A1A1A) : Colors.grey[500])),
             ],
           ),
         ],
@@ -161,38 +115,32 @@ class ConfirmationPage extends StatelessWidget {
     );
   }
 
-  Widget _buildCompletedStepNode() {
-    return Container(
-      width: 24,
-      height: 24,
-      decoration: BoxDecoration(
-        color: Colors.black87,
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 2),
-      ),
-      child: const Icon(
-        Icons.check,
-        color: Colors.white,
-        size: 14,
-      ),
-    );
-  }
+  Widget _buildStepCircle(int step, int activeStep) {
+    final isCompleted = step < activeStep;
+    final isActive = step == activeStep;
 
-  Widget _buildActiveStepNode() {
     return Container(
-      width: 24,
-      height: 24,
+      width: 28,
+      height: 28,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: (isActive || isCompleted) ? const Color(0xFF1A1A1A) : Colors.white,
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.black87, width: 2),
-      ),
-      child: Container(
-        margin: const EdgeInsets.all(4),
-        decoration: const BoxDecoration(
-          color: Colors.black87,
-          shape: BoxShape.circle,
+        border: Border.all(
+          color: (isActive || isCompleted) ? const Color(0xFF1A1A1A) : Colors.grey[300]!,
+          width: 2,
         ),
+      ),
+      child: Center(
+        child: isCompleted
+            ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
+            : Text(
+                '${step + 1}',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: isActive ? Colors.white : Colors.grey[500],
+                ),
+              ),
       ),
     );
   }
@@ -205,27 +153,36 @@ class ConfirmationPage extends StatelessWidget {
           height: 200,
           width: double.infinity,
           decoration: BoxDecoration(
-            color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(16),
+            color: const Color(0xFFF0F0F0),
+            borderRadius: BorderRadius.circular(20),
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Image.asset(
-              car.imageUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: Colors.grey[300],
-                  child: const Center(
-                    child: Icon(
-                      Icons.directions_car,
-                      size: 100,
-                      color: Colors.grey,
-                    ),
+            borderRadius: BorderRadius.circular(20),
+            child: car.imageUrl.isNotEmpty
+                ? Image.network(
+                    car.imageUrl,
+                    fit: BoxFit.cover,
+                    frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                      if (wasSynchronouslyLoaded) return child;
+                      return AnimatedOpacity(
+                        opacity: frame == null ? 0 : 1,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOut,
+                        child: child,
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: const Color(0xFFF0F0F0),
+                        child: const Center(
+                          child: Icon(Icons.directions_car_rounded, size: 64, color: Colors.grey),
+                        ),
+                      );
+                    },
+                  )
+                : const Center(
+                    child: Icon(Icons.directions_car_rounded, size: 64, color: Colors.grey),
                   ),
-                );
-              },
-            ),
           ),
         ),
         const SizedBox(height: 16),
@@ -240,16 +197,16 @@ class ConfirmationPage extends StatelessWidget {
                     car.name,
                     style: const TextStyle(
                       fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1A1A1A),
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'A car with high specs that are rented ot an affordable price.',
+                    'A car with high specs that are rented at an affordable price.',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.grey[700],
+                      color: Colors.grey[600],
                       height: 1.5,
                     ),
                   ),
@@ -265,20 +222,20 @@ class ConfirmationPage extends StatelessWidget {
                       car.rating.toStringAsFixed(1),
                       style: const TextStyle(
                         fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1A1A1A),
                       ),
                     ),
                     const SizedBox(width: 4),
-                    const Icon(Icons.star, color: Colors.amber, size: 20),
+                    const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 20),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '(100+Reviews)',
+                  '(100+ Reviews)',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey[600],
+                    color: Colors.grey[500],
                   ),
                 ),
               ],
@@ -294,11 +251,11 @@ class ConfirmationPage extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Booking informational',
+          'Booking Information',
           style: TextStyle(
             fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF1A1A1A),
           ),
         ),
         const SizedBox(height: 16),
@@ -319,7 +276,7 @@ class ConfirmationPage extends StatelessWidget {
         _buildInfoRowWithIcon(
           'Location',
           confirmation.location,
-          Icons.location_on,
+          Icons.location_on_rounded,
         ),
       ],
     );
@@ -335,7 +292,7 @@ class ConfirmationPage extends StatelessWidget {
               width: 4,
               height: 4,
               decoration: const BoxDecoration(
-                color: Colors.black,
+                color: Color(0xFF1A1A1A),
                 shape: BoxShape.circle,
               ),
             ),
@@ -344,7 +301,7 @@ class ConfirmationPage extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[700],
+                color: Colors.grey[600],
               ),
             ),
           ],
@@ -354,7 +311,7 @@ class ConfirmationPage extends StatelessWidget {
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
-            color: Colors.black87,
+            color: Color(0xFF1A1A1A),
           ),
         ),
       ],
@@ -371,7 +328,7 @@ class ConfirmationPage extends StatelessWidget {
               width: 4,
               height: 4,
               decoration: const BoxDecoration(
-                color: Colors.black,
+                color: Color(0xFF1A1A1A),
                 shape: BoxShape.circle,
               ),
             ),
@@ -380,21 +337,21 @@ class ConfirmationPage extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[700],
+                color: Colors.grey[600],
               ),
             ),
           ],
         ),
         Row(
           children: [
-            Icon(icon, size: 16, color: Colors.black87),
+            Icon(icon, size: 16, color: const Color(0xFF1A1A1A)),
             const SizedBox(width: 4),
             Text(
               value,
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: Colors.black87,
+                color: Color(0xFF1A1A1A),
               ),
             ),
           ],
@@ -424,18 +381,17 @@ class ConfirmationPage extends StatelessWidget {
           'Payment',
           style: TextStyle(
             fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF1A1A1A),
           ),
         ),
         const SizedBox(height: 16),
         _buildInfoRow('Trx ID', confirmation.transactionId),
         const SizedBox(height: 12),
-        _buildInfoRow('Amount', '\$${confirmation.amount.toInt()}'),
+        _buildInfoRow('Amount', '₦${confirmation.amount.toInt()}'),
         const SizedBox(height: 12),
-        _buildInfoRow('Service fee', '\$${confirmation.serviceFee.toInt()}'),
+        _buildInfoRow('Service fee', '₦${confirmation.serviceFee.toInt()}'),
         const SizedBox(height: 12),
-        // Dashed line separator
         CustomPaint(
           painter: DashedLinePainter(),
           child: const SizedBox(
@@ -451,18 +407,18 @@ class ConfirmationPage extends StatelessWidget {
               'Total amount',
               style: TextStyle(
                 fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1A1A1A),
               ),
             ),
             Row(
               children: [
                 Text(
-                  '\$${confirmation.totalAmount.toInt()}',
+                  '₦${confirmation.totalAmount.toInt()}',
                   style: const TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1A1A1A),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -479,7 +435,7 @@ class ConfirmationPage extends StatelessWidget {
               'Payment with',
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.grey[600],
+                color: Colors.grey[500],
               ),
             ),
           ],
@@ -503,7 +459,7 @@ class ConfirmationPage extends StatelessWidget {
             child: Container(
               width: 20,
               height: 20,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: Colors.orange,
                 shape: BoxShape.circle,
               ),
@@ -517,8 +473,8 @@ class ConfirmationPage extends StatelessWidget {
   Widget _buildConfirmButton(BuildContext context, double screenWidth) {
     return Container(
       padding: EdgeInsets.only(
-        left: screenWidth * 0.04,
-        right: screenWidth * 0.04,
+        left: screenWidth * 0.05,
+        right: screenWidth * 0.05,
         top: 16,
         bottom: MediaQuery.of(context).padding.bottom + 16,
       ),
@@ -526,7 +482,7 @@ class ConfirmationPage extends StatelessWidget {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -545,11 +501,11 @@ class ConfirmationPage extends StatelessWidget {
           );
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF2C2C2C),
+          backgroundColor: const Color(0xFF1A1A1A),
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(25),
+            borderRadius: BorderRadius.circular(16),
           ),
           elevation: 0,
         ),
@@ -557,7 +513,7 @@ class ConfirmationPage extends StatelessWidget {
           'Confirm',
           style: TextStyle(
             fontSize: 16,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
@@ -569,7 +525,7 @@ class DashedLinePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.grey[400]!
+      ..color = Colors.grey[300]!
       ..strokeWidth = 1
       ..style = PaintingStyle.stroke;
 
@@ -590,4 +546,3 @@ class DashedLinePainter extends CustomPainter {
   @override
   bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
-

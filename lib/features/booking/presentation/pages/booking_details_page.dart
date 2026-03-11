@@ -37,7 +37,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   @override
   void initState() {
     super.initState();
-    _selectedRentalDuration = RentalDuration.day; // Default to Day
+    _selectedRentalDuration = RentalDuration.day;
     _calculateTotal();
   }
 
@@ -54,7 +54,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     if (_pickupDate != null && _returnDate != null) {
       final days = _returnDate!.difference(_pickupDate!).inDays;
       double basePrice = widget.car.pricePerDay;
-      
+
       switch (_selectedRentalDuration) {
         case RentalDuration.hour:
           basePrice = basePrice / 24;
@@ -72,14 +72,14 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         default:
           _totalPrice = basePrice * (days > 0 ? days : 1);
       }
-      
+
       if (_bookWithDriver) {
-        _totalPrice += 100; // Additional fee for driver
+        _totalPrice += 100;
       }
     } else {
       _totalPrice = widget.car.pricePerDay;
     }
-    
+
     setState(() {});
   }
 
@@ -95,7 +95,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         initialDropTime: _returnTime,
       ),
     );
-    
+
     if (result != null) {
       setState(() {
         _pickupDate = result['startDate'] as DateTime?;
@@ -121,8 +121,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => LocationPicker(
-        initialLocation: _locationController.text.isNotEmpty 
-            ? _locationController.text 
+        initialLocation: _locationController.text.isNotEmpty
+            ? _locationController.text
             : null,
         onLocationSelected: (location) {
           setState(() {
@@ -134,6 +134,13 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     );
   }
 
+  String _formatPrice(double price) {
+    if (price >= 1000) {
+      return '${(price / 1000).toStringAsFixed(price % 1000 == 0 ? 0 : 1)}k';
+    }
+    return price.toInt().toString();
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -141,52 +148,16 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: GestureDetector(
-          onTap: () => Navigator.of(context).pop(),
-          child: Container(
-            margin: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.arrow_back, size: 20, color: Colors.black),
-          ),
-        ),
-        title: const Text(
-          'Booking Details',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          GestureDetector(
-            onTap: () {},
-            child: Container(
-              margin: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.more_vert, size: 20, color: Colors.black),
-            ),
-          ),
-        ],
-      ),
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
-            _buildProgressIndicator(),
+            _buildHeader(context),
+            _buildStepper(activeStep: 0),
             Expanded(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-                padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
+                padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.05),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -211,75 +182,66 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           ],
         ),
       ),
-      bottomNavigationBar: _buildPayNowButton(context, screenWidth),
+      bottomNavigationBar: _buildContinueButton(context, screenWidth),
     );
   }
 
-  Widget _buildProgressIndicator() {
+  Widget _buildHeader(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F5F5),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(Icons.arrow_back_rounded, size: 20, color: Color(0xFF1A1A1A)),
+            ),
+          ),
+          const Expanded(
+            child: Center(
+              child: Text(
+                'Booking Details',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A1A1A),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 42),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStepper({required int activeStep}) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
       child: Column(
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Step 1 - Active
-              _buildStepNode(isActive: true),
-              // Solid line connector
-              Expanded(
-                child: Container(
-                  height: 2,
-                  color: Colors.black87,
-                ),
-              ),
-              // Step 2 - Inactive
-              _buildStepNode(isActive: false),
-              // Solid line connector
-              Expanded(
-                child: Container(
-                  height: 2,
-                  color: Colors.black87,
-                ),
-              ),
-              // Step 3 - Inactive
-              _buildStepNode(isActive: false),
+              _buildStepCircle(0, activeStep),
+              Expanded(child: Container(height: 2, color: activeStep > 0 ? const Color(0xFF1A1A1A) : Colors.grey[300])),
+              _buildStepCircle(1, activeStep),
+              Expanded(child: Container(height: 2, color: activeStep > 1 ? const Color(0xFF1A1A1A) : Colors.grey[300])),
+              _buildStepCircle(2, activeStep),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: Text(
-                  'Booking details',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11,
-                    color: Colors.black87,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  'Payment methods',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  'confirmation',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 11,
-                  ),
-                ),
-              ),
+              Text('Details', style: TextStyle(fontSize: 11, fontWeight: activeStep == 0 ? FontWeight.w600 : FontWeight.w400, color: activeStep == 0 ? const Color(0xFF1A1A1A) : Colors.grey[500])),
+              Text('Payment', style: TextStyle(fontSize: 11, fontWeight: activeStep == 1 ? FontWeight.w600 : FontWeight.w400, color: activeStep == 1 ? const Color(0xFF1A1A1A) : Colors.grey[500])),
+              Text('Confirm', style: TextStyle(fontSize: 11, fontWeight: activeStep == 2 ? FontWeight.w600 : FontWeight.w400, color: activeStep == 2 ? const Color(0xFF1A1A1A) : Colors.grey[500])),
             ],
           ),
         ],
@@ -287,40 +249,55 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     );
   }
 
-  Widget _buildStepNode({required bool isActive}) {
+  Widget _buildStepCircle(int step, int activeStep) {
+    final isCompleted = step < activeStep;
+    final isActive = step == activeStep;
+
     return Container(
-      width: 24,
-      height: 24,
+      width: 28,
+      height: 28,
       decoration: BoxDecoration(
-        color: Colors.black87,
+        color: (isActive || isCompleted) ? const Color(0xFF1A1A1A) : Colors.white,
         shape: BoxShape.circle,
-        border: isActive
-            ? Border.all(color: Colors.white, width: 2)
-            : null,
+        border: Border.all(
+          color: (isActive || isCompleted) ? const Color(0xFF1A1A1A) : Colors.grey[300]!,
+          width: 2,
+        ),
       ),
-      child: isActive
-          ? Container(
-              margin: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
+      child: Center(
+        child: isCompleted
+            ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
+            : Text(
+                '${step + 1}',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: isActive ? Colors.white : Colors.grey[500],
+                ),
               ),
-            )
-          : null,
+      ),
     );
   }
 
   Widget _buildBookWithDriverSection() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
+        color: const Color(0xFFF8F8F8),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.person_rounded, size: 22, color: Color(0xFF1A1A1A)),
+          ),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -328,17 +305,17 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                 const Text(
                   'Book with driver',
                   style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1A1A1A),
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
-                  'Don\'t have a driver? book with driver.',
+                  'Don\'t have a driver? Book with driver.',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey[600],
+                    color: Colors.grey[500],
                   ),
                 ),
               ],
@@ -352,7 +329,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                 _calculateTotal();
               });
             },
-            activeColor: const Color(0xFF2C2C2C),
+            activeColor: const Color(0xFF1A1A1A),
           ),
         ],
       ),
@@ -365,21 +342,21 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
       children: [
         _buildInputField(
           controller: _fullNameController,
-          icon: Icons.person,
+          icon: Icons.person_outline_rounded,
           hintText: 'Full Name*',
           keyboardType: TextInputType.name,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
         _buildInputField(
           controller: _emailController,
-          icon: Icons.email,
+          icon: Icons.email_outlined,
           hintText: 'Email Address*',
           keyboardType: TextInputType.emailAddress,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
         _buildInputField(
           controller: _contactController,
-          icon: Icons.phone,
+          icon: Icons.phone_outlined,
           hintText: 'Contact*',
           keyboardType: TextInputType.phone,
         ),
@@ -396,9 +373,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
+        color: const Color(0xFFF8F8F8),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: TextFormField(
         controller: controller,
@@ -406,7 +382,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         textInputAction: TextInputAction.next,
         style: const TextStyle(fontSize: 14),
         decoration: InputDecoration(
-          prefixIcon: Icon(icon, color: Colors.grey[600], size: 20),
+          prefixIcon: Icon(icon, color: Colors.grey[500], size: 20),
           hintText: hintText,
           hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
           border: InputBorder.none,
@@ -426,36 +402,18 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           'Gender',
           style: TextStyle(
             fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF1A1A1A),
           ),
         ),
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(
-              child: _buildGenderButton(
-                'Male',
-                Icons.male,
-                Gender.male,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildGenderButton(
-                'Female',
-                Icons.female,
-                Gender.female,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildGenderButton(
-                'Others',
-                Icons.transgender,
-                Gender.others,
-              ),
-            ),
+            Expanded(child: _buildGenderButton('Male', Icons.male, Gender.male)),
+            const SizedBox(width: 10),
+            Expanded(child: _buildGenderButton('Female', Icons.female, Gender.female)),
+            const SizedBox(width: 10),
+            Expanded(child: _buildGenderButton('Others', Icons.transgender, Gender.others)),
           ],
         ),
       ],
@@ -464,7 +422,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
 
   Widget _buildGenderButton(String label, IconData icon, Gender gender) {
     final isSelected = _selectedGender == gender;
-    
+
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -474,11 +432,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF2C2C2C) : Colors.white,
-          borderRadius: BorderRadius.circular(25),
-          border: Border.all(
-            color: isSelected ? const Color(0xFF2C2C2C) : Colors.grey[300]!,
-          ),
+          color: isSelected ? const Color(0xFF1A1A1A) : const Color(0xFFF8F8F8),
+          borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -511,28 +466,20 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           'Rental Date & Time',
           style: TextStyle(
             fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF1A1A1A),
           ),
         ),
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(
-              child: _buildDurationButton('Hour', RentalDuration.hour),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildDurationButton('Day', RentalDuration.day),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildDurationButton('Weekly', RentalDuration.weekly),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildDurationButton('Monthly', RentalDuration.monthly),
-            ),
+            Expanded(child: _buildDurationButton('Hour', RentalDuration.hour)),
+            const SizedBox(width: 10),
+            Expanded(child: _buildDurationButton('Day', RentalDuration.day)),
+            const SizedBox(width: 10),
+            Expanded(child: _buildDurationButton('Weekly', RentalDuration.weekly)),
+            const SizedBox(width: 10),
+            Expanded(child: _buildDurationButton('Monthly', RentalDuration.monthly)),
           ],
         ),
         const SizedBox(height: 16),
@@ -561,7 +508,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
 
   Widget _buildDurationButton(String label, RentalDuration duration) {
     final isSelected = _selectedRentalDuration == duration;
-    
+
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -572,11 +519,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF2C2C2C) : Colors.white,
-          borderRadius: BorderRadius.circular(25),
-          border: Border.all(
-            color: isSelected ? const Color(0xFF2C2C2C) : Colors.grey[300]!,
-          ),
+          color: isSelected ? const Color(0xFF1A1A1A) : const Color(0xFFF8F8F8),
+          borderRadius: BorderRadius.circular(14),
         ),
         child: Text(
           label,
@@ -597,20 +541,19 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.grey[50],
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey[200]!),
+          color: const Color(0xFFF8F8F8),
+          borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
           children: [
-            Icon(Icons.calendar_today, color: Colors.grey[600], size: 18),
+            Icon(Icons.calendar_today_rounded, color: Colors.grey[500], size: 18),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 dateText ?? label,
                 style: TextStyle(
                   fontSize: 13,
-                  color: dateText != null ? Colors.black87 : Colors.grey[400],
+                  color: dateText != null ? const Color(0xFF1A1A1A) : Colors.grey[400],
                   fontWeight: dateText != null ? FontWeight.w500 : FontWeight.normal,
                 ),
               ),
@@ -629,8 +572,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           'Car Location',
           style: TextStyle(
             fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF1A1A1A),
           ),
         ),
         const SizedBox(height: 12),
@@ -639,31 +582,30 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: Colors.grey[50],
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[200]!),
+              color: const Color(0xFFF8F8F8),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
               children: [
-                Icon(Icons.location_on, color: Colors.grey[600], size: 18),
+                Icon(Icons.location_on_outlined, color: Colors.grey[500], size: 18),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    _locationController.text.isEmpty 
-                        ? 'Select location' 
+                    _locationController.text.isEmpty
+                        ? 'Select location'
                         : _locationController.text,
                     style: TextStyle(
                       fontSize: 13,
-                      color: _locationController.text.isEmpty 
-                          ? Colors.grey[400] 
-                          : Colors.black87,
-                      fontWeight: _locationController.text.isNotEmpty 
-                          ? FontWeight.w500 
+                      color: _locationController.text.isEmpty
+                          ? Colors.grey[400]
+                          : const Color(0xFF1A1A1A),
+                      fontWeight: _locationController.text.isNotEmpty
+                          ? FontWeight.w500
                           : FontWeight.normal,
                     ),
                   ),
                 ),
-                Icon(Icons.arrow_forward_ios, color: Colors.grey[600], size: 14),
+                Icon(Icons.arrow_forward_ios_rounded, color: Colors.grey[400], size: 14),
               ],
             ),
           ),
@@ -672,11 +614,11 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     );
   }
 
-  Widget _buildPayNowButton(BuildContext context, double screenWidth) {
+  Widget _buildContinueButton(BuildContext context, double screenWidth) {
     return Container(
       padding: EdgeInsets.only(
-        left: screenWidth * 0.04,
-        right: screenWidth * 0.04,
+        left: screenWidth * 0.05,
+        right: screenWidth * 0.05,
         top: 16,
         bottom: MediaQuery.of(context).padding.bottom + 16,
       ),
@@ -684,27 +626,26 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
         ],
       ),
-      child:         ElevatedButton(
+      child: ElevatedButton(
         onPressed: () {
           if (_formKey.currentState!.validate()) {
-            // Create mock confirmation data (will be replaced with actual booking logic)
             final confirmation = BookingConfirmation(
               bookingId: '00451',
-              customerName: _fullNameController.text.isNotEmpty 
-                  ? _fullNameController.text 
+              customerName: _fullNameController.text.isNotEmpty
+                  ? _fullNameController.text
                   : 'Benjamin Jack',
               pickupDate: _pickupDate ?? DateTime.now(),
               pickupTime: _pickupTime ?? const TimeOfDay(hour: 10, minute: 30),
               returnDate: _returnDate ?? DateTime.now().add(const Duration(days: 3)),
               returnTime: _returnTime ?? const TimeOfDay(hour: 17, minute: 0),
-              location: _locationController.text.isNotEmpty 
-                  ? _locationController.text 
+              location: _locationController.text.isNotEmpty
+                  ? _locationController.text
                   : 'Shore Dr, Chicago 0062 Usa',
               transactionId: '#141mtslv5854d58',
               amount: _totalPrice,
@@ -712,7 +653,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
               totalAmount: _totalPrice + 15.0,
               paymentMethod: 'Mastercard',
             );
-            
+
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -725,37 +666,42 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           }
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF2C2C2C),
+          backgroundColor: const Color(0xFF1A1A1A),
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(25),
+            borderRadius: BorderRadius.circular(16),
           ),
           elevation: 0,
         ),
         child: Row(
-          //mainAxisAlignment: MainAxisAlignment.spaceBetween,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              '\$${_totalPrice.toInt()}',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(width: 8),
             const Text(
-              'Pay Now',
+              'Continue',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
             ),
+            const SizedBox(width: 8),
+            const Text(
+              '·',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '₦${_formatPrice(_totalPrice)}',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(width: 6),
+            const Icon(Icons.arrow_forward_rounded, size: 18),
           ],
         ),
       ),
     );
   }
 }
-

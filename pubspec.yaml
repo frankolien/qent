@@ -50,6 +50,8 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - assets/images/navbar/
+    - assets/images/carFeatures/
     - .env
   fonts:
     - family: Inter

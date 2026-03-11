@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:qent/features/home/domain/models/car.dart';
 
 class CarDetail extends Car {
-  final String description;
+  final String detailDescription;
   final List<String> imageUrls;
   final Host host;
-  final List<CarFeature> features;
+  final List<CarFeature> carFeatures;
   final List<Review> reviews;
   final int totalReviews;
 
@@ -19,20 +19,27 @@ class CarDetail extends Car {
     required super.seats,
     required super.pricePerDay,
     super.isFavorite,
-    required this.description,
+    super.description,
+    super.photos,
+    super.features,
+    super.color,
+    super.year,
+    super.hostId,
+    super.tripCount,
+    required this.detailDescription,
     required this.imageUrls,
     required this.host,
-    required this.features,
+    required this.carFeatures,
     required this.reviews,
     this.totalReviews = 0,
   }) : super();
 
   CarDetail.fromCar({
     required Car car,
-    required this.description,
+    required this.detailDescription,
     required this.imageUrls,
     required this.host,
-    required this.features,
+    required this.carFeatures,
     required this.reviews,
     this.totalReviews = 0,
   }) : super(
@@ -45,6 +52,13 @@ class CarDetail extends Car {
           seats: car.seats,
           pricePerDay: car.pricePerDay,
           isFavorite: car.isFavorite,
+          description: car.description,
+          photos: car.photos,
+          features: car.features,
+          color: car.color,
+          year: car.year,
+          hostId: car.hostId,
+          tripCount: car.tripCount,
         );
 }
 
@@ -66,13 +80,15 @@ class CarFeature {
   final String id;
   final String label;
   final String value;
-  final IconData icon;
+  final IconData? icon;
+  final String? assetImage;
 
   CarFeature({
     required this.id,
     required this.label,
     required this.value,
-    required this.icon,
+    this.icon,
+    this.assetImage,
   });
 }
 
@@ -93,4 +109,3 @@ class Review {
     required this.date,
   });
 }
-

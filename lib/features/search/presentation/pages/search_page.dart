@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/home/domain/models/car.dart';
+import 'package:qent/features/home/presentation/providers/car_providers.dart';
 import 'package:qent/features/search/domain/models/filter_options.dart';
 import 'package:qent/features/search/presentation/providers/search_providers.dart';
 import 'package:qent/features/search/presentation/widgets/filter_bottom_sheet.dart';
@@ -16,90 +18,34 @@ class SearchPage extends ConsumerStatefulWidget {
 class _SearchPageState extends ConsumerState<SearchPage> {
   final TextEditingController _searchController = TextEditingController();
 
-  final List<Car> _recommendedCars = [
-    Car(
-      id: '1',
-      name: 'Tesla Model S',
-      brand: 'Tesla',
-      imageUrl: 'assets/images/tesla_model_s.png',
-      rating: 5.0,
-      location: 'Chicago, USA',
-      seats: 5,
-      pricePerDay: 100,
-    ),
-    Car(
-      id: '2',
-      name: 'Ferrari LaFerrari',
-      brand: 'Ferrari',
-      imageUrl: 'assets/images/ferrari_laf.png',
-      rating: 5.0,
-      location: 'Washington DC',
-      seats: 2,
-      pricePerDay: 100,
-    ),
-    Car(
-      id: '3',
-      name: 'Lamborghini Aventador',
-      brand: 'Lamborghini',
-      imageUrl: 'assets/images/lambo_car.png',
-      rating: 4.9,
-      location: 'Washington DC',
-      seats: 2,
-      pricePerDay: 100,
-    ),
-    Car(
-      id: '4',
-      name: 'BMW GTS3 M2',
-      brand: 'BMW',
-      imageUrl: 'assets/images/Bmw.png',
-      rating: 5.0,
-      location: 'New York, USA',
-      seats: 4,
-      pricePerDay: 100,
-    ),
-  ];
-
-  final List<Car> _popularCars = [
-    Car(
-      id: '5',
-      name: 'Ferrari LaFerrari',
-      brand: 'Ferrari',
-      imageUrl: 'assets/images/ferrari_ff.png',
-      rating: 5.0,
-      location: 'Los Angeles, USA',
-      seats: 2,
-      pricePerDay: 100,
-    ),
-    Car(
-      id: '6',
-      name: 'BMW M4',
-      brand: 'BMW',
-      imageUrl: 'assets/images/bmw_m4.png',
-      rating: 4.8,
-      location: 'Miami, USA',
-      seats: 4,
-      pricePerDay: 150,
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(_onSearchChanged);
+  }
 
   @override
   void dispose() {
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
   }
 
+  void _onSearchChanged() {
+    ref.read(searchControllerProvider.notifier).updateSearchQuery(
+      _searchController.text,
+    );
+    setState(() {}); // Rebuild for clear button visibility
+  }
+
   @override
   Widget build(BuildContext context) {
+    final carsAsync = ref.watch(filteredCarsProvider);
     final filterOptionsState = ref.watch(filterOptionsControllerProvider);
-    final screenHeight = MediaQuery.of(context).size.height;
-    final cardHeight = screenHeight * 0.32;
-
-    // Update search query when controller changes
-    _searchController.addListener(() {
-      ref.read(searchControllerProvider.notifier).updateSearchQuery(
-        _searchController.text,
-      );
-    });
+    final searchState = ref.watch(searchControllerProvider);
+    final authState = ref.watch(authControllerProvider);
+    final userId = authState.user?.uid ?? '';
+    final carController = ref.read(carControllerProvider);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -107,23 +53,15 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         child: Column(
           children: [
             _buildHeader(context),
-            _buildSearchBar(context),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: _buildSearchBar(context),
+            ),
             const SizedBox(height: 16),
             _buildBrandFilters(context, filterOptionsState.options.brandFilters),
             const SizedBox(height: 24),
             Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildRecommendedSection(context, cardHeight),
-                    SizedBox(height: screenHeight * 0.04),
-                    _buildPopularSection(context, cardHeight),
-                    SizedBox(height: screenHeight * 0.1),
-                  ],
-                ),
-              ),
+              child: _buildResults(context, carsAsync, searchState, userId, carController),
             ),
           ],
         ),
@@ -132,23 +70,18 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   }
 
   Widget _buildHeader(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    
     return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: screenWidth * 0.04,
-        vertical: 16,
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const SizedBox(width: 40), // Spacer for alignment
+          const SizedBox(width: 40),
           const Text(
             'Search',
             style: TextStyle(
               fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1A1A1A),
             ),
           ),
           GestureDetector(
@@ -157,40 +90,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: Colors.transparent,
-                shape: BoxShape.circle,
+                color: const Color(0xFFF2F2F2),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 4,
-                    height: 4,
-                    decoration: const BoxDecoration(
-                      color: Colors.black,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    width: 4,
-                    height: 4,
-                    decoration: const BoxDecoration(
-                      color: Colors.black,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    width: 4,
-                    height: 4,
-                    decoration: const BoxDecoration(
-                      color: Colors.black,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ],
-              ),
+              child: const Icon(Icons.more_horiz, size: 20, color: Color(0xFF1A1A1A)),
             ),
           ),
         ],
@@ -199,142 +102,138 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   }
 
   Widget _buildSearchBar(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              constraints: const BoxConstraints(minHeight: 50),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey[300]!),
-              ),
-              child: Row(
-                children: [
-                  const SizedBox(width: 16),
-                  Icon(Icons.search, color: Colors.grey[600], size: 20),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: _searchController,
-                      style: const TextStyle(fontSize: 14),
-                      decoration: InputDecoration(
-                        hintText: 'Search your dream car.....',
-                        hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-                        border: InputBorder.none,
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 14),
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            height: 50,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF5F5F5),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                const SizedBox(width: 16),
+                Icon(Icons.search_rounded, color: Colors.grey[400], size: 22),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    style: const TextStyle(fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'Search cars...',
+                      hintStyle: TextStyle(
+                        color: Colors.grey[400],
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
                       ),
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                   ),
-                ],
-              ),
+                ),
+                if (_searchController.text.isNotEmpty)
+                  GestureDetector(
+                    onTap: () => _searchController.clear(),
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: Icon(Icons.close_rounded, color: Colors.grey[400], size: 20),
+                    ),
+                  ),
+              ],
             ),
           ),
-          SizedBox(width: screenWidth * 0.03),
-          GestureDetector(
-            onTap: () {
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                builder: (context) => const FilterBottomSheet(),
-              );
-            },
-            child: Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: Colors.grey[200],
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.tune, size: 20, color: Colors.black),
+        ),
+        const SizedBox(width: 10),
+        GestureDetector(
+          onTap: () {
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (context) => const FilterBottomSheet(),
+            );
+          },
+          child: Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A1A1A),
+              borderRadius: BorderRadius.circular(16),
             ),
+            child: const Icon(Icons.tune_rounded, size: 20, color: Colors.white),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildBrandFilters(BuildContext context, List<BrandFilter> brandFilters) {
-    final screenWidth = MediaQuery.of(context).size.width;
     final searchState = ref.watch(searchControllerProvider);
     final selectedFilter = searchState.filters.selectedBrandFilter;
-    
+
     return SizedBox(
-      height: 50,
+      height: 44,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
-        padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
+        padding: const EdgeInsets.symmetric(horizontal: 20),
         itemCount: brandFilters.length,
         itemBuilder: (context, index) {
           final filter = brandFilters[index];
           final isSelected = selectedFilter == filter.name;
-          
+
           return Padding(
-            padding: EdgeInsets.only(
-              right: index < brandFilters.length - 1 ? 16 : 0,
-            ),
+            padding: EdgeInsets.only(right: index < brandFilters.length - 1 ? 10 : 0),
             child: GestureDetector(
               onTap: () {
                 ref.read(searchControllerProvider.notifier).updateBrandFilter(filter.name);
               },
               child: Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: filter.name == 'ALL' ? 16 : 12,
-                  vertical: 12,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFF2C2C2C) : Colors.transparent,
-                  borderRadius: BorderRadius.circular(25),
+                  color: isSelected ? const Color(0xFF1A1A1A) : const Color(0xFFF5F5F5),
+                  borderRadius: BorderRadius.circular(22),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (filter.name == 'ALL')
-                      Container(
-                        width: 24,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          color: isSelected ? Colors.white : Colors.grey[300],
-                          shape: BoxShape.circle,
+                    if (filter.logoUrl != null) ...[
+                      ColorFiltered(
+                        colorFilter: ColorFilter.mode(
+                          isSelected ? Colors.white : const Color(0xFF1A1A1A),
+                          BlendMode.srcIn,
                         ),
-                        child: Center(
-                          child: Icon(
-                            Icons.dehaze,
-                            color: isSelected ? Colors.black : Colors.grey[600],
-                            size: 16,
+                        child: Image.network(
+                          filter.logoUrl!,
+                          width: 18,
+                          height: 18,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => Icon(
+                            Icons.directions_car,
+                            color: isSelected ? Colors.white : const Color(0xFF1A1A1A),
+                            size: 18,
                           ),
                         ),
                       ),
-                    if (filter.name == 'ALL') const SizedBox(width: 8),
-                    if (filter.name != 'ALL')
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: const BoxDecoration(
-                          color: Colors.black,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: _getBrandLogo(filter),
-                        ),
+                      const SizedBox(width: 6),
+                    ],
+                    if (filter.name == 'ALL')
+                      Icon(
+                        Icons.apps_rounded,
+                        color: isSelected ? Colors.white : Colors.grey[600],
+                        size: 16,
                       ),
-                    if (filter.name != 'ALL') const SizedBox(width: 8),
-                    if (filter.name != 'Lamborghini')
-                      Text(
-                        filter.name,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: isSelected ? Colors.white : Colors.grey[700],
-                        ),
+                    if (filter.name == 'ALL') const SizedBox(width: 6),
+                    Text(
+                      filter.name == 'Mercedes-Benz' ? 'Mercedes' : filter.name,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected ? Colors.white : Colors.grey[600],
                       ),
+                    ),
                   ],
                 ),
               ),
@@ -345,40 +244,126 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     );
   }
 
-  Widget _getBrandLogo(BrandFilter filter) {
-    if (filter.logoUrl == null) {
-      return const Icon(Icons.directions_car, color: Colors.white, size: 20);
-    }
-    
-    return Image.asset(
-      filter.logoUrl!,
-      width: 20,
-      height: 20,
-      fit: BoxFit.contain,
-      errorBuilder: (context, error, stackTrace) {
-        return const Icon(Icons.directions_car, color: Colors.white, size: 20);
+  Widget _buildResults(BuildContext context, AsyncValue<List<Car>> carsAsync, dynamic searchState, String userId, CarController carController) {
+    return carsAsync.when(
+      data: (cars) {
+        // Split into recommended (high rating) and all
+        final recommended = cars.where((car) => car.rating >= 4.5).toList();
+
+        if (cars.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.search_off_rounded, size: 64, color: Colors.grey[300]),
+                const SizedBox(height: 12),
+                Text(
+                  'No cars found',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[400],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Try adjusting your filters',
+                  style: TextStyle(fontSize: 13, color: Colors.grey[400]),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (recommended.isNotEmpty)
+                _buildSection(
+                  context,
+                  title: 'Recommended',
+                  subtitle: '${recommended.length} top rated',
+                  cars: recommended,
+                  userId: userId,
+                  carController: carController,
+                ),
+              if (recommended.isNotEmpty) const SizedBox(height: 28),
+              _buildSection(
+                context,
+                title: 'All Cars',
+                subtitle: '${cars.length} available',
+                cars: cars,
+                userId: userId,
+                carController: carController,
+              ),
+              const SizedBox(height: 100),
+            ],
+          ),
+        );
       },
+      loading: () => const Center(
+        child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF1A1A1A)),
+      ),
+      error: (error, stack) => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.wifi_off_rounded, size: 48, color: Colors.grey[300]),
+            const SizedBox(height: 12),
+            Text('Failed to load cars', style: TextStyle(color: Colors.grey[400])),
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: () => ref.invalidate(carsProvider),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A1A1A),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text('Retry', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _buildRecommendedSection(BuildContext context, double cardHeight) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    
+  Widget _buildSection(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required List<Car> cars,
+    required String userId,
+    required CarController carController,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Recommend For You',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1A1A1A),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(fontSize: 13, color: Colors.grey[400]),
+                  ),
+                ],
               ),
               TextButton(
                 onPressed: () {},
@@ -387,100 +372,31 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   minimumSize: const Size(50, 30),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: const Text(
+                child: Text(
                   'View All',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: TextStyle(fontSize: 13, color: Colors.grey[400], fontWeight: FontWeight.w500),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
         SizedBox(
-          height: cardHeight,
+          height: 240,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
-            padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
-            itemCount: _recommendedCars.length,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            itemCount: cars.length,
             itemBuilder: (context, index) {
               return Padding(
-                padding: EdgeInsets.only(
-                  right: index < _recommendedCars.length - 1 ? screenWidth * 0.04 : 0,
-                ),
+                padding: EdgeInsets.only(right: index < cars.length - 1 ? 14 : 0),
                 child: SearchCarCard(
-                  car: _recommendedCars[index],
+                  car: cars[index],
                   onFavoriteTap: () {
-                    // TODO: Implement favorite toggle with Riverpod
-                  },
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPopularSection(BuildContext context, double cardHeight) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Our Popular Cars',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-              TextButton(
-                onPressed: () {},
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  minimumSize: const Size(50, 30),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: const Text(
-                  'View All',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          height: cardHeight,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
-            itemCount: _popularCars.length,
-            itemBuilder: (context, index) {
-              return Padding(
-                padding: EdgeInsets.only(
-                  right: index < _popularCars.length - 1 ? screenWidth * 0.04 : 0,
-                ),
-                child: SearchCarCard(
-                  car: _popularCars[index],
-                  onFavoriteTap: () {
-                    // TODO: Implement favorite toggle with Riverpod
+                    if (userId.isNotEmpty) {
+                      carController.toggleFavorite(cars[index].id);
+                    }
                   },
                 ),
               );
@@ -491,4 +407,3 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     );
   }
 }
-

@@ -78,9 +78,6 @@ class _VerificationCodePageState extends ConsumerState<VerificationCodePage> {
       final isValid = await _verificationService.verifyCode(widget.email, code);
 
       if (isValid) {
-        // Delete verification code after successful verification
-        await _verificationService.deleteVerificationCode(widget.email);
-        
         // Navigate back to signup page with verification success
         if (mounted) {
           Navigator.of(context).pop(true);

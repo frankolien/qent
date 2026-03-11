@@ -55,13 +55,23 @@ class OnboardingOneScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: const [
                       Text(
-                        'Welcome to \nQent',
+                        'Your Ride,\nYour Rules.',
                         style: TextStyle(
                           color: Colors.white,
                           letterSpacing: -1.5,
-                          height: 1.0,
+                          height: 1.08,
                           fontSize: 45,
                           fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 14),
+                      Text(
+                        'Rent from real people.\nAnytime, anywhere in Lagos.',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 15,
+                          height: 1.5,
+                          fontWeight: FontWeight.w400,
                         ),
                       ),
                     ],

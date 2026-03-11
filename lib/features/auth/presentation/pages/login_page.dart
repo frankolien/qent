@@ -93,27 +93,29 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const SizedBox(height: 20),
                 _buildAppBar(),
-                const SizedBox(height: 32),
+                const SizedBox(height: 36),
                 _buildTitle(),
-                const SizedBox(height: 32),
+                const SizedBox(height: 28),
                 _buildForm(),
-                const SizedBox(height: 24),
-                _buildRememberAndForgot(),
-                const SizedBox(height: 32),
-                _buildLoginButton(isLoading),
                 const SizedBox(height: 16),
+                _buildRememberAndForgot(),
+                const SizedBox(height: 28),
+                _buildLoginButton(isLoading),
+                const SizedBox(height: 12),
                 _buildSignUpButton(),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
                 _buildSeparator(),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
                 _buildSocialButtons(),
-                const SizedBox(height: 32),
+                const SizedBox(height: 28),
                 _buildFooter(),
               ],
             ),
@@ -124,241 +126,248 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Widget _buildAppBar() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24),
-      child: Row(
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: const BoxDecoration(
-              color: Colors.black,
-              shape: BoxShape.circle,
-            ),
+    return Row(
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: const BoxDecoration(
+            color: Colors.black,
+            shape: BoxShape.circle,
+          ),
+          child: ClipOval(
             child: Image.asset(
               'assets/images/image_logo.png',
-              width: 30,
-              height: 30,
+              width: 26,
+              height: 26,
             ),
           ),
-          const SizedBox(width: 12),
-          const Text(
-            'Qent',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-            ),
+        ),
+        const SizedBox(width: 10),
+        const Text(
+          'Qent',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+            color: Colors.black,
+            letterSpacing: -0.5,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildTitle() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Welcome Back',
-            style: TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.w600,
-              color: Colors.black,
-              height: 1.2,
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: const [
+        Text(
+          'Welcome Back',
+          style: TextStyle(
+            fontSize: 30,
+            fontWeight: FontWeight.w700,
+            color: Colors.black,
+            height: 1.15,
+            letterSpacing: -0.8,
           ),
-          const SizedBox(height: 3),
-          const Text(
-            'Ready to hit the road.',
-            style: TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.w600,
-              color: Colors.black,
-              height: 1.2,
-            ),
+        ),
+        SizedBox(height: 2),
+        Text(
+          'Ready to hit the road.',
+          style: TextStyle(
+            fontSize: 30,
+            fontWeight: FontWeight.w700,
+            color: Colors.black,
+            height: 1.15,
+            letterSpacing: -0.8,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildForm() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Column(
-        children: [
-          TextFormField(
-            controller: _emailController,
-            keyboardType: TextInputType.emailAddress,
-            decoration: InputDecoration(
-              hintText: 'Email/Phone Number',
-              hintStyle: TextStyle(color: Colors.grey[400]),
-              filled: true,
-              fillColor: Colors.grey[50],
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            ),
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Please enter your email';
-              }
-              if (!value.contains('@')) {
-                return 'Please enter a valid email';
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _passwordController,
-            obscureText: _obscurePassword,
-            decoration: InputDecoration(
-              hintText: 'Password',
-              hintStyle: TextStyle(color: Colors.grey[400]),
-              filled: true,
-              fillColor: Colors.grey[50],
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                  color: Colors.grey[600],
-                ),
-                onPressed: () {
-                  setState(() {
-                    _obscurePassword = !_obscurePassword;
-                  });
-                },
-              ),
-            ),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please enter your password';
-              }
-              if (value.length < 6) {
-                return 'Password must be at least 6 characters';
-              }
-              return null;
-            },
-          ),
-        ],
+    final inputDecoration = InputDecoration(
+      hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
+      filled: true,
+      fillColor: const Color(0xFFF5F5F5),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none,
       ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Colors.black26, width: 1),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 17),
+    );
+
+    return Column(
+      children: [
+        TextFormField(
+          controller: _emailController,
+          keyboardType: TextInputType.emailAddress,
+          style: const TextStyle(fontSize: 15),
+          decoration: inputDecoration.copyWith(
+            hintText: 'Email/Phone Number',
+          ),
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'Please enter your email';
+            }
+            if (!value.contains('@')) {
+              return 'Please enter a valid email';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 14),
+        TextFormField(
+          controller: _passwordController,
+          obscureText: _obscurePassword,
+          style: const TextStyle(fontSize: 15),
+          decoration: inputDecoration.copyWith(
+            hintText: 'Password',
+            suffixIcon: IconButton(
+              icon: Icon(
+                _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                color: Colors.grey[500],
+                size: 20,
+              ),
+              onPressed: () {
+                setState(() {
+                  _obscurePassword = !_obscurePassword;
+                });
+              },
+            ),
+          ),
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Please enter your password';
+            }
+            if (value.length < 6) {
+              return 'Password must be at least 6 characters';
+            }
+            return null;
+          },
+        ),
+      ],
     );
   }
 
   Widget _buildRememberAndForgot() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        GestureDetector(
+          onTap: () => setState(() => _rememberMe = !_rememberMe),
+          child: Row(
             children: [
-              Checkbox(
-                value: _rememberMe,
-                onChanged: (value) {
-                  setState(() {
-                    _rememberMe = value ?? true;
-                  });
-                },
-                activeColor: Colors.black,
+              SizedBox(
+                width: 22,
+                height: 22,
+                child: Checkbox(
+                  value: _rememberMe,
+                  onChanged: (value) {
+                    setState(() {
+                      _rememberMe = value ?? true;
+                    });
+                  },
+                  activeColor: Colors.black,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
               ),
+              const SizedBox(width: 8),
               const Text(
                 'Remember Me',
                 style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.black,
+                  fontSize: 13,
+                  color: Colors.black87,
                 ),
               ),
             ],
           ),
-          TextButton(
-            onPressed: _handleForgotPassword,
-            child: const Text(
-              'Forgot Password',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.black,
-                fontWeight: FontWeight.w500,
-              ),
+        ),
+        GestureDetector(
+          onTap: _handleForgotPassword,
+          child: const Text(
+            'Forgot Password',
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.black87,
+              fontWeight: FontWeight.w500,
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildLoginButton(bool isLoading) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: SizedBox(
-        width: double.infinity,
-        height: 56,
-        child: ElevatedButton(
-          onPressed: isLoading ? null : _handleLogin,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF2C2C2C),
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            elevation: 0,
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: ElevatedButton(
+        onPressed: isLoading ? null : _handleLogin,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF1A1A1A),
+          disabledBackgroundColor: const Color(0xFF1A1A1A).withOpacity(0.6),
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
           ),
-          child: isLoading
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                )
-              : const Text(
-                  'Login',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+          elevation: 0,
         ),
+        child: isLoading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : const Text(
+                'Login',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
       ),
     );
   }
 
   Widget _buildSignUpButton() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: SizedBox(
-        width: double.infinity,
-        height: 56,
-        child: OutlinedButton(
-          onPressed: () {
-            // Navigate to sign up page
-            Navigator.pushNamed(context, '/signup');
-          },
-          style: OutlinedButton.styleFrom(
-            backgroundColor: Colors.grey[100],
-            foregroundColor: Colors.black,
-            side: BorderSide.none,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: ElevatedButton(
+        onPressed: () {
+          Navigator.pushNamed(context, '/signup');
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFF2F2F2),
+          foregroundColor: Colors.black,
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
           ),
-          child: const Text(
-            'Sign up',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
+        ),
+        child: const Text(
+          'Sign up',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),
@@ -366,46 +375,42 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Widget _buildSeparator() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Row(
-        children: [
-          Expanded(child: Divider(color: Colors.grey[300])),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              'Or',
-              style: TextStyle(color: Colors.grey[600], fontSize: 14),
-            ),
+    return Row(
+      children: [
+        Expanded(child: Divider(color: Colors.grey[300], height: 1)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Text(
+            'Or',
+            style: TextStyle(color: Colors.grey[500], fontSize: 13),
           ),
-          Expanded(child: Divider(color: Colors.grey[300])),
-        ],
-      ),
+        ),
+        Expanded(child: Divider(color: Colors.grey[300], height: 1)),
+      ],
     );
   }
 
   Widget _buildSocialButtons() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Column(
-        children: [
-          _buildSocialButton(
-            icon: Icons.apple,
-            label: 'Apple pay',
-            onPressed: () {
-              // TODO: Implement Apple Sign In
-            },
-          ),
-          const SizedBox(height: 12),
-          _buildSocialButton(
-            icon: Icons.g_mobiledata,
-            label: 'Google Pay',
-            onPressed: () {
-              // TODO: Implement Google Sign In
-            },
-          ),
-        ],
-      ),
+    return Column(
+      children: [
+        _buildSocialButton(
+          icon: Icons.apple,
+          label: 'Apple pay',
+          iconSize: 22,
+          onPressed: () {
+            // TODO: Implement Apple Sign In
+          },
+        ),
+        const SizedBox(height: 10),
+        _buildSocialButton(
+          icon: Icons.g_mobiledata,
+          label: 'Google Pay',
+          iconSize: 26,
+          onPressed: () {
+            // TODO: Implement Google Sign In
+          },
+        ),
+      ],
     );
   }
 
@@ -413,29 +418,31 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     required IconData icon,
     required String label,
     required VoidCallback onPressed,
+    double iconSize = 22,
   }) {
     return SizedBox(
       width: double.infinity,
-      height: 56,
-      child: OutlinedButton(
+      height: 54,
+      child: ElevatedButton(
         onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.grey[100],
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFF2F2F2),
           foregroundColor: Colors.black,
-          side: BorderSide.none,
+          elevation: 0,
+          shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
           ),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 24),
-            const SizedBox(width: 12),
+            Icon(icon, size: iconSize),
+            const SizedBox(width: 10),
             Text(
               label,
               style: const TextStyle(
-                fontSize: 16,
+                fontSize: 15,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -446,31 +453,29 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Widget _buildFooter() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 32),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              "Don't have an account? ",
-              style: TextStyle(color: Colors.grey[600], fontSize: 14),
-            ),
-            GestureDetector(
-              onTap: () {
-                Navigator.pushNamed(context, '/signup');
-              },
-              child: const Text(
-                'Sign Up.',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            "Don't have an account? ",
+            style: TextStyle(color: Colors.grey[500], fontSize: 13),
+          ),
+          GestureDetector(
+            onTap: () {
+              Navigator.pushNamed(context, '/signup');
+            },
+            child: const Text(
+              'Sign Up.',
+              style: TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

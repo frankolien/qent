@@ -5,8 +5,8 @@ import 'package:qent/features/auth/presentation/controllers/auth_state.dart';
 class AuthController extends Notifier<AuthState> {
   @override
   AuthState build() {
-    // Try to restore session from stored token on startup
-    _tryRestoreSession();
+    // Schedule session restore after state is initialized
+    Future.microtask(() => _tryRestoreSession());
     return AuthState.initial();
   }
 
@@ -19,7 +19,6 @@ class AuthController extends Notifier<AuthState> {
         if (user != null) {
           state = state.copyWith(isLoading: false, user: user);
         } else {
-          // Token expired or invalid
           await dataSource.signOut();
           state = state.copyWith(isLoading: false);
         }

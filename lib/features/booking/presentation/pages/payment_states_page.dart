@@ -46,64 +46,69 @@ class PaymentStatesPage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: GestureDetector(
-          onTap: () => Navigator.of(context).pop(),
-          child: Container(
-            margin: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.arrow_back, size: 20, color: Colors.black),
-          ),
-        ),
-        title: const Text(
-          'Payment States',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          GestureDetector(
-            onTap: () {},
-            child: Container(
-              margin: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.more_vert, size: 20, color: Colors.black),
-            ),
-          ),
-        ],
-      ),
       body: SafeArea(
         bottom: false,
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
-          child: Column(
-            children: [
-              const SizedBox(height: 40),
-              _buildSuccessIcon(),
-              const SizedBox(height: 24),
-              _buildSuccessMessage(),
-              const SizedBox(height: 40),
-              _buildBookingInformationSection(),
-              const SizedBox(height: 24),
-              _buildTransactionDetailSection(),
-              const SizedBox(height: 40),
-              _buildActionButtons(context, screenWidth),
-              SizedBox(height: screenHeight * 0.1),
-            ],
-          ),
+        child: Column(
+          children: [
+            _buildHeader(context),
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.05),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 40),
+                    _buildSuccessIcon(),
+                    const SizedBox(height: 24),
+                    _buildSuccessMessage(),
+                    const SizedBox(height: 40),
+                    _buildBookingInformationSection(),
+                    const SizedBox(height: 24),
+                    _buildTransactionDetailSection(),
+                    const SizedBox(height: 40),
+                    _buildActionButtons(context, screenWidth),
+                    SizedBox(height: screenHeight * 0.1),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F5F5),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(Icons.arrow_back_rounded, size: 20, color: Color(0xFF1A1A1A)),
+            ),
+          ),
+          const Expanded(
+            child: Center(
+              child: Text(
+                'Payment Status',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A1A1A),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 42),
+        ],
       ),
     );
   }
@@ -112,12 +117,11 @@ class PaymentStatesPage extends StatelessWidget {
     return Stack(
       alignment: Alignment.center,
       children: [
-        // Decorative circles
         Container(
           width: 120,
           height: 120,
           decoration: BoxDecoration(
-            color: Colors.green.withOpacity(0.1),
+            color: Colors.green.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
         ),
@@ -125,11 +129,10 @@ class PaymentStatesPage extends StatelessWidget {
           width: 100,
           height: 100,
           decoration: BoxDecoration(
-            color: Colors.green.withOpacity(0.15),
+            color: Colors.green.withValues(alpha: 0.15),
             shape: BoxShape.circle,
           ),
         ),
-        // Main checkmark icon
         Container(
           width: 80,
           height: 80,
@@ -138,7 +141,7 @@ class PaymentStatesPage extends StatelessWidget {
             shape: BoxShape.circle,
           ),
           child: const Icon(
-            Icons.check,
+            Icons.check_rounded,
             color: Colors.white,
             size: 50,
           ),
@@ -151,20 +154,20 @@ class PaymentStatesPage extends StatelessWidget {
     return Column(
       children: [
         const Text(
-          'Payment successful',
+          'Payment Successful',
           style: TextStyle(
             fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF1A1A1A),
           ),
         ),
         const SizedBox(height: 8),
         Text(
-          'Your car rent Booking has been successfully',
+          'Your car rent booking has been confirmed successfully',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 14,
-            color: Colors.grey[700],
+            color: Colors.grey[600],
             height: 1.5,
           ),
         ),
@@ -176,19 +179,18 @@ class PaymentStatesPage extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
+        color: const Color(0xFFF8F8F8),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Booking information',
+            'Booking Information',
             style: TextStyle(
               fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1A1A1A),
             ),
           ),
           const SizedBox(height: 20),
@@ -206,19 +208,18 @@ class PaymentStatesPage extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
+        color: const Color(0xFFF8F8F8),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Transaction detail',
+            'Transaction Detail',
             style: TextStyle(
               fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1A1A1A),
             ),
           ),
           const SizedBox(height: 20),
@@ -228,13 +229,13 @@ class PaymentStatesPage extends StatelessWidget {
           const SizedBox(height: 12),
           _buildPaymentMethodRow(),
           const SizedBox(height: 12),
-          _buildInfoRow('Amount', '\$${confirmation.amount.toInt()}'),
+          _buildInfoRow('Amount', '₦${confirmation.amount.toInt()}'),
           const SizedBox(height: 12),
-          _buildInfoRow('Service fee', '\$${confirmation.serviceFee.toInt()}'),
+          _buildInfoRow('Service fee', '₦${confirmation.serviceFee.toInt()}'),
           const SizedBox(height: 12),
-          _buildInfoRow('Tax', '\$0'),
+          _buildInfoRow('Tax', '₦0'),
           const SizedBox(height: 12),
-          const Divider(height: 32),
+          Divider(color: Colors.grey[300], height: 32),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -242,16 +243,16 @@ class PaymentStatesPage extends StatelessWidget {
                 'Total amount',
                 style: TextStyle(
                   fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A1A1A),
                 ),
               ),
               Text(
-                '\$${confirmation.totalAmount.toInt()}',
+                '₦${confirmation.totalAmount.toInt()}',
                 style: const TextStyle(
                   fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A1A1A),
                 ),
               ),
             ],
@@ -269,7 +270,7 @@ class PaymentStatesPage extends StatelessWidget {
           label,
           style: TextStyle(
             fontSize: 14,
-            color: Colors.grey[700],
+            color: Colors.grey[600],
           ),
         ),
         Text(
@@ -277,7 +278,7 @@ class PaymentStatesPage extends StatelessWidget {
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
-            color: Colors.black87,
+            color: Color(0xFF1A1A1A),
           ),
         ),
       ],
@@ -288,11 +289,11 @@ class PaymentStatesPage extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Text(
+        Text(
           'Payment Method',
           style: TextStyle(
             fontSize: 14,
-            color: Colors.grey,
+            color: Colors.grey[600],
           ),
         ),
         Row(
@@ -304,7 +305,7 @@ class PaymentStatesPage extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: Colors.black87,
+                color: Color(0xFF1A1A1A),
               ),
             ),
           ],
@@ -328,7 +329,7 @@ class PaymentStatesPage extends StatelessWidget {
             child: Container(
               width: 18,
               height: 18,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: Colors.orange,
                 shape: BoxShape.circle,
               ),
@@ -343,19 +344,15 @@ class PaymentStatesPage extends StatelessWidget {
     return Column(
       children: [
         _buildActionButton(
-          icon: Icons.download,
+          icon: Icons.download_rounded,
           label: 'Download Receipt',
-          onTap: () {
-            // TODO: Implement download receipt functionality
-          },
+          onTap: () {},
         ),
         const SizedBox(height: 12),
         _buildActionButton(
-          icon: Icons.share,
-          label: 'Shar Your Receipt',
-          onTap: () {
-            // TODO: Implement share receipt functionality
-          },
+          icon: Icons.share_rounded,
+          label: 'Share Your Receipt',
+          onTap: () {},
         ),
         const SizedBox(height: 12),
         _buildBackToHomeButton(context, screenWidth),
@@ -374,21 +371,20 @@ class PaymentStatesPage extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey[300]!),
+          color: const Color(0xFFF8F8F8),
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: Colors.black87, size: 20),
+            Icon(icon, color: const Color(0xFF1A1A1A), size: 20),
             const SizedBox(width: 8),
             Text(
               label,
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: Colors.black87,
+                color: Color(0xFF1A1A1A),
               ),
             ),
           ],
@@ -398,23 +394,21 @@ class PaymentStatesPage extends StatelessWidget {
   }
 
   Widget _buildBackToHomeButton(BuildContext context, double screenWidth) {
-    return Container(
+    return SizedBox(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
       child: ElevatedButton(
         onPressed: () {
-          // Navigate to home page, clearing all booking screens
           Navigator.of(context).pushNamedAndRemoveUntil(
             '/home',
             (route) => false,
           );
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF2C2C2C),
+          backgroundColor: const Color(0xFF1A1A1A),
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(25),
+            borderRadius: BorderRadius.circular(16),
           ),
           elevation: 0,
         ),
@@ -422,11 +416,10 @@ class PaymentStatesPage extends StatelessWidget {
           'Back to Home',
           style: TextStyle(
             fontSize: 16,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
     );
   }
 }
-

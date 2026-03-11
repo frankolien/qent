@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:qent/firebase_options.dart';
 import 'package:qent/core/services/api_client.dart';
 import 'package:qent/core/services/cloudinary_service.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -22,6 +24,11 @@ void main() async {
   } catch (e) {
     debugPrint('Error loading .env file: $e');
   }
+
+  // Initialize Firebase (needed for chat, notifications, online status)
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   // Initialize API client with backend URL
   final apiClient = ApiClient();

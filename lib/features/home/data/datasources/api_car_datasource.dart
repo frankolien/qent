@@ -27,13 +27,21 @@ class ApiCarDataSource {
     double? maxPrice,
     String? make,
     String? model,
+    String? startDate,
+    String? endDate,
+    String? color,
+    int? seats,
   }) async {
     final params = <String, String>{};
-    if (location != null) params['location'] = location;
+    if (location != null && location.isNotEmpty) params['location'] = location;
     if (minPrice != null) params['min_price'] = minPrice.toString();
     if (maxPrice != null) params['max_price'] = maxPrice.toString();
-    if (make != null) params['make'] = make;
-    if (model != null) params['model'] = model;
+    if (make != null && make.isNotEmpty) params['make'] = make;
+    if (model != null && model.isNotEmpty) params['model'] = model;
+    if (startDate != null) params['start_date'] = startDate;
+    if (endDate != null) params['end_date'] = endDate;
+    if (color != null && color.isNotEmpty) params['color'] = color;
+    if (seats != null) params['seats'] = seats.toString();
 
     final response = await _client.get('/cars/search', auth: false, queryParams: params);
 
@@ -104,16 +112,26 @@ class ApiCarDataSource {
     final photos = json['photos'] as List<dynamic>?;
     final imageUrl = (photos != null && photos.isNotEmpty) ? photos[0] as String : '';
 
+    final photosList = photos?.map((p) => p as String).toList() ?? [];
+    final featuresList = (json['features'] as List<dynamic>?)?.map((f) => f as String).toList() ?? [];
+
     return Car(
       id: json['id'] ?? '',
       name: '${json['make'] ?? ''} ${json['model'] ?? ''} ${json['year'] ?? ''}'.trim(),
       brand: json['make'] ?? '',
       imageUrl: imageUrl,
-      rating: 0.0, // Rating is fetched separately from reviews
+      rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
       location: json['location'] ?? '',
       seats: json['seats'] ?? 5,
       pricePerDay: (json['price_per_day'] as num?)?.toDouble() ?? 0.0,
       isFavorite: isFavorite,
+      description: json['description'] ?? '',
+      photos: photosList,
+      features: featuresList,
+      color: json['color'] ?? '',
+      year: json['year'] ?? 0,
+      hostId: json['host_id'] ?? '',
+      tripCount: (json['trip_count'] as num?)?.toInt() ?? 0,
     );
   }
 }

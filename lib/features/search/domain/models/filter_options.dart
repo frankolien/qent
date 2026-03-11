@@ -31,10 +31,11 @@ class FilterOptions {
       fuelTypes: ['Electric', 'Petrol', 'Diesel', 'Hybrid'],
       brandFilters: [
         BrandFilter(id: 'all', name: 'ALL', logoUrl: null),
-        BrandFilter(id: 'ferrari', name: 'Ferrari', logoUrl: 'assets/images/Ferrari.png'),
-        BrandFilter(id: 'tesla', name: 'Tesla', logoUrl: 'assets/images/Tesla.png'),
-        BrandFilter(id: 'bmw', name: 'BMW', logoUrl: 'assets/images/Bmw.png'),
-        BrandFilter(id: 'lamborghini', name: 'Lamborghini', logoUrl: 'assets/images/Lambo.png'),
+        BrandFilter(id: 'toyota', name: 'Toyota', logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Toyota.svg/200px-Toyota.svg.png'),
+        BrandFilter(id: 'honda', name: 'Honda', logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/76/Honda_logo.svg/200px-Honda_logo.svg.png'),
+        BrandFilter(id: 'mercedes', name: 'Mercedes-Benz', logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Mercedes-Logo.svg/200px-Mercedes-Logo.svg.png'),
+        BrandFilter(id: 'lexus', name: 'Lexus', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d1/Lexus_division_emblem.svg/200px-Lexus_division_emblem.svg.png'),
+        BrandFilter(id: 'range_rover', name: 'Range Rover', logoUrl: 'https://www.carlogos.org/logo/Land-Rover-logo-2011-1920x1080.png'),
       ],
     );
   }

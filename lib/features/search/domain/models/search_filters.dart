@@ -29,7 +29,7 @@ class SearchFilters {
     this.selectedColor,
     this.selectedCapacity,
     this.selectedFuelType,
-  }) : priceRange = priceRange ?? const RangeValues(10, 230);
+  }) : priceRange = priceRange ?? const RangeValues(10000, 200000);
 
   SearchFilters copyWith({
     String? selectedBrandFilter,

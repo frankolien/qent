@@ -8,6 +8,13 @@ class Car {
   final int seats;
   final double pricePerDay;
   final bool isFavorite;
+  final String description;
+  final List<String> photos;
+  final List<String> features;
+  final String color;
+  final int year;
+  final String hostId;
+  final int tripCount;
 
   Car({
     required this.id,
@@ -19,6 +26,13 @@ class Car {
     required this.seats,
     required this.pricePerDay,
     this.isFavorite = false,
+    this.description = '',
+    this.photos = const [],
+    this.features = const [],
+    this.color = '',
+    this.year = 0,
+    this.hostId = '',
+    this.tripCount = 0,
   });
 
   Car copyWith({
@@ -31,6 +45,13 @@ class Car {
     int? seats,
     double? pricePerDay,
     bool? isFavorite,
+    String? description,
+    List<String>? photos,
+    List<String>? features,
+    String? color,
+    int? year,
+    String? hostId,
+    int? tripCount,
   }) {
     return Car(
       id: id ?? this.id,
@@ -42,6 +63,13 @@ class Car {
       seats: seats ?? this.seats,
       pricePerDay: pricePerDay ?? this.pricePerDay,
       isFavorite: isFavorite ?? this.isFavorite,
+      description: description ?? this.description,
+      photos: photos ?? this.photos,
+      features: features ?? this.features,
+      color: color ?? this.color,
+      year: year ?? this.year,
+      hostId: hostId ?? this.hostId,
+      tripCount: tripCount ?? this.tripCount,
     );
   }
 }
