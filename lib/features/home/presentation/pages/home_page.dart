@@ -9,9 +9,11 @@ import 'package:qent/features/home/presentation/widgets/car_card.dart';
 import 'package:qent/features/home/presentation/widgets/nearby_car_card.dart';
 import 'package:qent/features/home/presentation/widgets/car_card_skeleton.dart';
 import 'package:qent/features/search/presentation/widgets/filter_bottom_sheet.dart';
+import 'package:qent/features/home/presentation/pages/main_nav_page.dart';
 import 'package:qent/features/home/presentation/pages/view_all_cars_page.dart';
 import 'package:qent/features/home/presentation/providers/location_provider.dart';
 import 'package:qent/features/home/presentation/widgets/location_picker_sheet.dart';
+import 'package:qent/features/profile/presentation/pages/profile_page.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -191,10 +193,7 @@ class HomePageState extends ConsumerState<HomePage> {
                 onTap: () {},
               ),
               const SizedBox(width: 8),
-              _buildIconButton(
-                icon: Icons.person_outline_rounded,
-                onTap: () {},
-              ),
+              _buildProfileAvatar(context, ref),
             ],
           ),
         ],
@@ -249,6 +248,36 @@ class HomePageState extends ConsumerState<HomePage> {
     );
   }
 
+  Widget _buildProfileAvatar(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authControllerProvider);
+    final photoUrl = authState.user?.profilePhotoUrl;
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfilePage()));
+      },
+      child: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF2F2F2),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: photoUrl != null && photoUrl.isNotEmpty
+              ? Image.network(
+                  photoUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) =>
+                      const Icon(Icons.person_outline_rounded, size: 22, color: Color(0xFF1A1A1A)),
+                )
+              : const Icon(Icons.person_outline_rounded, size: 22, color: Color(0xFF1A1A1A)),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSearchBar(BuildContext context) {
     return Row(
       children: [
@@ -266,18 +295,21 @@ class HomePageState extends ConsumerState<HomePage> {
                 Icon(Icons.search_rounded, color: Colors.grey[400], size: 22),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: TextField(
-                    style: const TextStyle(fontSize: 14),
-                    decoration: InputDecoration(
-                      hintText: 'Search cars...',
-                      hintStyle: TextStyle(
-                        color: Colors.grey[400],
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      MainNavPage.globalKey.currentState?.switchToTab(1);
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      child: Text(
+                        'Search cars...',
+                        style: TextStyle(
+                          color: Colors.grey[400],
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                        ),
                       ),
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                   ),
                 ),

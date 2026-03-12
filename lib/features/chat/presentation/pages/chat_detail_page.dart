@@ -1,11 +1,11 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:qent/core/widgets/profile_image_widget.dart';
+import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/chat/domain/models/chat.dart';
-import 'package:qent/features/chat/presentation/controllers/chat_controller.dart' hide firebaseAuthProvider, firestoreProvider;
+import 'package:qent/features/chat/presentation/controllers/chat_controller.dart';
 import 'package:qent/features/chat/presentation/providers/online_status_providers.dart';
 import 'package:qent/features/chat/presentation/pages/new_chat_page.dart';
 import 'package:qent/features/chat/presentation/widgets/chat_skeleton.dart';
@@ -31,10 +31,11 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
   bool _showAttachmentOptions = false;
   ReplyInfo? _replyingTo;
   Timer? _typingTimer;
+  Timer? _pollTimer;
   bool _isUserTyping = false;
   late AnimationController _typingAnimationController;
   ChatController? _chatController;
-  
+
   @override
   void initState() {
     super.initState();
@@ -42,10 +43,17 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     )..repeat();
-    
+
     _messageController.addListener(_onMessageChanged);
     _focusNode.addListener(_onFocusChanged);
-    
+
+    // Poll for new messages every 3 seconds
+    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (mounted) {
+        ref.invalidate(messagesStreamProvider(widget.chat.id));
+      }
+    });
+
     // Listen to typing status and update local state
     _updateTypingStatus();
   }
@@ -92,6 +100,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     _typingTimer?.cancel();
     _messageController.removeListener(_onMessageChanged);
     _focusNode.removeListener(_onFocusChanged);
@@ -340,31 +349,31 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
     }
   }
 
-  void _sendMessage() {
+  Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
 
     final message = _messageController.text.trim();
-    final replyTo = _replyingTo;
     final replyToMessageId = _replyingTo?.messageId;
-    
+    final replyTo = _replyingTo;
+
     _messageController.clear();
     setState(() {
       _replyingTo = null;
       _isUserTyping = false;
     });
-    
+
     // Get chat controller
     if (_chatController == null) {
       _chatController = ref.read(chatControllerProvider);
     }
     final chatController = _chatController!;
-    
+
     // Stop typing status
     chatController.setTypingStatus(widget.chat.id, false);
-    
+
     HapticFeedback.lightImpact();
 
-    chatController.sendMessage(
+    await chatController.sendMessage(
       chatId: widget.chat.id,
       message: message,
       type: MessageType.text,
@@ -372,7 +381,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
       replyTo: replyTo,
     );
 
-    // Auto-scroll to bottom with smooth animation
+    // Auto-scroll to bottom after messages refresh
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -400,68 +409,27 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
         backgroundColor: Colors.white,
         elevation: 0,
         
-        title: Consumer(
-          builder: (context, ref, child) {
-            final onlineStatusAsync = ref.watch(onlineStatusStreamProvider(widget.chat.userId));
-            final isOnline = onlineStatusAsync.value ?? false;
-            
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    ProfileImageWidget(
-                      userId: widget.chat.userId,
-                      size: 40,
-                    ),
-                    if (isOnline)
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: Colors.green,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
-                          ),
-                        ),
-                      ),
-                  ],
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ProfileImageWidget(
+              userId: widget.chat.userId,
+              size: 40,
+            ),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Text(
+                widget.chat.userName,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
                 ),
-                const SizedBox(width: 12),
-                Flexible(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        widget.chat.userName,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                      Text(
-                        isOnline ? 'Online' : 'Offline',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isOnline ? Colors.green : Colors.grey[600],
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          },
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
+          ],
         ),
         actions: [
           IconButton(
@@ -476,59 +444,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
       ),
       body: Column(
         children: [
-          // Partner Banner (dynamic)
-          Consumer(
-            builder: (context, ref, _) {
-              final firestore = FirebaseFirestore.instance;
-              return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                stream: firestore.collection('users').doc(widget.chat.userId).snapshots(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return const SizedBox.shrink();
-                  }
-                  final doc = snapshot.data!;
-                  if (!doc.exists) return const SizedBox.shrink();
-                  final data = doc.data() ?? {};
-                  final isPartner = (data['isPartner'] == true);
-                  if (!isPartner) return const SizedBox.shrink();
-                  final partnerName = (data['partnerDisplayName'] ?? data['fullName'] ?? widget.chat.userName).toString();
-
-                  return Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    color: Colors.blue[50],
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                partnerName,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '$partnerName is a QENT Partner',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              );
-            },
-          ),
+          // Partner Banner placeholder (removed Firestore dependency)
+          const SizedBox.shrink(),
           // Messages List
           Expanded(
             child: _buildMessagesList(),
@@ -594,8 +511,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                   }
                   
                   final message = messages[index];
-                  final auth = ref.read(firebaseAuthProvider);
-                  final currentUserId = auth.currentUser?.uid ?? '';
+                  final authState = ref.read(authControllerProvider);
+                  final currentUserId = authState.user?.uid ?? '';
                   final isMe = message.senderId == currentUserId || message.senderId == 'current';
               
               // Check if we should show date separator
@@ -1029,8 +946,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
   }
   
   Widget _buildInputReplyPreview() {
-    final auth = ref.read(firebaseAuthProvider);
-    final currentUserId = auth.currentUser?.uid ?? '';
+    final authState = ref.read(authControllerProvider);
+    final currentUserId = authState.user?.uid ?? '';
     final isReplyFromMe = _replyingTo!.senderId == currentUserId;
     
     return Container(

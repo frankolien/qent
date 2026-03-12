@@ -58,6 +58,7 @@ class CarDetail extends Car {
           color: car.color,
           year: car.year,
           hostId: car.hostId,
+          hostName: car.hostName,
           tripCount: car.tripCount,
         );
 }

@@ -5,6 +5,8 @@ import 'package:qent/core/widgets/profile_image_widget.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/profile/presentation/pages/edit_profile_page.dart';
 import 'package:qent/features/favorites/presentation/pages/favorites_page.dart';
+import 'package:qent/features/dashboard/presentation/pages/host_dashboard_page.dart';
+import 'package:qent/features/dashboard/presentation/pages/add_listing_page.dart';
 
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
@@ -75,6 +77,21 @@ class ProfilePage extends ConsumerWidget {
               const SizedBox(height: 24),
               _buildProfileHeader(context, ref, userId),
               const SizedBox(height: 32),
+              if (user?.role == 'Host') ...[
+                _buildSectionTitle('Host'),
+                const SizedBox(height: 12),
+                _buildMenuItemIcon(
+                  Icons.dashboard_outlined,
+                  'Dashboard',
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HostDashboardPage())),
+                ),
+                _buildMenuItemIcon(
+                  Icons.add_circle_outline,
+                  'Add New Listing',
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AddListingPage())),
+                ),
+                const SizedBox(height: 28),
+              ],
               _buildSectionTitle('General'),
               const SizedBox(height: 12),
               _buildMenuItem(
@@ -158,6 +175,7 @@ class ProfilePage extends ConsumerWidget {
                 ),
                 child: ProfileImageWidget(
                   userId: currentUserId ?? '',
+                  imageUrl: authState.user?.profilePhotoUrl,
                   size: 72,
                   showEditIcon: false,
                 ),
@@ -258,6 +276,33 @@ class ProfilePage extends ConsumerWidget {
                 color: Colors.grey[600],
               ),
             ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                title,
+                style: GoogleFonts.roboto(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black,
+                ),
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 22, color: Colors.grey[400]),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuItemIcon(IconData icon, String title, {required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: Colors.grey[600]),
             const SizedBox(width: 14),
             Expanded(
               child: Text(

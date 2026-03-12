@@ -1,7 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:qent/features/chat/presentation/controllers/chat_controller.dart' show firestoreProvider;
+import 'package:qent/core/services/api_client.dart';
 
-/// Cache for user data to avoid repeated Firestore queries
+/// Cache for user data to avoid repeated API queries
 class UserCache {
   final Map<String, Map<String, dynamic>> _cache = {};
   final Map<String, DateTime> _cacheTimestamps = {};
@@ -10,13 +11,13 @@ class UserCache {
   Map<String, dynamic>? get(String userId) {
     final timestamp = _cacheTimestamps[userId];
     if (timestamp == null) return null;
-    
+
     if (DateTime.now().difference(timestamp) > _cacheExpiry) {
       _cache.remove(userId);
       _cacheTimestamps.remove(userId);
       return null;
     }
-    
+
     return _cache[userId];
   }
 
@@ -38,67 +39,60 @@ class UserCache {
 
 final userCacheProvider = Provider<UserCache>((ref) => UserCache());
 
-/// Stream provider for user data with caching
-final userDataStreamProvider = StreamProvider.family<Map<String, dynamic>?, String>((ref, userId) {
-  final firestore = ref.watch(firestoreProvider);
+/// Stream provider for user data - fetches from API with caching
+final userDataStreamProvider = StreamProvider.family<Map<String, dynamic>?, String>((ref, userId) async* {
   final cache = ref.watch(userCacheProvider);
-  
-  // Check cache first
   final cachedData = cache.get(userId);
   if (cachedData != null) {
-    // Return cached data immediately, then update from stream
-    return firestore
-        .collection('users')
-        .doc(userId)
-        .snapshots()
-        .map((snapshot) {
-      if (snapshot.exists) {
-        final data = snapshot.data() ?? {};
-        cache.set(userId, data);
-        return data;
-      }
-      return null;
-    });
+    yield cachedData;
+    return;
   }
-  
-  // If not cached, fetch from Firestore and cache
-  return firestore
-      .collection('users')
-      .doc(userId)
-      .snapshots()
-      .map((snapshot) {
-    if (snapshot.exists) {
-      final data = snapshot.data() ?? {};
-      cache.set(userId, data);
-      return data;
+
+  // Fetch from API
+  try {
+    final api = ApiClient();
+    final response = await api.get('/users/$userId', auth: false);
+    if (response.isSuccess) {
+      final data = response.body as Map<String, dynamic>;
+      final userData = {
+        'profileImageUrl': data['profile_photo_url'] ?? '',
+        'fullName': data['full_name'] ?? '',
+        'role': data['role'] ?? '',
+      };
+      cache.set(userId, userData);
+      yield userData;
+    } else {
+      yield null;
     }
-    return null;
-  });
+  } catch (e) {
+    debugPrint('[Qent UserCache] Error fetching user $userId: $e');
+    yield null;
+  }
 });
 
-/// One-time fetch provider for user data with caching
+/// One-time fetch provider for user data
 final userDataProvider = FutureProvider.family<Map<String, dynamic>?, String>((ref, userId) async {
-  final firestore = ref.read(firestoreProvider);
   final cache = ref.read(userCacheProvider);
-  
-  // Check cache first
   final cachedData = cache.get(userId);
   if (cachedData != null) {
     return cachedData;
   }
-  
-  // Fetch from Firestore
+
   try {
-    final doc = await firestore.collection('users').doc(userId).get();
-    if (doc.exists) {
-      final data = doc.data() ?? {};
-      cache.set(userId, data);
-      return data;
+    final api = ApiClient();
+    final response = await api.get('/users/$userId', auth: false);
+    if (response.isSuccess) {
+      final data = response.body as Map<String, dynamic>;
+      final userData = {
+        'profileImageUrl': data['profile_photo_url'] ?? '',
+        'fullName': data['full_name'] ?? '',
+        'role': data['role'] ?? '',
+      };
+      cache.set(userId, userData);
+      return userData;
     }
   } catch (e) {
-    // Return null on error, but don't cache errors
+    debugPrint('[Qent UserCache] Error fetching user $userId: $e');
   }
-  
   return null;
 });
-

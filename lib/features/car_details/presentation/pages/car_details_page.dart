@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:qent/core/services/api_client.dart';
 import 'package:qent/features/booking/presentation/pages/booking_details_page.dart';
 import 'package:qent/features/car_details/domain/models/car_detail.dart';
+import 'package:qent/features/chat/presentation/controllers/chat_controller.dart';
+import 'package:qent/features/chat/presentation/pages/chat_detail_page.dart';
 import 'package:qent/features/home/domain/models/car.dart';
 import 'package:qent/features/home/presentation/providers/car_providers.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
@@ -26,18 +29,21 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
   void initState() {
     super.initState();
     _initializeCarDetail();
+    _trackView();
+  }
+
+  void _trackView() {
+    // Fire and forget - track view count
+    ApiClient().post('/cars/${widget.car.id}/view', auth: false);
   }
 
   void _initializeCarDetail() {
-    // Ensure at least 3 images for a scrollable carousel
+    // Use actual car photos
     var images = widget.car.photos.isNotEmpty
         ? widget.car.photos
-        : [widget.car.imageUrl];
-    if (images.length < 3 && images.first.isNotEmpty) {
-      images = List.generate(3, (_) => images.first);
-    }
+        : (widget.car.imageUrl.isNotEmpty ? [widget.car.imageUrl] : <String>[]);
 
-    // Fixed 6 feature cards matching the Figma design with asset images
+    // Build feature cards from actual car data
     final carFeatures = <CarFeature>[
       CarFeature(
         id: 'seats',
@@ -46,69 +52,41 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
         assetImage: 'assets/images/carFeatures/seat.png',
       ),
       CarFeature(
-        id: 'engine',
-        label: 'Engine Out',
-        value: '670 HP',
+        id: 'year',
+        label: 'Model Year',
+        value: '${widget.car.year}',
         assetImage: 'assets/images/carFeatures/engine.png',
       ),
       CarFeature(
-        id: 'speed',
-        label: 'Max Speed',
-        value: '250km/h',
-        assetImage: 'assets/images/carFeatures/max_speed.png',
-      ),
-      CarFeature(
-        id: 'autopilot',
-        label: 'Advance',
-        value: 'Autopilot',
+        id: 'color',
+        label: 'Color',
+        value: widget.car.color.isNotEmpty ? widget.car.color : 'N/A',
         assetImage: 'assets/images/carFeatures/advanced.png',
       ),
-      CarFeature(
-        id: 'charge',
-        label: 'Single Charge',
-        value: '405 Miles',
-        assetImage: 'assets/images/carFeatures/miles.png',
-      ),
-      CarFeature(
-        id: 'parking',
-        label: 'Advance',
-        value: 'Auto Parking',
-        assetImage: 'assets/images/carFeatures/auto_parking.png',
-      ),
+      // Add actual features from the car listing
+      ...widget.car.features.take(3).map((f) => CarFeature(
+            id: f.toLowerCase().replaceAll(' ', '_'),
+            label: 'Feature',
+            value: f,
+            assetImage: 'assets/images/carFeatures/auto_parking.png',
+          )),
     ];
 
     _carDetail = CarDetail.fromCar(
       car: widget.car,
       detailDescription: widget.car.description.isNotEmpty
           ? widget.car.description
-          : 'A car with high specs that are rented at an affordable price.',
+          : 'Quality car available for rent.',
       imageUrls: images,
       host: Host(
         id: widget.car.hostId,
-        name: 'Hela Quintin',
+        name: widget.car.hostName.isNotEmpty ? widget.car.hostName : 'Host',
         profileImageUrl: '',
-        isVerified: true,
+        isVerified: false,
       ),
       carFeatures: carFeatures,
-      reviews: [
-        Review(
-          id: '1',
-          userName: 'Mr. Jack',
-          userImageUrl: '',
-          rating: 5.0,
-          comment: 'The rental car was clean, reliable, and the service was quick and efficient.',
-          date: DateTime.now().subtract(const Duration(days: 3)),
-        ),
-        Review(
-          id: '2',
-          userName: 'Robert',
-          userImageUrl: '',
-          rating: 5.0,
-          comment: 'The rental car was clean, reliable, and the service was quick and efficient.',
-          date: DateTime.now().subtract(const Duration(days: 7)),
-        ),
-      ],
-      totalReviews: widget.car.tripCount > 0 ? widget.car.tripCount : 125,
+      reviews: [],
+      totalReviews: widget.car.tripCount,
     );
   }
 
@@ -414,7 +392,27 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
           const SizedBox(width: 10),
           // Message button
           GestureDetector(
-            onTap: () {},
+            onTap: () async {
+              final chatCtrl = ref.read(chatControllerProvider);
+              try {
+                final chat = await chatCtrl.getOrCreateConversation(
+                  widget.car.id,
+                  _carDetail.host.id,
+                );
+                if (!mounted) return;
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ChatDetailPage(chat: chat),
+                  ),
+                );
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Could not start chat: $e')),
+                );
+              }
+            },
             child: Container(
               width: 44,
               height: 44,
@@ -571,24 +569,32 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
             ],
           ),
           const SizedBox(height: 14),
-          // Horizontal scrolling review cards
-          SizedBox(
-            height: 140,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              itemCount: _carDetail.reviews.length,
-              itemBuilder: (context, index) {
-                final review = _carDetail.reviews[index];
-                return Padding(
-                  padding: EdgeInsets.only(
-                    right: index < _carDetail.reviews.length - 1 ? 12 : 0,
-                  ),
-                  child: _buildReviewCard(review),
-                );
-              },
+          if (_carDetail.reviews.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Text(
+                'No reviews yet',
+                style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+              ),
+            )
+          else
+            SizedBox(
+              height: 140,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                itemCount: _carDetail.reviews.length,
+                itemBuilder: (context, index) {
+                  final review = _carDetail.reviews[index];
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      right: index < _carDetail.reviews.length - 1 ? 12 : 0,
+                    ),
+                    child: _buildReviewCard(review),
+                  );
+                },
+              ),
             ),
-          ),
         ],
       ),
     );

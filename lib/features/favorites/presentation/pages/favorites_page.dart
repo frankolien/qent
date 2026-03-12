@@ -70,8 +70,7 @@ class FavoritesPage extends ConsumerWidget {
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w700,
-              fontFamily: 'Inter',
-              color: Color(0xFF1A1A1A),
+                            color: Color(0xFF1A1A1A),
               letterSpacing: -0.3,
             ),
           ),
@@ -194,8 +193,7 @@ class FavoritesPage extends ConsumerWidget {
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      fontFamily: 'Inter',
-                      color: Color(0xFF1A1A1A),
+                                            color: Color(0xFF1A1A1A),
                       height: 1.2,
                     ),
                     maxLines: 1,
@@ -212,8 +210,7 @@ class FavoritesPage extends ConsumerWidget {
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          fontFamily: 'Inter',
-                          color: Color(0xFF1A1A1A),
+                                                    color: Color(0xFF1A1A1A),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -225,8 +222,7 @@ class FavoritesPage extends ConsumerWidget {
                           car.location,
                           style: TextStyle(
                             fontSize: 11,
-                            fontFamily: 'Inter',
-                            color: Colors.grey[500],
+                                                        color: Colors.grey[500],
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -246,8 +242,7 @@ class FavoritesPage extends ConsumerWidget {
                             '${car.seats} seats',
                             style: TextStyle(
                               fontSize: 11,
-                              fontFamily: 'Inter',
-                              color: Colors.grey[500],
+                                                            color: Colors.grey[500],
                             ),
                           ),
                         ],
@@ -257,8 +252,7 @@ class FavoritesPage extends ConsumerWidget {
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
-                          fontFamily: 'Inter',
-                          color: Color(0xFF1A1A1A),
+                                                    color: Color(0xFF1A1A1A),
                         ),
                       ),
                     ],
@@ -306,8 +300,7 @@ class FavoritesPage extends ConsumerWidget {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
-              fontFamily: 'Inter',
-              color: Color(0xFF1A1A1A),
+                            color: Color(0xFF1A1A1A),
             ),
           ),
           const SizedBox(height: 8),
@@ -315,8 +308,7 @@ class FavoritesPage extends ConsumerWidget {
             'Cars you favorite will appear here',
             style: TextStyle(
               fontSize: 14,
-              fontFamily: 'Inter',
-              color: Colors.grey[400],
+                            color: Colors.grey[400],
             ),
           ),
         ],
@@ -410,8 +402,7 @@ class FavoritesPage extends ConsumerWidget {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              fontFamily: 'Inter',
-              color: Color(0xFF1A1A1A),
+                            color: Color(0xFF1A1A1A),
             ),
           ),
           const SizedBox(height: 8),
@@ -419,8 +410,7 @@ class FavoritesPage extends ConsumerWidget {
             'Please check your connection and try again',
             style: TextStyle(
               fontSize: 13,
-              fontFamily: 'Inter',
-              color: Colors.grey[400],
+                            color: Colors.grey[400],
             ),
           ),
           const SizedBox(height: 20),
@@ -437,8 +427,7 @@ class FavoritesPage extends ConsumerWidget {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  fontFamily: 'Inter',
-                  color: Colors.white,
+                                    color: Colors.white,
                 ),
               ),
             ),

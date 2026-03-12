@@ -87,6 +87,9 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
         profilePhotoUrl: _profileImageUrl,
       );
 
+      // Refresh auth state so profile page picks up changes immediately
+      await ref.read(authControllerProvider.notifier).refreshProfile();
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -166,6 +169,9 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
             // Update profile photo via REST API
             final dataSource = ref.read(apiAuthDataSourceProvider);
             await dataSource.updateProfile(profilePhotoUrl: imageUrl);
+
+            // Refresh auth state so photo shows everywhere
+            await ref.read(authControllerProvider.notifier).refreshProfile();
 
             if (mounted) {
               setState(() {

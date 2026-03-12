@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 
-class CustomBottomNavigationBar extends StatelessWidget {
+class CustomBottomNavigationBar extends ConsumerWidget {
   final int currentIndex;
   final Function(int) onTap;
 
@@ -11,7 +13,10 @@ class CustomBottomNavigationBar extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authControllerProvider);
+    final photoUrl = authState.user?.profilePhotoUrl;
+
     return Container(
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -56,15 +61,44 @@ class CustomBottomNavigationBar extends StatelessWidget {
             label: 'Notifications',
           ),
           BottomNavigationBarItem(
-            icon: Icon(
-              currentIndex == 4 ? Icons.person : Icons.person_outline,
-              size: 24,
-            ),
+            icon: _buildProfileIcon(photoUrl),
             label: 'Profile',
           ),
         ],
       ),
     );
   }
-}
 
+  Widget _buildProfileIcon(String? photoUrl) {
+    final isSelected = currentIndex == 4;
+    if (photoUrl != null && photoUrl.isNotEmpty) {
+      return Container(
+        width: 26,
+        height: 26,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: isSelected ? Colors.white : Colors.transparent,
+            width: 2,
+          ),
+        ),
+        child: ClipOval(
+          child: Image.network(
+            photoUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Icon(
+              isSelected ? Icons.person : Icons.person_outline,
+              size: 20,
+              color: isSelected ? Colors.white : Colors.grey[400],
+            ),
+          ),
+        ),
+      );
+    }
+    return Icon(
+      isSelected ? Icons.person : Icons.person_outline,
+      size: 24,
+      color: isSelected ? Colors.white : Colors.grey[400],
+    );
+  }
+}

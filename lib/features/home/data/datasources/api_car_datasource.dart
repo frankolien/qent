@@ -164,6 +164,48 @@ class ApiCarDataSource {
     return cars;
   }
 
+  /// Create a new car listing.
+  Future<Car> createCar({
+    required String make,
+    required String model,
+    required int year,
+    required String color,
+    required String plateNumber,
+    required String description,
+    required double pricePerDay,
+    required String location,
+    required List<String> photos,
+    List<String>? features,
+    int? seats,
+  }) async {
+    _log('> Creating car listing: $make $model');
+    final sw = Stopwatch()..start();
+
+    final response = await _client.post('/cars', body: {
+      'make': make,
+      'model': model,
+      'year': year,
+      'color': color,
+      'plate_number': plateNumber,
+      'description': description,
+      'price_per_day': pricePerDay,
+      'location': location,
+      'photos': photos,
+      if (features != null) 'features': features,
+      if (seats != null) 'seats': seats,
+    });
+    sw.stop();
+
+    if (!response.isSuccess) {
+      _log('FAIL: createCar failed (${sw.elapsedMilliseconds}ms): ${response.errorMessage}');
+      throw Exception(response.errorMessage);
+    }
+
+    final car = _carFromJson(response.body);
+    _log('OK: Created car: ${car.name} (${sw.elapsedMilliseconds}ms)');
+    return car;
+  }
+
   /// Convert API JSON to Car model.
   Car _carFromJson(Map<String, dynamic> json, {bool isFavorite = false}) {
     final photos = json['photos'] as List<dynamic>?;
@@ -188,6 +230,7 @@ class ApiCarDataSource {
       color: json['color'] ?? '',
       year: json['year'] ?? 0,
       hostId: json['host_id'] ?? '',
+      hostName: json['host_name'] ?? '',
       tripCount: (json['trip_count'] as num?)?.toInt() ?? 0,
     );
   }

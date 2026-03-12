@@ -14,6 +14,7 @@ class Car {
   final String color;
   final int year;
   final String hostId;
+  final String hostName;
   final int tripCount;
 
   Car({
@@ -32,6 +33,7 @@ class Car {
     this.color = '',
     this.year = 0,
     this.hostId = '',
+    this.hostName = '',
     this.tripCount = 0,
   });
 
@@ -51,6 +53,7 @@ class Car {
     String? color,
     int? year,
     String? hostId,
+    String? hostName,
     int? tripCount,
   }) {
     return Car(
@@ -69,6 +72,7 @@ class Car {
       color: color ?? this.color,
       year: year ?? this.year,
       hostId: hostId ?? this.hostId,
+      hostName: hostName ?? this.hostName,
       tripCount: tripCount ?? this.tripCount,
     );
   }

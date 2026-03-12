@@ -64,13 +64,18 @@ class MainApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        textTheme: GoogleFonts.robotoTextTheme(
+          Theme.of(context).textTheme,
+        ),
+      ),
       initialRoute: '/',
       routes: {
         '/': (context) => const SplashPage(),
         '/onboarding': (context) => const OnboardingScreen(),
         '/login': (context) => const LoginPage(),
         '/signup': (context) => const SignUpPage(),
-        '/home': (context) => const MainNavPage(),
+        '/home': (context) => MainNavPage(key: MainNavPage.globalKey),
         '/partner/onboarding': (context) => const PartnerOnboardingWelcomePage(),
       },
     );

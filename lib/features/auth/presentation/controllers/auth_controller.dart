@@ -63,6 +63,16 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
+  Future<void> refreshProfile() async {
+    final dataSource = ref.read(apiAuthDataSourceProvider);
+    try {
+      final user = await dataSource.getProfile();
+      if (user != null) {
+        state = state.copyWith(user: user);
+      }
+    } catch (_) {}
+  }
+
   Future<void> signOut() async {
     state = state.copyWith(isLoading: true);
     try {

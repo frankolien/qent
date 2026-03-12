@@ -7,14 +7,22 @@ import 'package:qent/features/profile/presentation/pages/profile_page.dart';
 import 'package:qent/features/search/presentation/pages/search_page.dart';
 
 class MainNavPage extends StatefulWidget {
+  static final globalKey = GlobalKey<MainNavPageState>();
+
   const MainNavPage({super.key});
 
   @override
-  State<MainNavPage> createState() => _MainNavPageState();
+  State<MainNavPage> createState() => MainNavPageState();
 }
 
-class _MainNavPageState extends State<MainNavPage> {
+class MainNavPageState extends State<MainNavPage> {
   int _currentIndex = 0;
+
+  void switchToTab(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+  }
 
   late final List<Widget> _pages = [
     HomePage(key: HomePage.globalKey),
