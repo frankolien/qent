@@ -7,36 +7,29 @@ class PaymentStatesPage extends StatelessWidget {
   final Car car;
   final BookingConfirmation confirmation;
 
-  PaymentStatesPage({
+  const PaymentStatesPage({
     super.key,
     required this.car,
     required this.confirmation,
   });
 
   String _formatDateRange() {
-    final dateFormat = DateFormat('dMMMyy');
+    final dateFormat = DateFormat('d MMM yy');
     final startDate = dateFormat.format(confirmation.pickupDate);
     final endDate = dateFormat.format(confirmation.returnDate);
     return '$startDate - $endDate';
   }
 
   String _formatTransactionDate() {
-    final dateFormat = DateFormat('dMMMyyyy');
+    final dateFormat = DateFormat('d MMM yyyy');
     final timeFormat = DateFormat('hh:mm a');
-    final transactionDateTime = DateTime(
-      confirmation.pickupDate.year,
-      confirmation.pickupDate.month,
-      confirmation.pickupDate.day,
-      confirmation.pickupTime.hour,
-      confirmation.pickupTime.minute,
-    );
-    return '${dateFormat.format(transactionDateTime)} - ${timeFormat.format(transactionDateTime)}';
+    final now = DateTime.now();
+    return '${dateFormat.format(now)} - ${timeFormat.format(now)}';
   }
 
-  String _maskCardNumber(String cardNumber) {
-    if (cardNumber.length < 4) return cardNumber;
-    final last4 = cardNumber.substring(cardNumber.length - 3);
-    return '123 *** *** ***$last4';
+  String _formatAmount(double amount) {
+    final formatter = NumberFormat('#,##0', 'en_US');
+    return '\u20a6${formatter.format(amount.toInt())}';
   }
 
   @override
@@ -199,6 +192,10 @@ class PaymentStatesPage extends StatelessWidget {
           _buildInfoRow('Rental Date', _formatDateRange()),
           const SizedBox(height: 12),
           _buildInfoRow('Name', confirmation.customerName),
+          const SizedBox(height: 12),
+          _buildInfoRow('Booking ID', confirmation.bookingId.length > 8
+              ? '#${confirmation.bookingId.substring(0, 8)}'
+              : '#${confirmation.bookingId}'),
         ],
       ),
     );
@@ -223,17 +220,22 @@ class PaymentStatesPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          _buildInfoRow('Transaction ID', confirmation.transactionId),
-          const SizedBox(height: 12),
+          if (confirmation.paymentReference != null)
+            ...[
+              _buildInfoRow('Reference', confirmation.paymentReference!),
+              const SizedBox(height: 12),
+            ],
           _buildInfoRow('Transaction Date', _formatTransactionDate()),
           const SizedBox(height: 12),
-          _buildPaymentMethodRow(),
+          _buildInfoRow('Payment Method', confirmation.paymentMethod),
           const SizedBox(height: 12),
-          _buildInfoRow('Amount', '₦${confirmation.amount.toInt()}'),
+          _buildInfoRow('Amount', _formatAmount(confirmation.amount)),
           const SizedBox(height: 12),
-          _buildInfoRow('Service fee', '₦${confirmation.serviceFee.toInt()}'),
-          const SizedBox(height: 12),
-          _buildInfoRow('Tax', '₦0'),
+          _buildInfoRow('Service fee', _formatAmount(confirmation.serviceFee)),
+          if (confirmation.protectionFee > 0) ...[
+            const SizedBox(height: 12),
+            _buildInfoRow('Protection fee', _formatAmount(confirmation.protectionFee)),
+          ],
           const SizedBox(height: 12),
           Divider(color: Colors.grey[300], height: 32),
           Row(
@@ -248,7 +250,7 @@ class PaymentStatesPage extends StatelessWidget {
                 ),
               ),
               Text(
-                '₦${confirmation.totalAmount.toInt()}',
+                _formatAmount(confirmation.totalAmount),
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
@@ -273,70 +275,18 @@ class PaymentStatesPage extends StatelessWidget {
             color: Colors.grey[600],
           ),
         ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF1A1A1A),
+        Flexible(
+          child: Text(
+            value,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF1A1A1A),
+            ),
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildPaymentMethodRow() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          'Payment Method',
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey[600],
-          ),
-        ),
-        Row(
-          children: [
-            _buildMastercardLogo(),
-            const SizedBox(width: 8),
-            Text(
-              _maskCardNumber('123456789012225'),
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF1A1A1A),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMastercardLogo() {
-    return Container(
-      width: 28,
-      height: 18,
-      decoration: BoxDecoration(
-        color: Colors.red,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            left: 10,
-            child: Container(
-              width: 18,
-              height: 18,
-              decoration: const BoxDecoration(
-                color: Colors.orange,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 

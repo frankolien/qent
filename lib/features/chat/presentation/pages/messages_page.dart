@@ -7,7 +7,7 @@ import 'package:qent/features/chat/domain/models/chat.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/chat/presentation/controllers/chat_controller.dart';
 import 'package:qent/features/chat/presentation/pages/chat_detail_page.dart';
-import 'package:qent/features/chat/presentation/pages/new_chat_page.dart';
+import 'package:qent/features/chat/presentation/pages/add_story_page.dart';
 import 'package:qent/features/chat/presentation/pages/story_viewer_page.dart';
 import 'package:qent/features/chat/presentation/providers/online_status_providers.dart';
 import 'package:qent/features/chat/presentation/providers/stories_providers.dart';
@@ -244,6 +244,16 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
     final authState = ref.watch(authControllerProvider);
     final isHost = authState.user?.role == 'Host';
 
+    // Check if there are any stories to show
+    final hasStories = storiesAsync.whenOrNull(
+      data: (groups) => groups.isNotEmpty,
+    ) ?? false;
+
+    // Hide entire section if not a host and no stories
+    if (!isHost && !hasStories) {
+      return const SizedBox.shrink();
+    }
+
     return Padding(
       padding: const EdgeInsets.only(top: 20, bottom: 8),
       child: SizedBox(
@@ -281,7 +291,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
         HapticFeedback.selectionClick();
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const NewChatPage()),
+          MaterialPageRoute(builder: (_) => const AddStoryPage()),
         );
       },
       child: SizedBox(
@@ -629,7 +639,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Divider(
             height: 1,
-            thickness: 0.6,
+            thickness: 1.0,
             color: Colors.grey[200],
           ),
         ),
@@ -649,7 +659,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
         );
       },
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [

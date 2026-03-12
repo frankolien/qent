@@ -1,18 +1,110 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:qent/core/services/api_client.dart';
 import 'package:qent/features/booking/domain/models/booking_confirmation.dart';
 import 'package:qent/features/booking/presentation/pages/payment_states_page.dart';
 import 'package:qent/features/home/domain/models/car.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-class ConfirmationPage extends StatelessWidget {
+class ConfirmationPage extends StatefulWidget {
   final Car car;
   final BookingConfirmation confirmation;
+  final String? authorizationUrl;
 
-  ConfirmationPage({
+  const ConfirmationPage({
     super.key,
     required this.car,
     required this.confirmation,
+    this.authorizationUrl,
   });
+
+  @override
+  State<ConfirmationPage> createState() => _ConfirmationPageState();
+}
+
+class _ConfirmationPageState extends State<ConfirmationPage> {
+  bool _isLoading = false;
+
+  Future<void> _handleConfirm() async {
+    setState(() => _isLoading = true);
+
+    try {
+      // If there's a Paystack authorization URL, open it in browser
+      if (widget.authorizationUrl != null && widget.authorizationUrl!.isNotEmpty) {
+        final url = Uri.parse(widget.authorizationUrl!);
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+
+        // After returning from browser, poll booking status
+        if (!mounted) return;
+        await _pollBookingStatus();
+      } else {
+        // For non-Paystack methods, call approve action directly
+        final response = await ApiClient().post(
+          '/bookings/${widget.confirmation.bookingId}/action',
+          body: {'action': 'approve'},
+        );
+
+        if (!mounted) return;
+
+        if (response.isSuccess) {
+          _navigateToSuccess();
+        } else {
+          _showError(response.errorMessage);
+        }
+      }
+    } catch (e) {
+      if (mounted) _showError('Something went wrong. Please try again.');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _pollBookingStatus() async {
+    // Check booking status after returning from Paystack
+    for (int i = 0; i < 5; i++) {
+      await Future.delayed(const Duration(seconds: 2));
+      if (!mounted) return;
+
+      final response = await ApiClient().get(
+        '/bookings/${widget.confirmation.bookingId}',
+      );
+
+      if (response.isSuccess) {
+        final status = (response.body as Map<String, dynamic>)['status'] as String?;
+        if (status == 'confirmed' || status == 'approved') {
+          _navigateToSuccess();
+          return;
+        }
+      }
+    }
+
+    // If polling didn't find confirmed status, navigate anyway with current data
+    if (mounted) _navigateToSuccess();
+  }
+
+  void _navigateToSuccess() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PaymentStatesPage(
+          car: widget.car,
+          confirmation: widget.confirmation,
+        ),
+      ),
+    );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red[700],
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -158,9 +250,9 @@ class ConfirmationPage extends StatelessWidget {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(20),
-            child: car.imageUrl.isNotEmpty
+            child: widget.car.imageUrl.isNotEmpty
                 ? Image.network(
-                    car.imageUrl,
+                    widget.car.imageUrl,
                     fit: BoxFit.cover,
                     frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
                       if (wasSynchronouslyLoaded) return child;
@@ -194,7 +286,7 @@ class ConfirmationPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    car.name,
+                    widget.car.name,
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
@@ -219,7 +311,7 @@ class ConfirmationPage extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      car.rating.toStringAsFixed(1),
+                      widget.car.rating.toStringAsFixed(1),
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -259,23 +351,29 @@ class ConfirmationPage extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        _buildInfoRow('Booking ID', confirmation.bookingId),
+        _buildInfoRow('Booking ID', widget.confirmation.bookingId.length > 8
+            ? '#${widget.confirmation.bookingId.substring(0, 8)}'
+            : '#${widget.confirmation.bookingId}'),
         const SizedBox(height: 12),
-        _buildInfoRow('Name', confirmation.customerName),
+        _buildInfoRow('Name', widget.confirmation.customerName),
         const SizedBox(height: 12),
+        if (widget.confirmation.email.isNotEmpty) ...[
+          _buildInfoRow('Email', widget.confirmation.email),
+          const SizedBox(height: 12),
+        ],
         _buildInfoRow(
           'Pick up Date',
-          _formatDateTime(confirmation.pickupDate, confirmation.pickupTime),
+          _formatDateTime(widget.confirmation.pickupDate, widget.confirmation.pickupTime),
         ),
         const SizedBox(height: 12),
         _buildInfoRow(
           'Return Date',
-          _formatDateTime(confirmation.returnDate, confirmation.returnTime),
+          _formatDateTime(widget.confirmation.returnDate, widget.confirmation.returnTime),
         ),
         const SizedBox(height: 12),
         _buildInfoRowWithIcon(
           'Location',
-          confirmation.location,
+          widget.confirmation.location,
           Icons.location_on_rounded,
         ),
       ],
@@ -306,12 +404,15 @@ class ConfirmationPage extends StatelessWidget {
             ),
           ],
         ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF1A1A1A),
+        Flexible(
+          child: Text(
+            value,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF1A1A1A),
+            ),
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
@@ -342,19 +443,25 @@ class ConfirmationPage extends StatelessWidget {
             ),
           ],
         ),
-        Row(
-          children: [
-            Icon(icon, size: 16, color: const Color(0xFF1A1A1A)),
-            const SizedBox(width: 4),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF1A1A1A),
+        Flexible(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: const Color(0xFF1A1A1A)),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );
@@ -373,6 +480,11 @@ class ConfirmationPage extends StatelessWidget {
     return '$hour:$minute $period';
   }
 
+  String _formatAmount(double amount) {
+    final formatter = NumberFormat('#,##0', 'en_US');
+    return '\u20a6${formatter.format(amount.toInt())}';
+  }
+
   Widget _buildPaymentSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -386,11 +498,18 @@ class ConfirmationPage extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        _buildInfoRow('Trx ID', confirmation.transactionId),
+        if (widget.confirmation.paymentReference != null)
+          ...[
+            _buildInfoRow('Reference', widget.confirmation.paymentReference!),
+            const SizedBox(height: 12),
+          ],
+        _buildInfoRow('Amount', _formatAmount(widget.confirmation.amount)),
         const SizedBox(height: 12),
-        _buildInfoRow('Amount', '₦${confirmation.amount.toInt()}'),
-        const SizedBox(height: 12),
-        _buildInfoRow('Service fee', '₦${confirmation.serviceFee.toInt()}'),
+        _buildInfoRow('Service fee', _formatAmount(widget.confirmation.serviceFee)),
+        if (widget.confirmation.protectionFee > 0) ...[
+          const SizedBox(height: 12),
+          _buildInfoRow('Protection fee', _formatAmount(widget.confirmation.protectionFee)),
+        ],
         const SizedBox(height: 12),
         CustomPaint(
           painter: DashedLinePainter(),
@@ -411,19 +530,13 @@ class ConfirmationPage extends StatelessWidget {
                 color: Color(0xFF1A1A1A),
               ),
             ),
-            Row(
-              children: [
-                Text(
-                  '₦${confirmation.totalAmount.toInt()}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1A1A1A),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _buildMastercardLogo(),
-              ],
+            Text(
+              _formatAmount(widget.confirmation.totalAmount),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1A1A1A),
+              ),
             ),
           ],
         ),
@@ -432,7 +545,7 @@ class ConfirmationPage extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
             Text(
-              'Payment with',
+              'Payment with ${widget.confirmation.paymentMethod}',
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.grey[500],
@@ -441,32 +554,6 @@ class ConfirmationPage extends StatelessWidget {
           ],
         ),
       ],
-    );
-  }
-
-  Widget _buildMastercardLogo() {
-    return Container(
-      width: 32,
-      height: 20,
-      decoration: BoxDecoration(
-        color: Colors.red,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            left: 8,
-            child: Container(
-              width: 20,
-              height: 20,
-              decoration: const BoxDecoration(
-                color: Colors.orange,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -489,33 +576,33 @@ class ConfirmationPage extends StatelessWidget {
         ],
       ),
       child: ElevatedButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PaymentStatesPage(
-                car: car,
-                confirmation: confirmation,
-              ),
-            ),
-          );
-        },
+        onPressed: _isLoading ? null : _handleConfirm,
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF1A1A1A),
           foregroundColor: Colors.white,
+          disabledBackgroundColor: Colors.grey[400],
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
           elevation: 0,
         ),
-        child: const Text(
-          'Confirm',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
+        child: _isLoading
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : Text(
+                widget.authorizationUrl != null ? 'Pay Now' : 'Confirm',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
       ),
     );
   }

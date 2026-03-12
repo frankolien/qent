@@ -379,6 +379,9 @@ class ProfilePage extends ConsumerWidget {
                         onTap: () async {
                           Navigator.of(dialogContext).pop();
                           await ref.read(authControllerProvider.notifier).signOut();
+                          if (context.mounted) {
+                            Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                          }
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 14),

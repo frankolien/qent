@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/features/dashboard/presentation/providers/dashboard_providers.dart';
 import 'package:qent/features/dashboard/presentation/pages/add_listing_page.dart';
+import 'package:qent/core/widgets/animated_loading.dart';
 
 class HostDashboardPage extends ConsumerWidget {
   const HostDashboardPage({super.key});
@@ -42,7 +43,13 @@ class HostDashboardPage extends ConsumerWidget {
               ],
             ),
           ),
-          data: (stats) => CustomScrollView(
+          data: (stats) => CarPullToRefresh(
+            onRefresh: () async {
+              ref.invalidate(hostStatsProvider);
+              ref.invalidate(hostListingsProvider);
+              await ref.read(hostStatsProvider.future);
+            },
+            child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
             slivers: [
               // Header
@@ -328,6 +335,7 @@ class HostDashboardPage extends ConsumerWidget {
                 child: SizedBox(height: 40),
               ),
             ],
+          ),
           ),
         ),
       ),

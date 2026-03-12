@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 500">
+  <rect width="780" height="500" rx="40" fill="none"/>
+  <defs>
+    <linearGradient id="verveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#00425F;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#007B5E;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <path d="M180 160h420c22 0 40 18 40 40v100c0 22-18 40-40 40H180c-22 0-40-18-40-40V200c0-22 18-40 40-40z" fill="url(#verveGrad)"/>
+  <text x="200" y="275" font-family="Arial,sans-serif" font-weight="bold" font-size="120" fill="#FFFFFF" letter-spacing="8">VERVE</text>
+  <circle cx="560" cy="210" r="35" fill="#E31837" opacity="0.9"/>
+  <circle cx="590" cy="210" r="35" fill="#00A4E4" opacity="0.9"/>
+  <path d="M560 210c0-15.5 7.8-29.1 19.7-37.2C568 165.3 553.3 175 553.3 210s14.7 44.7 26.4 37.2C567.8 239.1 560 225.5 560 210z" fill="#8B2F87" opacity="0.7"/>
+</svg>

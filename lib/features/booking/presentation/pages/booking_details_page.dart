@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:qent/core/services/api_client.dart';
 import 'package:qent/features/booking/domain/models/booking_confirmation.dart';
 import 'package:qent/features/booking/domain/models/booking_form.dart';
 import 'package:qent/features/booking/presentation/pages/payment_methods_page.dart';
@@ -26,6 +28,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   final _locationController = TextEditingController();
 
   bool _bookWithDriver = false;
+  bool _isLoading = false;
   Gender? _selectedGender;
   RentalDuration? _selectedRentalDuration;
   DateTime? _pickupDate;
@@ -33,6 +36,11 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   TimeOfDay? _pickupTime;
   TimeOfDay? _returnTime;
   double _totalPrice = 0.0;
+
+  // Validation error messages for non-FormField widgets
+  String? _genderError;
+  String? _dateError;
+  String? _locationError;
 
   @override
   void initState() {
@@ -83,6 +91,109 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     setState(() {});
   }
 
+  bool _validateForm() {
+    bool isValid = _formKey.currentState!.validate();
+
+    // Validate gender
+    if (_selectedGender == null) {
+      setState(() => _genderError = 'Please select your gender');
+      isValid = false;
+    } else {
+      setState(() => _genderError = null);
+    }
+
+    // Validate dates
+    if (_pickupDate == null || _returnDate == null) {
+      setState(() => _dateError = 'Please select pickup and return dates');
+      isValid = false;
+    } else if (_returnDate!.isBefore(_pickupDate!) || _returnDate!.isAtSameMomentAs(_pickupDate!)) {
+      setState(() => _dateError = 'Return date must be after pickup date');
+      isValid = false;
+    } else if (_pickupDate!.isBefore(DateTime.now().subtract(const Duration(days: 1)))) {
+      setState(() => _dateError = 'Pickup date cannot be in the past');
+      isValid = false;
+    } else {
+      setState(() => _dateError = null);
+    }
+
+    // Validate location
+    if (_locationController.text.trim().isEmpty) {
+      setState(() => _locationError = 'Please select a pickup location');
+      isValid = false;
+    } else {
+      setState(() => _locationError = null);
+    }
+
+    return isValid;
+  }
+
+  Future<void> _submitBooking() async {
+    if (!_validateForm()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final startDate = DateFormat('yyyy-MM-dd').format(_pickupDate!);
+      final endDate = DateFormat('yyyy-MM-dd').format(_returnDate!);
+
+      final response = await ApiClient().post('/bookings', body: {
+        'car_id': widget.car.id,
+        'start_date': startDate,
+        'end_date': endDate,
+      });
+
+      if (!mounted) return;
+
+      if (response.isSuccess) {
+        final booking = BookingResponse.fromJson(response.body as Map<String, dynamic>);
+
+        final confirmation = BookingConfirmation(
+          bookingId: booking.id,
+          customerName: _fullNameController.text.trim(),
+          email: _emailController.text.trim(),
+          pickupDate: _pickupDate!,
+          pickupTime: _pickupTime ?? const TimeOfDay(hour: 10, minute: 0),
+          returnDate: _returnDate!,
+          returnTime: _returnTime ?? const TimeOfDay(hour: 17, minute: 0),
+          location: _locationController.text.trim(),
+          amount: booking.subtotal,
+          serviceFee: booking.serviceFee,
+          protectionFee: booking.protectionFee,
+          totalAmount: booking.totalAmount,
+          paymentMethod: 'Card',
+        );
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PaymentMethodsPage(
+              car: widget.car,
+              confirmationData: confirmation,
+            ),
+          ),
+        );
+      } else {
+        _showError(response.errorMessage);
+      }
+    } catch (e) {
+      if (mounted) _showError('Something went wrong. Please try again.');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red[700],
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
   Future<void> _selectDates() async {
     final result = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
@@ -102,6 +213,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         _returnDate = result['endDate'] as DateTime?;
         _pickupTime = result['pickupTime'] as TimeOfDay?;
         _returnTime = result['dropTime'] as TimeOfDay?;
+        _dateError = null;
       });
       _calculateTotal();
     }
@@ -127,6 +239,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         onLocationSelected: (location) {
           setState(() {
             _locationController.text = location.displayName;
+            _locationError = null;
           });
           Navigator.of(context).pop();
         },
@@ -146,7 +259,9 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
 
-    return Scaffold(
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         bottom: false,
@@ -183,6 +298,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         ),
       ),
       bottomNavigationBar: _buildContinueButton(context, screenWidth),
+    ),
     );
   }
 
@@ -340,56 +456,89 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildInputField(
+        _buildValidatedField(
           controller: _fullNameController,
           icon: Icons.person_outline_rounded,
           hintText: 'Full Name*',
           keyboardType: TextInputType.name,
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) return 'Full name is required';
+            if (value.trim().length < 2) return 'Name must be at least 2 characters';
+            return null;
+          },
         ),
         const SizedBox(height: 14),
-        _buildInputField(
+        _buildValidatedField(
           controller: _emailController,
           icon: Icons.email_outlined,
           hintText: 'Email Address*',
           keyboardType: TextInputType.emailAddress,
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) return 'Email is required';
+            final emailRegex = RegExp(r'^[\w\.-]+@[\w\.-]+\.\w{2,}$');
+            if (!emailRegex.hasMatch(value.trim())) return 'Enter a valid email address';
+            return null;
+          },
         ),
         const SizedBox(height: 14),
-        _buildInputField(
+        _buildValidatedField(
           controller: _contactController,
           icon: Icons.phone_outlined,
-          hintText: 'Contact*',
+          hintText: 'Phone Number*',
           keyboardType: TextInputType.phone,
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) return 'Phone number is required';
+            final digitsOnly = value.replaceAll(RegExp(r'\D'), '');
+            if (digitsOnly.length < 7 || digitsOnly.length > 15) return 'Enter a valid phone number';
+            return null;
+          },
         ),
       ],
     );
   }
 
-  Widget _buildInputField({
+  Widget _buildValidatedField({
     required TextEditingController controller,
     required IconData icon,
     required String hintText,
     TextInputType? keyboardType,
+    String? Function(String?)? validator,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8F8F8),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: TextFormField(
-        controller: controller,
-        keyboardType: keyboardType,
-        textInputAction: TextInputAction.next,
-        style: const TextStyle(fontSize: 14),
-        decoration: InputDecoration(
-          prefixIcon: Icon(icon, color: Colors.grey[500], size: 20),
-          hintText: hintText,
-          hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-          border: InputBorder.none,
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      textInputAction: TextInputAction.next,
+      style: const TextStyle(fontSize: 14),
+      validator: validator,
+      decoration: InputDecoration(
+        prefixIcon: Icon(icon, color: Colors.grey[500], size: 20),
+        hintText: hintText,
+        hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+        filled: true,
+        fillColor: const Color(0xFFF8F8F8),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
         ),
-        onChanged: (_) => _calculateTotal(),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Color(0xFF1A1A1A), width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Colors.red, width: 1),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Colors.red, width: 1.5),
+        ),
+        errorStyle: const TextStyle(fontSize: 11),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
       ),
     );
   }
@@ -416,17 +565,27 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
             Expanded(child: _buildGenderButton('Others', Icons.transgender, Gender.others)),
           ],
         ),
+        if (_genderError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8, left: 12),
+            child: Text(
+              _genderError!,
+              style: const TextStyle(fontSize: 11, color: Colors.red),
+            ),
+          ),
       ],
     );
   }
 
   Widget _buildGenderButton(String label, IconData icon, Gender gender) {
     final isSelected = _selectedGender == gender;
+    final hasError = _genderError != null;
 
     return GestureDetector(
       onTap: () {
         setState(() {
           _selectedGender = gender;
+          _genderError = null;
         });
       },
       child: Container(
@@ -434,6 +593,9 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFF1A1A1A) : const Color(0xFFF8F8F8),
           borderRadius: BorderRadius.circular(14),
+          border: hasError && !isSelected
+              ? Border.all(color: Colors.red.withValues(alpha: 0.5), width: 1)
+              : null,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -502,6 +664,14 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
             ),
           ],
         ),
+        if (_dateError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8, left: 12),
+            child: Text(
+              _dateError!,
+              style: const TextStyle(fontSize: 11, color: Colors.red),
+            ),
+          ),
       ],
     );
   }
@@ -536,6 +706,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   }
 
   Widget _buildDateField(String label, String? dateText, {required VoidCallback onTap}) {
+    final hasError = _dateError != null;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -543,6 +715,9 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         decoration: BoxDecoration(
           color: const Color(0xFFF8F8F8),
           borderRadius: BorderRadius.circular(14),
+          border: hasError && dateText == null
+              ? Border.all(color: Colors.red.withValues(alpha: 0.5), width: 1)
+              : null,
         ),
         child: Row(
           children: [
@@ -565,6 +740,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   }
 
   Widget _buildLocationSection() {
+    final hasError = _locationError != null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -584,6 +761,9 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
             decoration: BoxDecoration(
               color: const Color(0xFFF8F8F8),
               borderRadius: BorderRadius.circular(14),
+              border: hasError
+                  ? Border.all(color: Colors.red.withValues(alpha: 0.5), width: 1)
+                  : null,
             ),
             child: Row(
               children: [
@@ -610,6 +790,14 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
             ),
           ),
         ),
+        if (_locationError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8, left: 12),
+            child: Text(
+              _locationError!,
+              style: const TextStyle(fontSize: 11, color: Colors.red),
+            ),
+          ),
       ],
     );
   }
@@ -633,74 +821,53 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         ],
       ),
       child: ElevatedButton(
-        onPressed: () {
-          if (_formKey.currentState!.validate()) {
-            final confirmation = BookingConfirmation(
-              bookingId: '00451',
-              customerName: _fullNameController.text.isNotEmpty
-                  ? _fullNameController.text
-                  : 'Benjamin Jack',
-              pickupDate: _pickupDate ?? DateTime.now(),
-              pickupTime: _pickupTime ?? const TimeOfDay(hour: 10, minute: 30),
-              returnDate: _returnDate ?? DateTime.now().add(const Duration(days: 3)),
-              returnTime: _returnTime ?? const TimeOfDay(hour: 17, minute: 0),
-              location: _locationController.text.isNotEmpty
-                  ? _locationController.text
-                  : 'Shore Dr, Chicago 0062 Usa',
-              transactionId: '#141mtslv5854d58',
-              amount: _totalPrice,
-              serviceFee: 15.0,
-              totalAmount: _totalPrice + 15.0,
-              paymentMethod: 'Mastercard',
-            );
-
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => PaymentMethodsPage(
-                  car: widget.car,
-                  confirmationData: confirmation,
-                ),
-              ),
-            );
-          }
-        },
+        onPressed: _isLoading ? null : _submitBooking,
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF1A1A1A),
           foregroundColor: Colors.white,
+          disabledBackgroundColor: Colors.grey[400],
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
           elevation: 0,
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              'Continue',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+        child: _isLoading
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    'Continue',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    '\u00b7',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '\u20a6${_formatPrice(_totalPrice)}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Icon(Icons.arrow_forward_rounded, size: 18),
+                ],
               ),
-            ),
-            const SizedBox(width: 8),
-            const Text(
-              '·',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              '₦${_formatPrice(_totalPrice)}',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(width: 6),
-            const Icon(Icons.arrow_forward_rounded, size: 18),
-          ],
-        ),
       ),
     );
   }
