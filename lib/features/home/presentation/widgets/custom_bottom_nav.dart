@@ -16,7 +16,7 @@ class CustomBottomNav extends ConsumerWidget {
     _NavItemData('assets/images/navbar/home.png', 0),
     _NavItemData('assets/images/navbar/search.png', 1),
     _NavItemData('assets/images/navbar/message.png', 2),
-    _NavItemData('assets/images/navbar/notification.png', 3),
+    _NavItemData(null, 3, icon: Icons.luggage_rounded),
     _NavItemData('assets/images/navbar/profile.png', 4),
   ];
 
@@ -43,11 +43,18 @@ class CustomBottomNav extends ConsumerWidget {
               photoUrl: photoUrl,
               isSelected: isSelected,
               onTap: () => onTap(item.index),
-              fallbackAsset: item.assetPath,
+              fallbackAsset: item.assetPath ?? 'assets/images/navbar/profile.png',
+            );
+          }
+          if (item.icon != null) {
+            return _buildIconNavItem(
+              icon: item.icon!,
+              isSelected: isSelected,
+              onTap: () => onTap(item.index),
             );
           }
           return _buildNavItem(
-            assetPath: item.assetPath,
+            assetPath: item.assetPath!,
             isSelected: isSelected,
             onTap: () => onTap(item.index),
           );
@@ -73,6 +80,28 @@ class CustomBottomNav extends ConsumerWidget {
             assetPath,
             width: 26,
             height: 26,
+            color: isSelected ? Colors.white : Colors.grey[500],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIconNavItem({
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 52,
+        height: 52,
+        child: Center(
+          child: Icon(
+            icon,
+            size: 26,
             color: isSelected ? Colors.white : Colors.grey[500],
           ),
         ),
@@ -130,8 +159,9 @@ class CustomBottomNav extends ConsumerWidget {
 }
 
 class _NavItemData {
-  final String assetPath;
+  final String? assetPath;
   final int index;
+  final IconData? icon;
 
-  const _NavItemData(this.assetPath, this.index);
+  const _NavItemData(this.assetPath, this.index, {this.icon});
 }

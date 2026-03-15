@@ -86,6 +86,57 @@ final hostStatsProvider = FutureProvider<HostStats>((ref) async {
   throw Exception(response.errorMessage);
 });
 
+class PendingBooking {
+  final String id;
+  final String carName;
+  final String? carPhoto;
+  final String? carLocation;
+  final String startDate;
+  final String endDate;
+  final int totalDays;
+  final double totalAmount;
+  final String renterName;
+  final String renterId;
+
+  PendingBooking({
+    required this.id,
+    required this.carName,
+    this.carPhoto,
+    this.carLocation,
+    required this.startDate,
+    required this.endDate,
+    required this.totalDays,
+    required this.totalAmount,
+    required this.renterName,
+    required this.renterId,
+  });
+
+  factory PendingBooking.fromJson(Map<String, dynamic> json) {
+    return PendingBooking(
+      id: json['id'] ?? '',
+      carName: json['car_name'] ?? 'Unknown Car',
+      carPhoto: json['car_photo'],
+      carLocation: json['car_location'],
+      startDate: json['start_date'] ?? '',
+      endDate: json['end_date'] ?? '',
+      totalDays: (json['total_days'] as num?)?.toInt() ?? 0,
+      totalAmount: (json['total_amount'] as num?)?.toDouble() ?? 0.0,
+      renterName: json['renter_name'] ?? 'Unknown',
+      renterId: json['renter_id'] ?? '',
+    );
+  }
+}
+
+final hostPendingBookingsProvider = FutureProvider<List<PendingBooking>>((ref) async {
+  final client = ref.watch(apiClientProvider);
+  final response = await client.get('/bookings/host/pending');
+  if (response.isSuccess) {
+    final list = response.body as List;
+    return list.map((e) => PendingBooking.fromJson(e)).toList();
+  }
+  throw Exception(response.errorMessage);
+});
+
 final hostListingsProvider = FutureProvider<List<ListingSummary>>((ref) async {
   final client = ref.watch(apiClientProvider);
   final response = await client.get('/dashboard/listings');

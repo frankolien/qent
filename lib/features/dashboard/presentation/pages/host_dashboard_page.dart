@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:qent/features/dashboard/presentation/providers/dashboard_providers.dart';
 import 'package:qent/features/dashboard/presentation/pages/add_listing_page.dart';
 import 'package:qent/core/widgets/animated_loading.dart';
+import 'package:qent/core/widgets/profile_image_widget.dart';
+import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 
 class HostDashboardPage extends ConsumerWidget {
   const HostDashboardPage({super.key});
@@ -11,6 +16,7 @@ class HostDashboardPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(hostStatsProvider);
     final listingsAsync = ref.watch(hostListingsProvider);
+    final pendingAsync = ref.watch(hostPendingBookingsProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F8F8),
@@ -34,6 +40,7 @@ class HostDashboardPage extends ConsumerWidget {
                   onTap: () {
                     ref.invalidate(hostStatsProvider);
                     ref.invalidate(hostListingsProvider);
+                    ref.invalidate(hostPendingBookingsProvider);
                   },
                   child: const Text(
                     'Retry',
@@ -47,6 +54,7 @@ class HostDashboardPage extends ConsumerWidget {
             onRefresh: () async {
               ref.invalidate(hostStatsProvider);
               ref.invalidate(hostListingsProvider);
+              ref.invalidate(hostPendingBookingsProvider);
               await ref.read(hostStatsProvider.future);
             },
             child: CustomScrollView(
@@ -158,7 +166,7 @@ class HostDashboardPage extends ConsumerWidget {
                         ),
                         const SizedBox(height: 10),
                         Text(
-                          '\$${_formatAmount(stats.walletBalance)}',
+                          '\₦${_formatAmount(stats.walletBalance)}',
                           style: const TextStyle(
                             fontSize: 34,
                             fontWeight: FontWeight.w700,
@@ -257,6 +265,11 @@ class HostDashboardPage extends ConsumerWidget {
                 ),
               ),
 
+              // Pending Bookings
+              SliverToBoxAdapter(
+                child: _buildPendingBookingsSection(pendingAsync, ref),
+              ),
+
               // Listings header
               SliverToBoxAdapter(
                 child: Padding(
@@ -340,6 +353,229 @@ class HostDashboardPage extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildPendingBookingsSection(AsyncValue<List<PendingBooking>> pendingAsync, WidgetRef ref) {
+    return pendingAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (bookings) {
+        if (bookings.isEmpty) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFFF385C),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Pending Requests',
+                    style: GoogleFonts.roboto(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF1A1A1A),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF385C),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${bookings.length}',
+                      style: GoogleFonts.roboto(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              ...bookings.map((b) => _buildPendingBookingCard(b, ref)),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPendingBookingCard(PendingBooking booking, WidgetRef ref) {
+    final dateFormat = DateFormat('d MMM');
+    final formatter = NumberFormat('#,##0', 'en_US');
+
+    String dates = '';
+    try {
+      final s = DateTime.parse(booking.startDate);
+      final e = DateTime.parse(booking.endDate);
+      dates = '${dateFormat.format(s)} - ${dateFormat.format(e)}';
+    } catch (_) {
+      dates = booking.startDate;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFFF3E0), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              ProfileImageWidget(userId: booking.renterId, size: 40),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      booking.renterName,
+                      style: GoogleFonts.roboto(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF1A1A1A),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      booking.carName,
+                      style: GoogleFonts.roboto(
+                        fontSize: 13,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                '\u20a6${formatter.format(booking.totalAmount.toInt())}',
+                style: GoogleFonts.roboto(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF1A1A1A),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(Icons.calendar_today_rounded, size: 13, color: Colors.grey[400]),
+              const SizedBox(width: 6),
+              Text(dates, style: GoogleFonts.roboto(fontSize: 13, color: Colors.grey[600])),
+              const SizedBox(width: 16),
+              Icon(Icons.schedule_rounded, size: 13, color: Colors.grey[400]),
+              const SizedBox(width: 4),
+              Text(
+                '${booking.totalDays} day${booking.totalDays == 1 ? '' : 's'}',
+                style: GoogleFonts.roboto(fontSize: 13, color: Colors.grey[600]),
+              ),
+            ],
+          ),
+          if (booking.carLocation != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(Icons.location_on_outlined, size: 13, color: Colors.grey[400]),
+                const SizedBox(width: 6),
+                Text(
+                  booking.carLocation!,
+                  style: GoogleFonts.roboto(fontSize: 13, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => _handleBookingAction(ref, booking.id, 'reject'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5F5F5),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Center(
+                      child: Text(
+                        'Decline',
+                        style: GoogleFonts.roboto(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => _handleBookingAction(ref, booking.id, 'approve'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1A1A1A),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Center(
+                      child: Text(
+                        'Accept',
+                        style: GoogleFonts.roboto(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleBookingAction(WidgetRef ref, String bookingId, String action) async {
+    HapticFeedback.mediumImpact();
+    try {
+      final client = ref.read(apiClientProvider);
+      final response = await client.post(
+        '/bookings/$bookingId/action',
+        body: {'action': action},
+      );
+      if (response.isSuccess) {
+        ref.invalidate(hostPendingBookingsProvider);
+        ref.invalidate(hostStatsProvider);
+      }
+    } catch (_) {}
   }
 
   String _formatAmount(double amount) {
@@ -501,7 +737,7 @@ class HostDashboardPage extends ConsumerWidget {
                 Row(
                   children: [
                     Text(
-                      '\$${listing.pricePerDay.toStringAsFixed(0)}/day',
+                      '\₦${listing.pricePerDay.toStringAsFixed(0)}/day',
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,

@@ -7,6 +7,7 @@ import 'package:qent/features/profile/presentation/pages/edit_profile_page.dart'
 import 'package:qent/features/favorites/presentation/pages/favorites_page.dart';
 import 'package:qent/features/dashboard/presentation/pages/host_dashboard_page.dart';
 import 'package:qent/features/dashboard/presentation/pages/add_listing_page.dart';
+import 'package:qent/features/booking/presentation/pages/booking_history_page.dart';
 
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
@@ -23,23 +24,7 @@ class ProfilePage extends ConsumerWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 16),
-          child: Center(
-            child: GestureDetector(
-              onTap: () => Navigator.of(context).maybePop(),
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.grey[300]!, width: 1),
-                ),
-                child: const Icon(Icons.arrow_back_ios_new, size: 16, color: Colors.black),
-              ),
-            ),
-          ),
-        ),
+      
         centerTitle: true,
         title: Text(
           'Profile',
@@ -49,20 +34,7 @@ class ProfilePage extends ConsumerWidget {
             color: Colors.black,
           ),
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.grey[300]!, width: 1),
-              ),
-              child: const Icon(Icons.more_horiz, size: 20, color: Colors.black),
-            ),
-          ),
-        ],
+       
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(color: Colors.grey[200], height: 1),
@@ -101,8 +73,8 @@ class ProfilePage extends ConsumerWidget {
               ),
               _buildMenuItem(
                 'assets/images/Profile/time.png',
-                'Previous Rant',
-                onTap: () {},
+                'Booking History',
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BookingHistoryPage())),
               ),
               _buildMenuItem(
                 'assets/images/Profile/notification.png',

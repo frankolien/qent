@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:qent/features/chat/presentation/pages/messages_page.dart';
 import 'package:qent/features/home/presentation/pages/home_page.dart';
 import 'package:qent/features/home/presentation/widgets/custom_bottom_nav.dart';
-import 'package:qent/features/notifications/presentation/pages/notifications_page.dart';
+import 'package:qent/features/trips/presentation/pages/trips_page.dart';
 import 'package:qent/features/profile/presentation/pages/profile_page.dart';
 import 'package:qent/features/search/presentation/pages/search_page.dart';
 
@@ -28,7 +28,7 @@ class MainNavPageState extends State<MainNavPage> {
     HomePage(key: HomePage.globalKey),
     const SearchPage(),
     const MessagesPage(),
-    const NotificationsPage(),
+    const TripsPage(),
     const ProfilePage(),
   ];
 
@@ -42,6 +42,7 @@ class MainNavPageState extends State<MainNavPage> {
         children: _pages,
       ),
       bottomNavigationBar: CustomBottomNav(
+        
         currentIndex: _currentIndex,
         onTap: (index) {
           if (index == _currentIndex && index == 0) {

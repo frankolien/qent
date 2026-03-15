@@ -7,6 +7,9 @@ class Chat {
   final DateTime lastMessageTime;
   final int unreadCount;
   final bool isOnline;
+  final String? carId;
+  final String? carName;
+  final bool isPartner;
 
   Chat({
     required this.id,
@@ -17,6 +20,9 @@ class Chat {
     required this.lastMessageTime,
     this.unreadCount = 0,
     this.isOnline = false,
+    this.carId,
+    this.carName,
+    this.isPartner = false,
   });
 }
 

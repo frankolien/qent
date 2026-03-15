@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:qent/core/services/api_client.dart';
+import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/booking/domain/models/booking_confirmation.dart';
 import 'package:qent/features/booking/domain/models/booking_form.dart';
 import 'package:qent/features/booking/presentation/pages/payment_methods_page.dart';
@@ -8,7 +10,7 @@ import 'package:qent/features/home/domain/models/car.dart';
 import 'package:qent/features/search/presentation/widgets/custom_date_range_picker.dart';
 import 'package:qent/features/search/presentation/widgets/location_picker.dart';
 
-class BookingDetailsPage extends StatefulWidget {
+class BookingDetailsPage extends ConsumerStatefulWidget {
   final Car car;
 
   const BookingDetailsPage({
@@ -17,10 +19,10 @@ class BookingDetailsPage extends StatefulWidget {
   });
 
   @override
-  State<BookingDetailsPage> createState() => _BookingDetailsPageState();
+  ConsumerState<BookingDetailsPage> createState() => _BookingDetailsPageState();
 }
 
-class _BookingDetailsPageState extends State<BookingDetailsPage> {
+class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -36,6 +38,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   TimeOfDay? _pickupTime;
   TimeOfDay? _returnTime;
   double _totalPrice = 0.0;
+  List<BookedDateRange> _bookedDates = [];
 
   // Validation error messages for non-FormField widgets
   String? _genderError;
@@ -47,6 +50,27 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     super.initState();
     _selectedRentalDuration = RentalDuration.day;
     _calculateTotal();
+    _fetchBookedDates();
+
+    // Auto-fill user details from auth state
+    final user = ref.read(authControllerProvider).user;
+    if (user != null) {
+      _fullNameController.text = user.fullName;
+      _emailController.text = user.email;
+      if (user.phone != null && user.phone!.isNotEmpty) {
+        _contactController.text = user.phone!;
+      }
+    }
+  }
+
+  Future<void> _fetchBookedDates() async {
+    final response = await ApiClient().get('/cars/${widget.car.id}/booked-dates');
+    if (response.isSuccess && mounted) {
+      final list = response.body as List;
+      setState(() {
+        _bookedDates = list.map((e) => BookedDateRange.fromJson(e as Map<String, dynamic>)).toList();
+      });
+    }
   }
 
   @override
@@ -203,6 +227,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         initialStartDate: _pickupDate,
         initialEndDate: _returnDate,
         initialPickupTime: _pickupTime,
+        bookedDates: _bookedDates,
         initialDropTime: _returnTime,
       ),
     );

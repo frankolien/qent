@@ -174,6 +174,9 @@ class ApiChatDataSource {
       lastMessageTime: _dateFromJson(data['last_message_at']),
       unreadCount: unreadCount,
       isOnline: false,
+      carId: data['car_id']?.toString(),
+      carName: (data['car_name'] ?? '').toString(),
+      isPartner: (data['other_user_role'] ?? '') == 'host',
     );
   }
 

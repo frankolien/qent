@@ -1,10 +1,25 @@
 import 'package:flutter/material.dart';
 
+class BookedDateRange {
+  final DateTime startDate;
+  final DateTime endDate;
+
+  BookedDateRange({required this.startDate, required this.endDate});
+
+  factory BookedDateRange.fromJson(Map<String, dynamic> json) {
+    return BookedDateRange(
+      startDate: DateTime.parse(json['start_date']),
+      endDate: DateTime.parse(json['end_date']),
+    );
+  }
+}
+
 class CustomDateRangePicker extends StatefulWidget {
   final DateTime? initialStartDate;
   final DateTime? initialEndDate;
   final TimeOfDay? initialPickupTime;
   final TimeOfDay? initialDropTime;
+  final List<BookedDateRange> bookedDates;
 
   const CustomDateRangePicker({
     super.key,
@@ -12,6 +27,7 @@ class CustomDateRangePicker extends StatefulWidget {
     this.initialEndDate,
     this.initialPickupTime,
     this.initialDropTime,
+    this.bookedDates = const [],
   });
 
   @override
@@ -47,23 +63,46 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
     });
   }
 
+  bool _isDateBooked(DateTime date) {
+    for (final range in widget.bookedDates) {
+      final start = DateTime(range.startDate.year, range.startDate.month, range.startDate.day);
+      final end = DateTime(range.endDate.year, range.endDate.month, range.endDate.day);
+      final d = DateTime(date.year, date.month, date.day);
+      if (!d.isBefore(start) && !d.isAfter(end)) return true;
+    }
+    return false;
+  }
+
+  bool _rangeContainsBookedDate(DateTime start, DateTime end) {
+    for (final range in widget.bookedDates) {
+      final bStart = DateTime(range.startDate.year, range.startDate.month, range.startDate.day);
+      final bEnd = DateTime(range.endDate.year, range.endDate.month, range.endDate.day);
+      if (bStart.isBefore(end) && bEnd.isAfter(start)) return true;
+    }
+    return false;
+  }
+
   void _selectDate(DateTime date) {
+    if (_isDateBooked(date)) return;
+
     if (_startDate == null || (_startDate != null && _endDate != null)) {
       setState(() {
         _startDate = date;
         _endDate = null;
       });
     } else if (_endDate == null) {
+      DateTime s = _startDate!;
+      DateTime e = date;
       if (date.isBefore(_startDate!)) {
-        setState(() {
-          _endDate = _startDate;
-          _startDate = date;
-        });
-      } else {
-        setState(() {
-          _endDate = date;
-        });
+        s = date;
+        e = _startDate!;
       }
+      // Don't allow range that spans across booked dates
+      if (_rangeContainsBookedDate(s, e)) return;
+      setState(() {
+        _startDate = s;
+        _endDate = e;
+      });
     }
   }
 
@@ -323,11 +362,12 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
                     final isStart = _isStartDate(date);
                     final isEnd = _isEndDate(date);
                     final isInRange = _isInRange(date);
+                    final isBooked = _isDateBooked(date);
                     final isToday = date.year == DateTime.now().year &&
                         date.month == DateTime.now().month &&
                         date.day == DateTime.now().day;
                     final isOtherMonth = isPrevMonth || isNextMonth;
-                    
+
                     return Expanded(
                       child: Padding(
                         padding: const EdgeInsets.all(4),
@@ -340,7 +380,9 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
                                   ? const Color(0xFF2C2C2C)
                                   : isInRange
                                       ? Colors.grey[200]
-                                      : Colors.transparent,
+                                      : isBooked
+                                          ? Colors.red.withValues(alpha: 0.08)
+                                          : Colors.transparent,
                               shape: BoxShape.circle,
                             ),
                             child: Center(
@@ -351,11 +393,15 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
                                   fontWeight: (isStart || isEnd) ? FontWeight.bold : FontWeight.normal,
                                   color: (isStart || isEnd)
                                       ? Colors.white
-                                      : isOtherMonth
-                                          ? Colors.grey[300]
-                                          : isToday
-                                              ? Colors.blue
-                                              : Colors.black87,
+                                      : isBooked
+                                          ? Colors.red[300]
+                                          : isOtherMonth
+                                              ? Colors.grey[300]
+                                              : isToday
+                                                  ? Colors.blue
+                                                  : Colors.black87,
+                                  decoration: isBooked ? TextDecoration.lineThrough : null,
+                                  decorationColor: Colors.red[300],
                                 ),
                               ),
                             ),

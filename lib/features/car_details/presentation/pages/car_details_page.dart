@@ -7,7 +7,6 @@ import 'package:qent/features/chat/presentation/controllers/chat_controller.dart
 import 'package:qent/features/chat/presentation/pages/chat_detail_page.dart';
 import 'package:qent/features/home/domain/models/car.dart';
 import 'package:qent/features/home/presentation/providers/car_providers.dart';
-import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
 class CarDetailsPage extends ConsumerStatefulWidget {
   final Car car;
@@ -96,161 +95,175 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
     super.dispose();
   }
 
+  int _currentPage = 0;
+
   @override
   Widget build(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top;
+
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            _buildHeader(context),
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    //const SizedBox(height: 8),
-                    Divider(color: Colors.grey[200], height: 1),
-           
-                    _buildImageCarousel(context),
-                    const SizedBox(height: 20),
-                   
-                    //const SizedBox(height: 5),
-                    _buildCarInfo(context),
-                    const SizedBox(height: 20),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Divider(color: Colors.grey[200], height: 1),
-                    ),
-                    const SizedBox(height: 20),
-                    _buildHostSection(context),
-                    const SizedBox(height: 28),
-                    _buildFeaturesSection(context),
-                    const SizedBox(height: 28),
-                    _buildReviewsSection(context),
-                    const SizedBox(height: 120),
-                  ],
-                ),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildImageCarousel(context, topPadding),
+                  const SizedBox(height: 20),
+                  _buildCarInfo(context),
+                  const SizedBox(height: 20),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Divider(color: Colors.grey[200], height: 1),
+                  ),
+                  const SizedBox(height: 20),
+                  _buildHostSection(context),
+                  const SizedBox(height: 28),
+                  _buildFeaturesSection(context),
+                  const SizedBox(height: 28),
+                  _buildReviewsSection(context),
+                  const SizedBox(height: 120),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
       bottomNavigationBar: _buildBookNowButton(context),
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(10, 12, 10, 9),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          GestureDetector(
-            onTap: () => Navigator.of(context).pop(),
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF5F5F5),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.grey.shade200, width: 1),
-              ),
-              child: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: Color(0xFF1A1A1A)),
-            ),
-          ),
-          const Text(
-            'Car Details',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF1A1A1A),
-            ),
-          ),
-          GestureDetector(
-            onTap: () {},
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF5F5F5),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.grey.shade200, width: 1),
-              ),
-              child: const Icon(Icons.more_horiz_rounded, size: 20, color: Color(0xFF1A1A1A)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildImageCarousel(BuildContext context, double topPadding) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final imageHeight = screenWidth * 0.95; // Nearly square, tall like Airbnb
 
-  Widget _buildImageCarousel(BuildContext context) {
-    return Container(
-      //margin: const EdgeInsets.symmetric(horizontal: 20),
-      height: 300,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5F5F5),
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: ClipRRect(
-        //borderRadius: BorderRadius.circular(20),
-        child: Stack(
-          children: [
-            PageView.builder(
-              controller: _pageController,
-              itemCount: _carDetail.imageUrls.length,
-              itemBuilder: (context, index) {
-                final url = _carDetail.imageUrls[index];
-                return url.startsWith('http')
-                    ? Image.network(
-                        url,
-                        fit: BoxFit.cover,
-                        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-                          if (wasSynchronouslyLoaded) return child;
-                          return AnimatedOpacity(
-                            opacity: frame != null ? 1.0 : 0.0,
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeOut,
-                            child: child,
-                          );
-                        },
-                        errorBuilder: (_, __, ___) => _buildImagePlaceholder(),
-                      )
-                    : _buildImagePlaceholder();
-              },
-            ),
-            // Favorite button overlay
-            Positioned(
-              top: 14,
-              right: 14,
-              child: _buildFavoriteButton(context),
-            ),
-            // Page indicator
-            if (_carDetail.imageUrls.length > 1)
-              Positioned(
-                bottom: 14,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: SmoothPageIndicator(
-                    controller: _pageController,
-                    count: _carDetail.imageUrls.length,
-                    effect: ExpandingDotsEffect(
-                      activeDotColor: const Color(0xFF1A1A1A),
-                      dotColor: Colors.grey.shade400,
-                      dotHeight: 6,
-                      dotWidth: 6,
-                      spacing: 6,
-                      expansionFactor: 3,
+    return SizedBox(
+      height: imageHeight,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Full-bleed image carousel
+          PageView.builder(
+            controller: _pageController,
+            itemCount: _carDetail.imageUrls.length,
+            onPageChanged: (index) => setState(() => _currentPage = index),
+            itemBuilder: (context, index) {
+              final url = _carDetail.imageUrls[index];
+              return url.startsWith('http')
+                  ? Image.network(
+                      url,
+                      fit: BoxFit.cover,
+                      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                        if (wasSynchronouslyLoaded) return child;
+                        return AnimatedOpacity(
+                          opacity: frame != null ? 1.0 : 0.0,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeOut,
+                          child: child,
+                        );
+                      },
+                      errorBuilder: (_, __, ___) => _buildImagePlaceholder(),
+                    )
+                  : _buildImagePlaceholder();
+            },
+          ),
+
+          // Back button — top left
+          Positioned(
+            top: topPadding + 10,
+            left: 16,
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).pop(),
+              child: Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.92),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
                     ),
+                  ],
+                ),
+                child: const Icon(Icons.arrow_back, size: 20, color: Color(0xFF1A1A1A)),
+              ),
+            ),
+          ),
+
+          // Share + Favorite — top right
+          Positioned(
+            top: topPadding + 10,
+            right: 16,
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () {},
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.92),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.ios_share_rounded, size: 18, color: Color(0xFF1A1A1A)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                _buildFavoriteButton(context),
+              ],
+            ),
+          ),
+
+          // Photo counter — bottom right "1 / 30" style
+          if (_carDetail.imageUrls.length > 1)
+            Positioned(
+              bottom: 16,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.65),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '${_currentPage + 1} / ${_carDetail.imageUrls.length}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                    letterSpacing: 0.5,
                   ),
                 ),
               ),
-          ],
-        ),
+            ),
+
+          // Bottom white curve overlay
+          Positioned(
+            bottom: -1,
+            left: 0,
+            right: 0,
+            child: Container(
+              height: 20,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(60)),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -278,7 +291,7 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
               letterSpacing: -0.3,
             ),
           ),
-          const SizedBox(height: 8),
+          //const SizedBox(height: 8),
           // Description and rating row
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -438,7 +451,7 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
 
   Widget _buildFeaturesSection(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 20,),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -450,7 +463,7 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
               color: Color(0xFF1A1A1A),
             ),
           ),
-          const SizedBox(height: 16),
+          //const SizedBox(height: 16),
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),

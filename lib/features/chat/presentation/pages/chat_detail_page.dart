@@ -408,7 +408,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        
+
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -418,15 +418,37 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
             ),
             const SizedBox(width: 12),
             Flexible(
-              child: Text(
-                widget.chat.userName,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    widget.chat.userName,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final onlineAsync = ref.watch(
+                        onlineStatusStreamProvider(widget.chat.userId),
+                      );
+                      final isOnline = onlineAsync.value ?? false;
+                      return Text(
+                        isOnline ? 'Online' : 'Offline',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                          color: isOnline ? const Color(0xFF4CAF50) : Colors.grey[400],
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
           ],
@@ -444,14 +466,104 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
       ),
       body: Column(
         children: [
-          // Partner Banner placeholder (removed Firestore dependency)
-          const SizedBox.shrink(),
+          // Partner + car context banner
+          if (widget.chat.isPartner || (widget.chat.carName != null && widget.chat.carName!.isNotEmpty))
+            _buildContextBanner(),
           // Messages List
           Expanded(
             child: _buildMessagesList(),
           ),
           // Message Input
           _buildMessageInput(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContextBanner() {
+    final hasCarName = widget.chat.carName != null && widget.chat.carName!.isNotEmpty;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F7F7),
+        border: Border(
+          bottom: BorderSide(color: Colors.grey[200]!, width: 1),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Partner badge
+          if (widget.chat.isPartner)
+            Padding(
+              padding: EdgeInsets.only(bottom: hasCarName ? 10 : 0),
+              child: Row(
+                children: [
+                  ProfileImageWidget(userId: widget.chat.userId, size: 36),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.chat.userName,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1A1A1A),
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          '${widget.chat.userName.split(' ').first} is a partner of QENT',
+                          style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          // Car context
+          if (hasCarName)
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8F5E9),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.directions_car_rounded, size: 18, color: Color(0xFF2E7D32)),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.chat.carName!,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1A1A1A),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        'Conversation about this listing',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, size: 20, color: Colors.grey[400]),
+              ],
+            ),
         ],
       ),
     );
