@@ -13,6 +13,7 @@ class TripBooking {
   final String carName;
   final String? carPhoto;
   final String? carLocation;
+  final String? renterName;
   final String startDate;
   final String endDate;
   final int totalDays;
@@ -29,6 +30,7 @@ class TripBooking {
     required this.carName,
     this.carPhoto,
     this.carLocation,
+    this.renterName,
     required this.startDate,
     required this.endDate,
     required this.totalDays,
@@ -47,6 +49,7 @@ class TripBooking {
       carName: json['car_name'] ?? 'Unknown Car',
       carPhoto: json['car_photo'],
       carLocation: json['car_location'],
+      renterName: json['renter_name'],
       startDate: json['start_date'] ?? '',
       endDate: json['end_date'] ?? '',
       totalDays: json['total_days'] ?? 0,

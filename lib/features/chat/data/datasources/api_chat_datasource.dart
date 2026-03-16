@@ -21,14 +21,15 @@ class ApiChatDataSource {
   }
 
   /// Create or retrieve an existing conversation for a car listing.
-  Future<Chat> getOrCreateConversation(String carId, String hostId) async {
-    _log('getOrCreateConversation carId=$carId hostId=$hostId');
+  /// [otherUserId] is the other party — host if caller is renter, renter if caller is host.
+  Future<Chat> getOrCreateConversation(String carId, String otherUserId) async {
+    _log('getOrCreateConversation carId=$carId otherUserId=$otherUserId');
 
     final response = await _api.post(
       '/chat/conversations',
       body: {
         'car_id': carId,
-        'host_id': hostId,
+        'other_user_id': otherUserId,
       },
     );
 
