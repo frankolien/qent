@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:qent/core/services/api_client.dart';
+import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/chat/presentation/controllers/chat_controller.dart';
 import 'package:qent/features/chat/presentation/pages/chat_detail_page.dart';
 import 'package:qent/features/trips/presentation/pages/trips_page.dart';
@@ -21,6 +22,12 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
   bool _isMessaging = false;
 
   String get _status => widget.trip.status;
+
+  /// Whether the current user is the host of this booking.
+  bool get _isHost {
+    final currentUserId = ref.read(authControllerProvider).user?.uid ?? '';
+    return currentUserId == widget.trip.hostId;
+  }
 
   Future<void> _cancelBooking() async {
     final confirmed = await showDialog<bool>(
@@ -50,7 +57,7 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
     try {
       final response = await ApiClient().post(
         '/bookings/${widget.trip.id}/action',
-        body: {'action': 'cancel', 'reason': 'Cancelled by renter'},
+        body: {'action': 'cancel', 'reason': _isHost ? 'Cancelled by host' : 'Cancelled by renter'},
       );
       if (mounted) {
         if (response.isSuccess) {
@@ -85,7 +92,7 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
     }
   }
 
-  Future<void> _messageHost() async {
+  Future<void> _messageOtherParty() async {
     setState(() => _isMessaging = true);
     try {
       final chat = await ref.read(chatControllerProvider).getOrCreateConversation(
@@ -431,8 +438,10 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
 
   Widget _buildBottomActions() {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
-    final canCancel = ['pending', 'approved', 'confirmed'].contains(_status);
+    // Only renters can cancel; hosts use Accept/Decline from the dashboard
+    final canCancel = !_isHost && ['pending', 'approved', 'confirmed'].contains(_status);
     final canMessage = !['cancelled', 'rejected'].contains(_status);
+    final messageLabel = _isHost ? 'Message Renter' : 'Message Host';
 
     if (!canCancel && !canMessage) return const SizedBox.shrink();
 
@@ -450,7 +459,7 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
             Expanded(
               flex: 3,
               child: ElevatedButton(
-                onPressed: _isMessaging ? null : _messageHost,
+                onPressed: _isMessaging ? null : _messageOtherParty,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1A1A1A),
                   foregroundColor: Colors.white,
@@ -466,7 +475,7 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
                         children: [
                           const Icon(Icons.chat_bubble_rounded, size: 18),
                           const SizedBox(width: 8),
-                          Text('Message Host', style: GoogleFonts.roboto(fontSize: 15, fontWeight: FontWeight.w700)),
+                          Text(messageLabel, style: GoogleFonts.roboto(fontSize: 15, fontWeight: FontWeight.w700)),
                         ],
                       ),
               ),
