@@ -1,31 +1,33 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/auth/presentation/controllers/auth_state.dart';
+import 'package:qent/features/home/presentation/providers/car_providers.dart';
 
 class AuthController extends Notifier<AuthState> {
   @override
   AuthState build() {
-    // Schedule session restore after state is initialized
+    // Start with loading = true so splash screen waits for us
     Future.microtask(() => _tryRestoreSession());
-    return AuthState.initial();
+    return AuthState.initial().copyWith(isLoading: true);
   }
 
   Future<void> _tryRestoreSession() async {
     final dataSource = ref.read(apiAuthDataSourceProvider);
     if (dataSource.isAuthenticated) {
-      state = state.copyWith(isLoading: true);
       try {
         final user = await dataSource.getProfile();
         if (user != null) {
           state = state.copyWith(isLoading: false, user: user);
+          return;
         } else {
           await dataSource.signOut();
-          state = state.copyWith(isLoading: false);
         }
       } catch (e) {
-        state = state.copyWith(isLoading: false);
+        // Token might be expired, clear it
+        await dataSource.signOut();
       }
     }
+    state = state.copyWith(isLoading: false);
   }
 
   Future<void> signIn({required String email, required String password}) async {
@@ -78,6 +80,12 @@ class AuthController extends Notifier<AuthState> {
     try {
       final dataSource = ref.read(apiAuthDataSourceProvider);
       await dataSource.signOut();
+
+      // Clear all cached data from the previous user
+      ref.invalidate(carsProvider);
+      ref.invalidate(favoriteCarsProvider);
+      ref.invalidate(favoriteIdsProvider);
+
       state = state.copyWith(isLoading: false, clearUser: true);
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());

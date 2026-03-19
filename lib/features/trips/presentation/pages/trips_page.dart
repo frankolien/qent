@@ -392,13 +392,13 @@ class _TripsPageState extends State<TripsPage>
 
   ({String label, Color bgColor, Color textColor}) _statusStyle(String status) {
     return switch (status) {
-      'pending' => (label: 'Awaiting Host', bgColor: const Color(0xFFFFF3E0), textColor: const Color(0xFFE65100)),
-      'approved' => (label: 'Approved', bgColor: const Color(0xFFE3F2FD), textColor: const Color(0xFF1565C0)),
-      'confirmed' => (label: 'Confirmed', bgColor: const Color(0xFFE8F5E9), textColor: const Color(0xFF2E7D32)),
-      'active' => (label: 'In Progress', bgColor: const Color(0xFFE8F5E9), textColor: const Color(0xFF2E7D32)),
+      'pending' => (label: 'Pending Approval', bgColor: const Color(0xFFFFF3E0), textColor: const Color(0xFFE65100)),
+      'approved' => (label: 'Ready to Pay', bgColor: const Color(0xFFE3F2FD), textColor: const Color(0xFF1565C0)),
+      'confirmed' => (label: 'Awaiting Pickup', bgColor: const Color(0xFFE8F5E9), textColor: const Color(0xFF2E7D32)),
+      'active' => (label: 'Trip Active', bgColor: const Color(0xFFE8F5E9), textColor: const Color(0xFF2E7D32)),
       'completed' => (label: 'Completed', bgColor: const Color(0xFFF5F5F5), textColor: const Color(0xFF616161)),
       'cancelled' => (label: 'Cancelled', bgColor: const Color(0xFFFFEBEE), textColor: const Color(0xFFC62828)),
-      'rejected' => (label: 'Declined', bgColor: const Color(0xFFFFEBEE), textColor: const Color(0xFFC62828)),
+      'rejected' => (label: 'Declined by Host', bgColor: const Color(0xFFFFEBEE), textColor: const Color(0xFFC62828)),
       _ => (label: status, bgColor: Colors.grey[100]!, textColor: Colors.grey[600]!),
     };
   }

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:qent/core/services/api_client.dart';
+import 'package:qent/core/services/cloudinary_service.dart';
 import 'package:qent/core/services/email_verification_service.dart';
 import 'package:qent/features/partner/presentation/pages/partner_otp_page.dart';
 import 'package:qent/features/partner/presentation/providers/partner_providers.dart';
@@ -686,6 +687,30 @@ class _PartnerFormPageState extends ConsumerState<PartnerFormPage> {
     setState(() => _isSubmitting = true);
 
     try {
+      // Upload photos to Cloudinary first
+      final cloudinary = CloudinaryService();
+      final uploadedUrls = <String>[];
+
+      for (final path in _uploadedCarImages) {
+        final url = await cloudinary.uploadImage(
+          imageFile: File(path),
+          folder: 'qent/cars',
+        );
+        if (url != null) {
+          uploadedUrls.add(url);
+        }
+      }
+
+      if (uploadedUrls.isEmpty && _uploadedCarImages.isNotEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to upload photos. Please try again.', style: GoogleFonts.inter())),
+          );
+          setState(() => _isSubmitting = false);
+        }
+        return;
+      }
+
       final response = await ApiClient().post('/partner/apply', body: {
         'full_name': _fullNameController.text.trim(),
         'email': _emailController.text.trim(),
@@ -696,7 +721,7 @@ class _PartnerFormPageState extends ConsumerState<PartnerFormPage> {
         'car_year': int.tryParse(_yearController.text.trim()) ?? 2024,
         'car_color': _selectedColor ?? 'Black',
         'car_plate_number': _registrationController.text.trim(),
-        'car_photos': _uploadedCarImages,
+        'car_photos': uploadedUrls,
         'car_description': _descriptionController.text.trim(),
         'fuel_type': _fuelType.toLowerCase(),
         'price_per_day': double.tryParse(_priceController.text.trim()) ?? 0.0,
@@ -706,6 +731,12 @@ class _PartnerFormPageState extends ConsumerState<PartnerFormPage> {
       if (!mounted) return;
 
       if (response.isSuccess) {
+        // Save the new JWT token with Host role
+        final newToken = response.body['token'] as String?;
+        if (newToken != null && newToken.isNotEmpty) {
+          await ApiClient().setToken(newToken);
+        }
+
         // Send OTP to the partner's email
         final email = _emailController.text.trim();
         final verificationService = EmailVerificationService();

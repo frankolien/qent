@@ -145,6 +145,37 @@ class ApiCarDataSource {
     return favorited;
   }
 
+  /// Fetch homepage sections: recommended, best_cars, nearby, popular.
+  Future<Map<String, List<Car>>> getHomepage({double? latitude, double? longitude}) async {
+    _log('> Fetching homepage sections');
+    final sw = Stopwatch()..start();
+
+    final params = <String, String>{};
+    if (latitude != null) params['latitude'] = latitude.toString();
+    if (longitude != null) params['longitude'] = longitude.toString();
+
+    final response = await _client.get('/cars/homepage', auth: false, queryParams: params);
+    sw.stop();
+
+    if (!response.isSuccess) {
+      _log('FAIL: getHomepage failed (${sw.elapsedMilliseconds}ms): ${response.errorMessage}');
+      throw Exception(response.errorMessage);
+    }
+
+    final Map<String, dynamic> body = response.body;
+    final result = <String, List<Car>>{};
+    for (final key in ['recommended', 'best_cars', 'nearby', 'popular']) {
+      final list = body[key] as List<dynamic>? ?? [];
+      result[key] = list.map((json) => _carFromJson(json as Map<String, dynamic>)).toList();
+    }
+    _log('OK: Homepage loaded (${sw.elapsedMilliseconds}ms) - '
+        'recommended: ${result["recommended"]?.length}, '
+        'best: ${result["best_cars"]?.length}, '
+        'nearby: ${result["nearby"]?.length}, '
+        'popular: ${result["popular"]?.length}');
+    return result;
+  }
+
   /// Get host's own car listings.
   Future<List<Car>> getHostCars() async {
     _log('> Fetching host car listings');

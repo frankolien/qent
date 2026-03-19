@@ -34,7 +34,7 @@ void main() async {
   // Initialize API client with backend URL
   final apiClient = ApiClient();
   await apiClient.initialize(
-    baseUrl: dotenv.env['API_BASE_URL'] ?? 'http://10.0.2.2:8080/api',
+    baseUrl: dotenv.env['API_BASE_URL'] ?? 'https://qent-backend.onrender.com/api',
   );
 
   runApp(const ProviderScope(child: MainApp()));

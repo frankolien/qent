@@ -56,7 +56,7 @@ class _AddListingPageState extends ConsumerState<AddListingPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F8F8),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [

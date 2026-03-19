@@ -8,6 +8,7 @@ import 'package:qent/features/favorites/presentation/pages/favorites_page.dart';
 import 'package:qent/features/dashboard/presentation/pages/host_dashboard_page.dart';
 import 'package:qent/features/dashboard/presentation/pages/add_listing_page.dart';
 import 'package:qent/features/booking/presentation/pages/booking_history_page.dart';
+import 'package:qent/features/admin/presentation/pages/admin_panel_page.dart';
 
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
@@ -49,7 +50,17 @@ class ProfilePage extends ConsumerWidget {
               const SizedBox(height: 24),
               _buildProfileHeader(context, ref, userId),
               const SizedBox(height: 32),
-              if (user?.role == 'Host') ...[
+              if (user?.role == 'Admin') ...[
+                _buildSectionTitle('Admin'),
+                const SizedBox(height: 12),
+                _buildMenuItemIcon(
+                  Icons.admin_panel_settings_outlined,
+                  'Admin Panel',
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPanelPage())),
+                ),
+                const SizedBox(height: 28),
+              ],
+              if (user?.role == 'Host' || user?.role == 'Admin') ...[
                 _buildSectionTitle('Host'),
                 const SizedBox(height: 12),
                 _buildMenuItemIcon(

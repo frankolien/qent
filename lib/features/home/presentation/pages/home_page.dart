@@ -34,7 +34,12 @@ class HomePageState extends ConsumerState<HomePage> {
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeOutCubic,
     );
-    ref.invalidate(carsProvider);
+    _invalidateHomepage();
+  }
+
+  void _invalidateHomepage() {
+    final loc = ref.read(userLocationProvider).value;
+    ref.invalidate(homepageCarsProvider((lat: loc?.latitude, lng: loc?.longitude)));
   }
 
   @override
@@ -54,19 +59,24 @@ class HomePageState extends ConsumerState<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final carsAsync = ref.watch(carsProvider);
+    final loc = ref.watch(userLocationProvider).value;
+    final homepageAsync = ref.watch(
+      homepageCarsProvider((lat: loc?.latitude, lng: loc?.longitude)),
+    );
     final authState = ref.watch(authControllerProvider);
     final userId = authState.user?.uid ?? '';
-    final carController = ref.read(carControllerProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F8F8),
+      backgroundColor: Colors.white,
       body: SafeArea(
         bottom: true,
         child: CarPullToRefresh(
           onRefresh: () async {
-            ref.invalidate(carsProvider);
-            await ref.read(carsProvider.future);
+            _invalidateHomepage();
+            final loc = ref.read(userLocationProvider).value;
+            await ref.read(
+              homepageCarsProvider((lat: loc?.latitude, lng: loc?.longitude)).future,
+            );
           },
           child: CustomScrollView(
             controller: _scrollController,
@@ -88,7 +98,7 @@ class HomePageState extends ConsumerState<HomePage> {
                   child: _buildBrandsSection(context),
                 ),
               ),
-              // White content area
+              // White content area with all sections
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.only(top: 24),
@@ -97,14 +107,82 @@ class HomePageState extends ConsumerState<HomePage> {
                       color: Colors.white,
                       borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
                     ),
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 24),
-                        _buildBestCarsSection(context, carsAsync, userId, carController),
-                        const SizedBox(height: 28),
-                        _buildNearbySection(context, carsAsync, userId, carController),
-                        const SizedBox(height: 100),
-                      ],
+                    child: homepageAsync.when(
+                      data: (sections) {
+                        final recommended = _filterByBrand(sections['recommended'] ?? []);
+                        final bestCars = _filterByBrand(sections['best_cars'] ?? []);
+                        final nearby = _filterByBrand(sections['nearby'] ?? []);
+                        final popular = _filterByBrand(sections['popular'] ?? []);
+
+                        return Column(
+                          children: [
+                            const SizedBox(height: 24),
+                            if (recommended.isNotEmpty)
+                              _buildHorizontalSection(
+                                context,
+                                title: 'Recommended for You',
+                                subtitle: 'Based on your preferences',
+                                cars: recommended,
+                                userId: userId,
+                              ),
+                            if (bestCars.isNotEmpty) ...[
+                              const SizedBox(height: 28),
+                              _buildHorizontalSection(
+                                context,
+                                title: 'Best Cars',
+                                subtitle: 'Top rated vehicles',
+                                cars: bestCars,
+                                userId: userId,
+                              ),
+                            ],
+                            if (popular.isNotEmpty) ...[
+                              const SizedBox(height: 28),
+                              _buildHorizontalSection(
+                                context,
+                                title: 'Our Popular Cars',
+                                subtitle: 'Most booked on Qent',
+                                cars: popular,
+                                userId: userId,
+                              ),
+                            ],
+                            const SizedBox(height: 28),
+                            _buildVerticalSection(
+                              context,
+                              title: 'Nearby',
+                              subtitle: 'Cars around you',
+                              cars: nearby,
+                              userId: userId,
+                            ),
+                            const SizedBox(height: 100),
+                          ],
+                        );
+                      },
+                      loading: () => Column(
+                        children: [
+                          const SizedBox(height: 24),
+                          _buildSkeletonHorizontalSection('Recommended for You'),
+                          const SizedBox(height: 28),
+                          _buildSkeletonHorizontalSection('Best Cars'),
+                          const SizedBox(height: 28),
+                          _buildSkeletonVerticalSection('Nearby'),
+                          const SizedBox(height: 100),
+                        ],
+                      ),
+                      error: (error, stack) => Padding(
+                        padding: const EdgeInsets.all(40),
+                        child: Column(
+                          children: [
+                            Icon(Icons.wifi_off_rounded, size: 40, color: Colors.grey[300]),
+                            const SizedBox(height: 8),
+                            Text('Failed to load', style: TextStyle(color: Colors.grey[400], fontSize: 13)),
+                            const SizedBox(height: 8),
+                            GestureDetector(
+                              onTap: _invalidateHomepage,
+                              child: const Text('Retry', style: TextStyle(color: Color(0xFF1A1A1A), fontWeight: FontWeight.w600, fontSize: 13)),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -114,6 +192,11 @@ class HomePageState extends ConsumerState<HomePage> {
         ),
       ),
     );
+  }
+
+  List<Car> _filterByBrand(List<Car> cars) {
+    if (_selectedBrand == 'All') return cars;
+    return cars.where((car) => car.brand.toLowerCase().contains(_selectedBrand.toLowerCase())).toList();
   }
 
   Widget _buildAppBar(BuildContext context) {
@@ -363,7 +446,16 @@ class HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  Widget _buildBestCarsSection(BuildContext context, AsyncValue<List<Car>> carsAsync, String userId, CarController carController) {
+  // ─── Reusable section builders ─────────────────────────────────
+
+  /// Horizontal scrolling car section (for Recommended, Best Cars, Popular)
+  Widget _buildHorizontalSection(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required List<Car> cars,
+    required String userId,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -375,9 +467,9 @@ class HomePageState extends ConsumerState<HomePage> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Best Cars',
-                    style: TextStyle(
+                  Text(
+                    title,
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF1A1A1A),
@@ -385,24 +477,15 @@ class HomePageState extends ConsumerState<HomePage> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Top rated vehicles',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[400],
-                    ),
+                    subtitle,
+                    style: TextStyle(fontSize: 13, color: Colors.grey[400]),
                   ),
                 ],
               ),
               TextButton(
                 onPressed: () {
-                  final cars = carsAsync.value ?? [];
-                  var bestCars = cars.where((car) => car.rating >= 4.5).toList();
-                  if (_selectedBrand != 'All') {
-                    bestCars = bestCars.where((car) =>
-                      car.brand.toLowerCase().contains(_selectedBrand.toLowerCase())).toList();
-                  }
                   Navigator.push(context, MaterialPageRoute(
-                    builder: (_) => ViewAllCarsPage(title: 'Best Cars', cars: bestCars),
+                    builder: (_) => ViewAllCarsPage(title: title, cars: cars),
                   ));
                 },
                 style: TextButton.styleFrom(
@@ -425,13 +508,47 @@ class HomePageState extends ConsumerState<HomePage> {
         const SizedBox(height: 16),
         SizedBox(
           height: 230,
-          child: _buildBestCarsList(context, carsAsync, userId, carController),
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            itemCount: cars.length,
+            itemBuilder: (context, index) {
+              return StaggeredFadeIn(
+                index: index,
+                child: Padding(
+                  padding: EdgeInsets.only(right: index < cars.length - 1 ? 14 : 0),
+                  child: Consumer(
+                    builder: (context, ref, _) {
+                      final favIds = ref.watch(favoriteIdsProvider);
+                      final car = cars[index];
+                      return CarCard(
+                        car: car.copyWith(isFavorite: favIds.contains(car.id)),
+                        onFavoriteTap: () {
+                          if (userId.isNotEmpty) {
+                            ref.read(favoriteIdsProvider.notifier).toggle(car.id);
+                          }
+                        },
+                      );
+                    },
+                  ),
+                ),
+              );
+            },
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildNearbySection(BuildContext context, AsyncValue<List<Car>> carsAsync, String userId, CarController carController) {
+  /// Vertical list section (for Nearby)
+  Widget _buildVerticalSection(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required List<Car> cars,
+    required String userId,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -443,9 +560,9 @@ class HomePageState extends ConsumerState<HomePage> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Nearby',
-                    style: TextStyle(
+                  Text(
+                    title,
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF1A1A1A),
@@ -453,19 +570,15 @@ class HomePageState extends ConsumerState<HomePage> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Cars around you',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[400],
-                    ),
+                    subtitle,
+                    style: TextStyle(fontSize: 13, color: Colors.grey[400]),
                   ),
                 ],
               ),
               TextButton(
                 onPressed: () {
-                  final cars = carsAsync.value ?? [];
                   Navigator.push(context, MaterialPageRoute(
-                    builder: (_) => ViewAllCarsPage(title: 'Nearby Cars', cars: cars),
+                    builder: (_) => ViewAllCarsPage(title: title, cars: cars),
                   ));
                 },
                 style: TextButton.styleFrom(
@@ -486,99 +599,18 @@ class HomePageState extends ConsumerState<HomePage> {
           ),
         ),
         const SizedBox(height: 16),
-        _buildNearbyList(context, carsAsync, userId, carController),
-      ],
-    );
-  }
-
-  Widget _buildBestCarsList(BuildContext context, AsyncValue<List<Car>> carsAsync, String userId, CarController carController) {
-    return carsAsync.when(
-      data: (cars) {
-        var filteredCars = cars.where((car) => car.rating >= 4.5);
-        if (_selectedBrand != 'All') {
-          filteredCars = filteredCars.where((car) =>
-            car.brand.toLowerCase().contains(_selectedBrand.toLowerCase()));
-        }
-        final bestCars = filteredCars.take(10).toList();
-
-        if (bestCars.isEmpty) {
-          return Center(
-            child: Text(
-              'No cars found',
-              style: TextStyle(color: Colors.grey[400], fontSize: 14),
-            ),
-          );
-        }
-
-        return ListView.builder(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          itemCount: bestCars.length,
-          itemBuilder: (context, index) {
-            return StaggeredFadeIn(
-              index: index,
-              child: Padding(
-                padding: EdgeInsets.only(right: index < bestCars.length - 1 ? 14 : 0),
-                child: Consumer(
-                  builder: (context, ref, _) {
-                    final favIds = ref.watch(favoriteIdsProvider);
-                    final car = bestCars[index];
-                    return CarCard(
-                      car: car.copyWith(isFavorite: favIds.contains(car.id)),
-                      onFavoriteTap: () {
-                        if (userId.isNotEmpty) {
-                          ref.read(favoriteIdsProvider.notifier).toggle(car.id);
-                        }
-                      },
-                    );
-                  },
-                ),
+        if (cars.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Center(
+              child: Text(
+                'No cars found nearby',
+                style: TextStyle(color: Colors.grey[400], fontSize: 14),
               ),
-            );
-          },
-        );
-      },
-      loading: () => ListView.builder(
-        scrollDirection: Axis.horizontal,
-        physics: const NeverScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        itemCount: 3,
-        itemBuilder: (context, index) {
-          return Padding(
-            padding: EdgeInsets.only(right: index < 2 ? 14 : 0),
-            child: const CarCardSkeleton(),
-          );
-        },
-      ),
-      error: (error, stack) => Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.wifi_off_rounded, size: 40, color: Colors.grey[300]),
-            const SizedBox(height: 8),
-            Text('Failed to load', style: TextStyle(color: Colors.grey[400], fontSize: 13)),
-            const SizedBox(height: 8),
-            GestureDetector(
-              onTap: () => ref.invalidate(carsProvider),
-              child: const Text('Retry', style: TextStyle(color: Color(0xFF1A1A1A), fontWeight: FontWeight.w600, fontSize: 13)),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNearbyList(BuildContext context, AsyncValue<List<Car>> carsAsync, String userId, CarController carController) {
-    return carsAsync.when(
-      data: (cars) {
-        if (cars.isEmpty) return const SizedBox.shrink();
-
-        // Show up to 3 nearby cars
-        final nearbyCars = cars.take(3).toList();
-
-        return Column(
-          children: nearbyCars.asMap().entries.map((entry) {
+          )
+        else
+          ...cars.take(5).toList().asMap().entries.map((entry) {
             final index = entry.key;
             final car = entry.value;
             return StaggeredFadeIn(
@@ -600,16 +632,71 @@ class HomePageState extends ConsumerState<HomePage> {
                 ),
               ),
             );
-          }).toList(),
-        );
-      },
-      loading: () => Column(
-        children: List.generate(2, (index) => const Padding(
-          padding: EdgeInsets.only(bottom: 14),
-          child: NearbyCardSkeleton(),
-        )),
-      ),
-      error: (error, stack) => const SizedBox.shrink(),
+          }),
+      ],
+    );
+  }
+
+  // ─── Skeleton loading states ─────────────────────────────────
+
+  Widget _buildSkeletonHorizontalSection(String title) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1A1A1A),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 230,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            itemCount: 3,
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: EdgeInsets.only(right: index < 2 ? 14 : 0),
+                child: const CarCardSkeleton(),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSkeletonVerticalSection(String title) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1A1A1A),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Column(
+          children: List.generate(2, (index) => const Padding(
+            padding: EdgeInsets.only(bottom: 14),
+            child: NearbyCardSkeleton(),
+          )),
+        ),
+      ],
     );
   }
 }

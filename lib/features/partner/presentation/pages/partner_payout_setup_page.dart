@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:qent/core/services/api_client.dart';
 import 'package:qent/features/home/presentation/providers/car_providers.dart';
+import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 
 class PartnerPayoutSetupPage extends ConsumerStatefulWidget {
   const PartnerPayoutSetupPage({super.key});
@@ -91,6 +92,8 @@ class _PartnerPayoutSetupPageState extends ConsumerState<PartnerPayoutSetupPage>
                   elevation: 0,
                 ),
                 onPressed: () {
+                  // Refresh profile so the app picks up the new Host role
+                  ref.read(authControllerProvider.notifier).refreshProfile();
                   Navigator.of(ctx).pop();
                   Navigator.of(context).popUntil((route) => route.settings.name == '/home' || route.isFirst);
                 },

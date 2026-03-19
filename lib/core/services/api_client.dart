@@ -10,8 +10,8 @@ class ApiClient {
   factory ApiClient() => _instance;
   ApiClient._internal();
 
-  // Change this to your deployed backend URL in production
-  String _baseUrl = 'http://10.0.2.2:8080/api'; // Android emulator default
+  // Production API on Render
+  String _baseUrl = 'https://qent-backend.onrender.com/api';
   String? _token;
   SharedPreferences? _prefs;
 

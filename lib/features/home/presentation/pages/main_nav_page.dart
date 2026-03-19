@@ -35,7 +35,7 @@ class MainNavPageState extends State<MainNavPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F8F8),
+      backgroundColor: Colors.white,
       extendBody: true,
       body: IndexedStack(
         index: _currentIndex,

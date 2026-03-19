@@ -62,7 +62,7 @@ class NotificationModel {
       case NotificationType.cancellation:
         return Colors.red;
       case NotificationType.discount:
-        return Colors.purple;
+        return const Color(0xFF1A1A1A);
     }
   }
 

@@ -8,18 +8,35 @@ import 'package:qent/features/dashboard/presentation/pages/add_listing_page.dart
 import 'package:qent/core/widgets/animated_loading.dart';
 import 'package:qent/core/widgets/profile_image_widget.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
+import 'package:qent/features/wallet/presentation/pages/wallet_page.dart';
 
-class HostDashboardPage extends ConsumerWidget {
+class HostDashboardPage extends ConsumerStatefulWidget {
   const HostDashboardPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HostDashboardPage> createState() => _HostDashboardPageState();
+}
+
+class _HostDashboardPageState extends ConsumerState<HostDashboardPage> {
+  @override
+  void initState() {
+    super.initState();
+    // Always fetch fresh data when dashboard is opened
+    Future.microtask(() {
+      ref.invalidate(hostStatsProvider);
+      ref.invalidate(hostListingsProvider);
+      ref.invalidate(hostPendingBookingsProvider);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final statsAsync = ref.watch(hostStatsProvider);
     final listingsAsync = ref.watch(hostListingsProvider);
     final pendingAsync = ref.watch(hostPendingBookingsProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F8F8),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: statsAsync.when(
           loading: () => const Center(
@@ -113,7 +130,9 @@ class HostDashboardPage extends ConsumerWidget {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
-                  child: Container(
+                  child: GestureDetector(
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WalletPage())),
+                    child: Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
                       color: const Color(0xFF1A1A1A),
@@ -241,6 +260,7 @@ class HostDashboardPage extends ConsumerWidget {
                       ],
                     ),
                   ),
+                  ),
                 ),
               ),
 
@@ -339,7 +359,7 @@ class HostDashboardPage extends ConsumerWidget {
               SliverToBoxAdapter(
                 child: Container(
                   color: Colors.white,
-                  child: _buildListingsSection(listingsAsync),
+                  child: _buildListingsSection(listingsAsync, ref, context),
                 ),
               ),
 
@@ -618,7 +638,7 @@ class HostDashboardPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildListingsSection(AsyncValue<List<ListingSummary>> listingsAsync) {
+  Widget _buildListingsSection(AsyncValue<List<ListingSummary>> listingsAsync, WidgetRef ref, BuildContext context) {
     return listingsAsync.when(
       loading: () => const Padding(
         padding: EdgeInsets.all(40),
@@ -668,14 +688,57 @@ class HostDashboardPage extends ConsumerWidget {
         return Padding(
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
           child: Column(
-            children: listings.map((l) => _buildListingCard(l)).toList(),
+            children: listings.map((l) => _buildListingCard(l, ref, context)).toList(),
           ),
         );
       },
     );
   }
 
-  Widget _buildListingCard(ListingSummary listing) {
+  Future<void> _removeListing(BuildContext context, WidgetRef ref, ListingSummary listing) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Remove Listing', style: GoogleFonts.roboto(fontWeight: FontWeight.w700, fontSize: 17)),
+        content: Text(
+          'Are you sure you want to remove "${listing.make} ${listing.model}" from your listings? This will deactivate it.',
+          style: GoogleFonts.roboto(fontSize: 14, color: Colors.grey[700]),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Keep', style: GoogleFonts.roboto(color: Colors.grey[600], fontWeight: FontWeight.w600)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('Remove', style: GoogleFonts.roboto(color: Colors.red, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final client = ref.read(apiClientProvider);
+    final response = await client.post('/cars/${listing.id}/deactivate');
+    if (response.isSuccess) {
+      ref.invalidate(hostListingsProvider);
+      ref.invalidate(hostStatsProvider);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${listing.make} ${listing.model} removed'),
+            backgroundColor: Colors.grey[800],
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildListingCard(ListingSummary listing, WidgetRef ref, BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Row(
@@ -769,6 +832,11 @@ class HostDashboardPage extends ConsumerWidget {
                 ),
               ],
             ),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: () => _removeListing(context, ref, listing),
+            child: Icon(Icons.delete_outline_rounded, size: 20, color: Colors.grey[400]),
           ),
         ],
       ),

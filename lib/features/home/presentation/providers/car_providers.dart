@@ -10,6 +10,12 @@ final carsProvider = FutureProvider<List<Car>>((ref) async {
   return dataSource.getCars();
 });
 
+// Homepage sections provider — returns {recommended, best_cars, nearby, popular}
+final homepageCarsProvider = FutureProvider.family<Map<String, List<Car>>, ({double? lat, double? lng})>((ref, coords) async {
+  final dataSource = ref.watch(apiCarDataSourceProvider);
+  return dataSource.getHomepage(latitude: coords.lat, longitude: coords.lng);
+});
+
 // Future provider for a single car
 final carProvider = FutureProvider.family<Car?, String>((ref, carId) async {
   final dataSource = ref.watch(apiCarDataSourceProvider);

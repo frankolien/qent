@@ -9,6 +9,8 @@ import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/chat/presentation/controllers/chat_controller.dart';
 import 'package:qent/features/chat/presentation/pages/chat_detail_page.dart';
 import 'package:qent/features/trips/presentation/pages/trips_page.dart';
+import 'package:qent/features/reviews/presentation/pages/leave_review_page.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class TripDetailPage extends ConsumerStatefulWidget {
   final TripBooking trip;
@@ -23,6 +25,7 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
   bool _isCancelling = false;
   bool _isMessaging = false;
   bool _isPerformingAction = false;
+  bool _isPaying = false;
 
   String get _status => widget.trip.status;
 
@@ -92,6 +95,69 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
       }
     } finally {
       if (mounted) setState(() => _isCancelling = false);
+    }
+  }
+
+  Future<void> _initiatePayment() async {
+    HapticFeedback.mediumImpact();
+    setState(() => _isPaying = true);
+    try {
+      final response = await ApiClient().post(
+        '/payments/initiate',
+        body: {'booking_id': widget.trip.id},
+      );
+      if (!mounted) return;
+      if (response.isSuccess) {
+        final url = response.body['authorization_url'] as String?;
+        if (url != null && url.isNotEmpty) {
+          await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+          // Poll for status change after returning from browser
+          for (int i = 0; i < 5; i++) {
+            await Future.delayed(const Duration(seconds: 2));
+            if (!mounted) return;
+            final check = await ApiClient().get('/bookings/${widget.trip.id}');
+            if (check.isSuccess) {
+              final status = (check.body as Map<String, dynamic>)['status'] as String?;
+              if (status == 'confirmed') {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Payment successful!'),
+                      backgroundColor: const Color(0xFF2E7D32),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  );
+                  Navigator.of(context).pop();
+                }
+                return;
+              }
+            }
+          }
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(response.errorMessage),
+            backgroundColor: Colors.red[700],
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Payment failed. Please try again.'),
+            backgroundColor: Colors.red[700],
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isPaying = false);
     }
   }
 
@@ -338,7 +404,7 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
     // Step 1: Booked
     steps.add(_TimelineStep(
       title: 'Booking placed',
-      subtitle: 'Payment received',
+      subtitle: 'Request sent to host',
       isDone: true,
     ));
 
@@ -360,20 +426,32 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
     } else {
       steps.add(_TimelineStep(
         title: 'Host accepted',
-        subtitle: 'Coordinate pickup details',
+        subtitle: 'Booking approved',
         isDone: true,
       ));
     }
 
-    // Step 3: Pickup
+    // Step 3: Payment
     if (!['pending', 'rejected', 'cancelled'].contains(_status)) {
       steps.add(_TimelineStep(
+        title: _status == 'approved' ? 'Pay now' : 'Payment complete',
+        subtitle: _status == 'approved'
+            ? 'Complete payment to confirm booking'
+            : 'Payment received',
+        isDone: ['confirmed', 'active', 'completed'].contains(_status),
+        isCurrent: _status == 'approved',
+      ));
+    }
+
+    // Step 4: Pickup
+    if (!['pending', 'rejected', 'cancelled', 'approved'].contains(_status)) {
+      steps.add(_TimelineStep(
         title: 'Pickup',
-        subtitle: _status == 'approved' || _status == 'confirmed'
+        subtitle: _status == 'confirmed'
             ? 'Coordinate with host'
             : 'Car picked up',
         isDone: ['active', 'completed'].contains(_status),
-        isCurrent: _status == 'approved' || _status == 'confirmed',
+        isCurrent: _status == 'confirmed',
       ));
     }
 
@@ -538,13 +616,15 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
     final canCancel = !_isHost && ['pending', 'approved', 'confirmed'].contains(_status);
     final canMessage = !['cancelled', 'rejected'].contains(_status);
     final messageLabel = _isHost ? 'Message Renter' : 'Message Host';
+    final canPay = !_isHost && _status == 'approved';
 
     // Host handover/return actions
-    final canConfirmPickup = _isHost && ['approved', 'confirmed'].contains(_status);
+    final canConfirmPickup = _isHost && _status == 'confirmed';
     final canConfirmReturn = _isHost && _status == 'active';
     final hasHostAction = canConfirmPickup || canConfirmReturn;
+    final canReview = _status == 'completed';
 
-    if (!canCancel && !canMessage && !hasHostAction) return const SizedBox.shrink();
+    if (!canCancel && !canMessage && !hasHostAction && !canReview && !canPay) return const SizedBox.shrink();
 
     return Container(
       padding: EdgeInsets.only(left: 20, right: 20, top: 14, bottom: bottomPadding + 14),
@@ -557,6 +637,38 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Pay Now button (renter, after host approved)
+          if (canPay)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isPaying ? null : _initiatePayment,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1A1A1A),
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.grey[400],
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 0,
+                  ),
+                  child: _isPaying
+                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.payment_rounded, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Pay Now',
+                              style: GoogleFonts.roboto(fontSize: 15, fontWeight: FontWeight.w700),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+            ),
           // Host action button (Confirm Pickup / Confirm Return)
           if (hasHostAction)
             Padding(
@@ -602,6 +714,49 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
                             ),
                           ],
                         ),
+                ),
+              ),
+            ),
+          // Leave a Review button (completed trips)
+          if (canReview)
+            Padding(
+              padding: EdgeInsets.only(bottom: canMessage ? 10 : 0),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    final trip = widget.trip;
+                    final revieweeId = _isHost ? trip.renterId : trip.hostId;
+                    final revieweeName = _isHost ? (trip.renterName ?? 'Renter') : 'Host';
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => LeaveReviewPage(
+                          bookingId: trip.id,
+                          revieweeId: revieweeId,
+                          revieweeName: revieweeName,
+                          carName: trip.carName,
+                          carPhoto: trip.carPhoto,
+                          isReviewingHost: !_isHost,
+                        ),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFFC107),
+                    foregroundColor: const Color(0xFF1A1A1A),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 0,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.star_rounded, size: 20),
+                      const SizedBox(width: 8),
+                      Text('Leave a Review', style: GoogleFonts.roboto(fontSize: 15, fontWeight: FontWeight.w700)),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -676,13 +831,13 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
 
   ({String label, Color bgColor, Color textColor}) _statusStyle(String status) {
     return switch (status) {
-      'pending' => (label: 'Awaiting Host', bgColor: const Color(0xFFFFF3E0), textColor: const Color(0xFFE65100)),
-      'approved' => (label: 'Approved', bgColor: const Color(0xFFE3F2FD), textColor: const Color(0xFF1565C0)),
-      'confirmed' => (label: 'Confirmed', bgColor: const Color(0xFFE8F5E9), textColor: const Color(0xFF2E7D32)),
-      'active' => (label: 'In Progress', bgColor: const Color(0xFFE8F5E9), textColor: const Color(0xFF2E7D32)),
-      'completed' => (label: 'Completed', bgColor: const Color(0xFFF5F5F5), textColor: const Color(0xFF616161)),
+      'pending' => (label: 'Pending Approval', bgColor: const Color(0xFFFFF3E0), textColor: const Color(0xFFE65100)),
+      'approved' => (label: 'Approved — Ready to Pay', bgColor: const Color(0xFFE3F2FD), textColor: const Color(0xFF1565C0)),
+      'confirmed' => (label: 'Paid — Awaiting Pickup', bgColor: const Color(0xFFE8F5E9), textColor: const Color(0xFF2E7D32)),
+      'active' => (label: 'Trip Active', bgColor: const Color(0xFFE8F5E9), textColor: const Color(0xFF2E7D32)),
+      'completed' => (label: 'Trip Completed', bgColor: const Color(0xFFF5F5F5), textColor: const Color(0xFF616161)),
       'cancelled' => (label: 'Cancelled', bgColor: const Color(0xFFFFEBEE), textColor: const Color(0xFFC62828)),
-      'rejected' => (label: 'Declined', bgColor: const Color(0xFFFFEBEE), textColor: const Color(0xFFC62828)),
+      'rejected' => (label: 'Declined by Host', bgColor: const Color(0xFFFFEBEE), textColor: const Color(0xFFC62828)),
       _ => (label: status, bgColor: Colors.grey[100]!, textColor: Colors.grey[600]!),
     };
   }
