@@ -85,7 +85,7 @@ class ApiAuthDataSource {
 
     _log('> Fetching profile');
     final sw = Stopwatch()..start();
-    final response = await _client.get('/auth/profile');
+    final response = await _client.get('/profile');
     sw.stop();
 
     if (!response.isSuccess) {
@@ -111,7 +111,7 @@ class ApiAuthDataSource {
 
     _log('> Updating profile: ${body.keys.join(', ')}');
     final sw = Stopwatch()..start();
-    final response = await _client.put('/auth/profile', body: body);
+    final response = await _client.put('/profile', body: body);
     sw.stop();
 
     if (!response.isSuccess) {
@@ -129,7 +129,7 @@ class ApiAuthDataSource {
     _log('> Submitting identity verification');
     final sw = Stopwatch()..start();
     final response = await _client.post(
-      '/auth/verify-identity',
+      '/profile/verify-identity',
       body: {
         'drivers_license_url': driversLicenseUrl,
         'id_card_url': idCardUrl,
