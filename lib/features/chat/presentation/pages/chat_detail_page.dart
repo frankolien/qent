@@ -9,7 +9,16 @@ import 'package:qent/features/chat/presentation/controllers/chat_controller.dart
 import 'package:qent/features/chat/presentation/providers/online_status_providers.dart';
 import 'package:qent/features/chat/presentation/pages/new_chat_page.dart';
 import 'package:qent/features/chat/presentation/widgets/chat_skeleton.dart';
+import 'package:qent/core/services/websocket_service.dart';
+import 'package:qent/features/chat/presentation/pages/voice_call_page.dart';
+import 'package:qent/core/services/file_upload_service.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
+import 'dart:io';
 
 class ChatDetailPage extends ConsumerStatefulWidget {
   final Chat chat;
@@ -35,6 +44,11 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
   bool _isUserTyping = false;
   late AnimationController _typingAnimationController;
   ChatController? _chatController;
+  StreamSubscription<WsEvent>? _wsSub;
+  bool _otherUserTyping = false;
+  bool _isRecording = false;
+  bool _isUploading = false;
+  final Record _recorder = Record();
 
   @override
   void initState() {
@@ -47,15 +61,122 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
     _messageController.addListener(_onMessageChanged);
     _focusNode.addListener(_onFocusChanged);
 
-    // Poll for new messages every 3 seconds
-    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+    // Listen for real-time messages via WebSocket
+    final ws = ref.read(wsServiceProvider);
+    _wsSub = ws.events.listen((event) {
+      if (!mounted) return;
+      if (event.type == 'new_message' && event.payload['conversation_id'] == widget.chat.id) {
+        // Refresh messages when we receive a new one for this conversation
+        ref.invalidate(messagesStreamProvider(widget.chat.id));
+        _scrollToBottom();
+      } else if (event.type == 'message_sent' && event.payload['conversation_id'] == widget.chat.id) {
+        ref.invalidate(messagesStreamProvider(widget.chat.id));
+        _scrollToBottom();
+      } else if (event.type == 'typing' && event.payload['conversation_id'] == widget.chat.id) {
+        setState(() => _otherUserTyping = event.payload['is_typing'] == true);
+        // Auto-clear after 3s
+        if (_otherUserTyping) {
+          Future.delayed(const Duration(seconds: 3), () {
+            if (mounted) setState(() => _otherUserTyping = false);
+          });
+        }
+      } else if (event.type == 'call_offer') {
+        _handleIncomingCall(event.payload);
+      }
+    });
+
+    // Fallback poll every 15s in case WS drops
+    _pollTimer = Timer.periodic(const Duration(seconds: 15), (_) {
       if (mounted) {
         ref.invalidate(messagesStreamProvider(widget.chat.id));
       }
     });
 
-    // Listen to typing status and update local state
     _updateTypingStatus();
+  }
+
+  void _scrollToBottom() {
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(0, duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
+      }
+    });
+  }
+
+  Future<void> _pickAndSendImage({bool fromCamera = false}) async {
+    final picker = ImagePicker();
+    final picked = fromCamera
+        ? await picker.pickImage(source: ImageSource.camera, imageQuality: 70)
+        : await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    if (picked == null) return;
+
+    setState(() => _isUploading = true);
+    final url = await FileUploadService.upload(File(picked.path));
+    setState(() => _isUploading = false);
+
+    if (url != null && mounted) {
+      final chatController = ref.read(chatControllerProvider);
+      await chatController.sendMessage(
+        chatId: widget.chat.id,
+        message: url,
+        type: MessageType.image,
+      );
+      ref.invalidate(messagesStreamProvider(widget.chat.id));
+      _scrollToBottom();
+    }
+  }
+
+  Future<void> _startVoiceRecording() async {
+    final status = await Permission.microphone.request();
+    if (!status.isGranted) return;
+
+    final dir = await getTemporaryDirectory();
+    final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+
+    await _recorder.start(path: path, encoder: AudioEncoder.aacLc);
+    setState(() => _isRecording = true);
+    HapticFeedback.heavyImpact();
+  }
+
+  Future<void> _stopAndSendVoiceRecording() async {
+    final path = await _recorder.stop();
+    setState(() => _isRecording = false);
+    HapticFeedback.mediumImpact();
+
+    if (path == null) return;
+    final file = File(path);
+    if (!await file.exists()) return;
+
+    setState(() => _isUploading = true);
+    final url = await FileUploadService.upload(file);
+    setState(() => _isUploading = false);
+
+    if (url != null && mounted) {
+      final chatController = ref.read(chatControllerProvider);
+      await chatController.sendMessage(
+        chatId: widget.chat.id,
+        message: url,
+        type: MessageType.voice,
+      );
+      ref.invalidate(messagesStreamProvider(widget.chat.id));
+      _scrollToBottom();
+    }
+    // Clean up temp file
+    try { await file.delete(); } catch (_) {}
+  }
+
+  void _handleIncomingCall(Map<String, dynamic> payload) {
+    final senderId = payload['sender_id'] as String? ?? '';
+    if (senderId.isEmpty) return;
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => VoiceCallPage(
+        targetId: senderId,
+        targetName: widget.chat.userName,
+        conversationId: widget.chat.id,
+        isOutgoing: false,
+        incomingOffer: payload,
+      ),
+    ));
   }
   
   void _onMessageChanged() {
@@ -63,27 +184,23 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
       // Trigger rebuild for input field
     });
     
-    if (_chatController == null) {
-      _chatController = ref.read(chatControllerProvider);
-    }
-    final chatController = _chatController!;
-    
-    // Update typing status in Firestore
+    // Send typing status via WebSocket
+    final ws = ref.read(wsServiceProvider);
     if (_messageController.text.trim().isNotEmpty && !_isUserTyping) {
       _isUserTyping = true;
-      chatController.setTypingStatus(widget.chat.id, true);
+      ws.sendTyping(conversationId: widget.chat.id, isTyping: true);
     } else if (_messageController.text.trim().isEmpty && _isUserTyping) {
       _isUserTyping = false;
-      chatController.setTypingStatus(widget.chat.id, false);
+      ws.sendTyping(conversationId: widget.chat.id, isTyping: false);
     }
-    
-    // Reset typing timer
+
+    // Reset typing timer — stop after 2s of no input
     _typingTimer?.cancel();
     if (_messageController.text.trim().isNotEmpty) {
       _typingTimer = Timer(const Duration(seconds: 2), () {
-        if (mounted && _isUserTyping && _chatController != null) {
+        if (mounted && _isUserTyping) {
           _isUserTyping = false;
-          _chatController!.setTypingStatus(widget.chat.id, false);
+          ws.sendTyping(conversationId: widget.chat.id, isTyping: false);
         }
       });
     }
@@ -100,20 +217,19 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
 
   @override
   void dispose() {
+    _wsSub?.cancel();
     _pollTimer?.cancel();
     _typingTimer?.cancel();
     _messageController.removeListener(_onMessageChanged);
     _focusNode.removeListener(_onFocusChanged);
-    
-    // Use stored controller reference to avoid unsafe ref usage during dispose
-    if (_chatController != null && mounted) {
-      try {
-        _chatController!.setTypingStatus(widget.chat.id, false);
-      } catch (e) {
-        // Ignore errors during dispose
-      }
-    }
-    
+
+    // Stop typing indicator via WebSocket
+    try {
+      final ws = ref.read(wsServiceProvider);
+      ws.sendTyping(conversationId: widget.chat.id, isTyping: false);
+    } catch (_) {}
+
+    _recorder.dispose();
     _messageController.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
@@ -460,7 +576,17 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
           ),
           IconButton(
             icon: const Icon(Icons.phone, color: Colors.black),
-            onPressed: () {},
+            onPressed: () {
+              HapticFeedback.mediumImpact();
+              Navigator.push(context, MaterialPageRoute(
+                builder: (_) => VoiceCallPage(
+                  targetId: widget.chat.userId,
+                  targetName: widget.chat.userName,
+                  conversationId: widget.chat.id,
+                  isOutgoing: true,
+                ),
+              ));
+            },
           ),
         ],
       ),
@@ -476,6 +602,71 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
           // Message Input
           _buildMessageInput(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMessageContent(ChatMessage message, bool isMe) {
+    switch (message.type) {
+      case MessageType.image:
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: GestureDetector(
+            onTap: () => _showFullImage(message.message),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 220, maxHeight: 280),
+              child: Image.network(
+                message.message,
+                fit: BoxFit.cover,
+                loadingBuilder: (_, child, progress) {
+                  if (progress == null) return child;
+                  return Container(
+                    width: 180, height: 140,
+                    color: Colors.grey[200],
+                    child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                  );
+                },
+                errorBuilder: (_, __, ___) => Container(
+                  width: 180, height: 80,
+                  color: Colors.grey[200],
+                  child: const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
+                ),
+              ),
+            ),
+          ),
+        );
+
+      case MessageType.voice:
+        return _VoiceMessageBubble(url: message.message, isMe: isMe);
+
+      case MessageType.text:
+        return Text(
+          message.message,
+          style: TextStyle(
+            fontSize: 14,
+            color: isMe ? Colors.white : Colors.black87,
+            fontWeight: FontWeight.w400,
+          ),
+          softWrap: true,
+        );
+    }
+  }
+
+  void _showFullImage(String url) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: InteractiveViewer(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.network(url, fit: BoxFit.contain),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -789,30 +980,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                       ),
                     ],
                   ),
-                  child: message.type == MessageType.voice
-                      ? Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.graphic_eq, color: isMe ? Colors.white : Colors.grey[700], size: 20),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Voice message',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: isMe ? Colors.white : Colors.grey[700],
-                              ),
-                            ),
-                          ],
-                        )
-                      : Text(
-                          message.message,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: isMe ? Colors.white : Colors.black87,
-                            fontWeight: FontWeight.w400,
-                          ),
-                          softWrap: true,
-                        ),
+                  child: _buildMessageContent(message, isMe),
                 ),
                 // Timestamp below each message
                 Padding(
@@ -993,13 +1161,30 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                   ),
                   onPressed: _sendMessage,
                 )
+              else if (_isRecording)
+                GestureDetector(
+                  onTap: _stopAndSendVoiceRecording,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFEF4444),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.stop_rounded, color: Colors.white, size: 22),
+                  ),
+                )
+              else if (_isUploading)
+                const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: SizedBox(
+                    width: 22, height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF1A1A1A)),
+                  ),
+                )
               else
                 IconButton(
                   icon: Icon(Icons.mic, color: Colors.grey[700], size: 24),
-                  onPressed: () {
-                    HapticFeedback.lightImpact();
-                    // TODO: Implement voice recording
-                  },
+                  onPressed: _startVoiceRecording,
                 ),
             ],
           ),
@@ -1025,7 +1210,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
             label: 'Gallery',
             onTap: () {
               HapticFeedback.lightImpact();
-              // TODO: Implement gallery picker
+              setState(() => _showAttachmentOptions = false);
+              _pickAndSendImage();
             },
           ),
           _buildAttachmentOption(
@@ -1033,15 +1219,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
             label: 'Camera',
             onTap: () {
               HapticFeedback.lightImpact();
-              // TODO: Implement camera
-            },
-          ),
-          _buildAttachmentOption(
-            icon: Icons.attach_file,
-            label: 'Document',
-            onTap: () {
-              HapticFeedback.lightImpact();
-              // TODO: Implement document picker
+              setState(() => _showAttachmentOptions = false);
+              _pickAndSendImage(fromCamera: true);
             },
           ),
           _buildAttachmentOption(
@@ -1049,7 +1228,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
             label: 'Voice',
             onTap: () {
               HapticFeedback.lightImpact();
-              // TODO: Implement voice recording
+              setState(() => _showAttachmentOptions = false);
+              _startVoiceRecording();
             },
           ),
         ],
@@ -1154,3 +1334,111 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
   }
 }
 
+/// Playable voice message bubble with play/pause and progress
+class _VoiceMessageBubble extends StatefulWidget {
+  final String url;
+  final bool isMe;
+  const _VoiceMessageBubble({required this.url, required this.isMe});
+
+  @override
+  State<_VoiceMessageBubble> createState() => _VoiceMessageBubbleState();
+}
+
+class _VoiceMessageBubbleState extends State<_VoiceMessageBubble> {
+  final AudioPlayer _player = AudioPlayer();
+  bool _isPlaying = false;
+  Duration _duration = Duration.zero;
+  Duration _position = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _player.onDurationChanged.listen((d) {
+      if (mounted) setState(() => _duration = d);
+    });
+    _player.onPositionChanged.listen((p) {
+      if (mounted) setState(() => _position = p);
+    });
+    _player.onPlayerComplete.listen((_) {
+      if (mounted) setState(() { _isPlaying = false; _position = Duration.zero; });
+    });
+  }
+
+  @override
+  void dispose() {
+    _player.dispose();
+    super.dispose();
+  }
+
+  void _togglePlay() async {
+    if (_isPlaying) {
+      await _player.pause();
+      setState(() => _isPlaying = false);
+    } else {
+      await _player.play(UrlSource(widget.url));
+      setState(() => _isPlaying = true);
+    }
+  }
+
+  String _fmt(Duration d) {
+    final m = d.inMinutes.toString().padLeft(1, '0');
+    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = _duration.inMilliseconds > 0
+        ? _position.inMilliseconds / _duration.inMilliseconds
+        : 0.0;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GestureDetector(
+          onTap: _togglePlay,
+          child: Container(
+            width: 36, height: 36,
+            decoration: BoxDecoration(
+              color: widget.isMe ? Colors.white.withValues(alpha: 0.2) : const Color(0xFF1A1A1A).withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+              color: widget.isMe ? Colors.white : const Color(0xFF1A1A1A),
+              size: 22,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                height: 4,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(2),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    backgroundColor: widget.isMe ? Colors.white.withValues(alpha: 0.15) : Colors.grey[300],
+                    color: widget.isMe ? Colors.white : const Color(0xFF1A1A1A),
+                    minHeight: 4,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _isPlaying || _position > Duration.zero ? _fmt(_position) : _fmt(_duration),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: widget.isMe ? Colors.white.withValues(alpha: 0.6) : Colors.grey[500],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}

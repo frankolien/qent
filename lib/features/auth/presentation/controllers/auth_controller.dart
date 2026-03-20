@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/auth/presentation/controllers/auth_state.dart';
 import 'package:qent/features/home/presentation/providers/car_providers.dart';
+import 'package:qent/core/services/websocket_service.dart';
 
 class AuthController extends Notifier<AuthState> {
   @override
@@ -18,6 +19,7 @@ class AuthController extends Notifier<AuthState> {
         final user = await dataSource.getProfile();
         if (user != null) {
           state = state.copyWith(isLoading: false, user: user);
+          ref.read(wsServiceProvider).connect();
           return;
         } else {
           await dataSource.signOut();
@@ -39,6 +41,7 @@ class AuthController extends Notifier<AuthState> {
         password: password,
       );
       state = state.copyWith(isLoading: false, user: user);
+      ref.read(wsServiceProvider).connect();
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
     }
@@ -60,6 +63,7 @@ class AuthController extends Notifier<AuthState> {
         country: country,
       );
       state = state.copyWith(isLoading: false, user: user);
+      ref.read(wsServiceProvider).connect();
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
     }
@@ -80,6 +84,7 @@ class AuthController extends Notifier<AuthState> {
     try {
       final dataSource = ref.read(apiAuthDataSourceProvider);
       await dataSource.signOut();
+      ref.read(wsServiceProvider).disconnect();
 
       // Clear all cached data from the previous user
       ref.invalidate(carsProvider);

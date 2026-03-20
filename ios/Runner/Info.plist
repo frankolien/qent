@@ -45,6 +45,12 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Qent needs microphone access for voice calls and voice messages</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Qent needs camera access to take photos for your profile and car listings</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Qent needs photo library access to upload images for your profile and car listings</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We need your location to show nearby cars and rental locations</string>
 	<key>NSLocationAlwaysUsageDescription</key>

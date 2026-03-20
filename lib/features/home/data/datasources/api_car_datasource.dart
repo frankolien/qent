@@ -43,6 +43,8 @@ class ApiCarDataSource {
     String? endDate,
     String? color,
     int? seats,
+    double? latitude,
+    double? longitude,
   }) async {
     final params = <String, String>{};
     if (location != null && location.isNotEmpty) params['location'] = location;
@@ -54,6 +56,9 @@ class ApiCarDataSource {
     if (endDate != null) params['end_date'] = endDate;
     if (color != null && color.isNotEmpty) params['color'] = color;
     if (seats != null) params['seats'] = seats.toString();
+    if (latitude != null) params['latitude'] = latitude.toString();
+    if (longitude != null) params['longitude'] = longitude.toString();
+    if (latitude != null && longitude != null) params['sort_by'] = 'distance';
 
     _log('> Searching cars | filters: $params');
     final sw = Stopwatch()..start();

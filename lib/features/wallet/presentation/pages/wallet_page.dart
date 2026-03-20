@@ -69,6 +69,8 @@ class _WalletPageState extends ConsumerState<WalletPage> with SingleTickerProvid
   Widget build(BuildContext context) {
     final earningsAsync = ref.watch(earningsProvider);
 
+    
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(

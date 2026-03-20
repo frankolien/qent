@@ -5,7 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 
 class SplashPage extends ConsumerStatefulWidget {
-  const SplashPage({super.key});
+  final VoidCallback? onComplete;
+  const SplashPage({super.key, this.onComplete});
 
   @override
   ConsumerState<SplashPage> createState() => _SplashPageState();
@@ -111,6 +112,22 @@ class _SplashPageState extends ConsumerState<SplashPage>
     await minDelay;
 
     if (!mounted) return;
+
+    // If onComplete callback is set, use AuthGate pattern (survives hot reload)
+    if (widget.onComplete != null) {
+      final prefs = await SharedPreferences.getInstance();
+      final hasSeenOnboarding = prefs.getBool('has_seen_onboarding') ?? false;
+      final authState = ref.read(authControllerProvider);
+
+      if (!mounted) return;
+
+      if (!hasSeenOnboarding && authState.user == null) {
+        Navigator.of(context).pushReplacementNamed('/onboarding');
+      } else {
+        widget.onComplete!();
+      }
+      return;
+    }
 
     final authState = ref.read(authControllerProvider);
     final prefs = await SharedPreferences.getInstance();

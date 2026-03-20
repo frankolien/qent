@@ -599,10 +599,11 @@ class _HostDashboardPageState extends ConsumerState<HostDashboardPage> {
   }
 
   String _formatAmount(double amount) {
-    if (amount >= 1000) {
-      return '${(amount / 1000).toStringAsFixed(amount % 1000 == 0 ? 0 : 1)}k';
-    }
-    return amount.toStringAsFixed(amount == amount.truncateToDouble() ? 0 : 2);
+    final intAmount = amount.truncateToDouble() == amount ? amount.toInt().toString() : amount.toStringAsFixed(2);
+    // Add commas: 565000 -> 565,000
+    final parts = intAmount.split('.');
+    parts[0] = parts[0].replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
+    return parts.join('.');
   }
 
   Widget _buildStatTile(String value, String label) {

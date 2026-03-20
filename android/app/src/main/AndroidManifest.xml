@@ -4,6 +4,12 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- Internet permission for FCM -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Voice/Video call permissions -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     
     <application
         android:label="qent"

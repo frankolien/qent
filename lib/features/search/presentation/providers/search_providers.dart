@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/home/domain/models/car.dart';
+import 'package:qent/features/home/presentation/providers/location_provider.dart';
 import 'package:qent/features/search/presentation/controllers/search_controller.dart';
 import 'package:qent/features/search/presentation/controllers/search_state.dart';
 import 'package:qent/features/search/presentation/controllers/filter_options_controller.dart';
@@ -52,6 +53,15 @@ final filteredCarsProvider = FutureProvider<List<Car>>((ref) async {
     seats = int.tryParse(filters.selectedCapacity!);
   }
 
+  // Get user location for distance sorting
+  double? latitude;
+  double? longitude;
+  try {
+    final loc = ref.read(userLocationProvider).value;
+    latitude = loc?.latitude;
+    longitude = loc?.longitude;
+  } catch (_) {}
+
   final cars = await dataSource.searchCars(
     location: filters.location,
     minPrice: minPrice,
@@ -61,6 +71,8 @@ final filteredCarsProvider = FutureProvider<List<Car>>((ref) async {
     endDate: endDate,
     color: filters.selectedColor,
     seats: seats,
+    latitude: latitude,
+    longitude: longitude,
   );
 
   // Client-side filters for things the API doesn't support
