@@ -31,29 +31,36 @@ class WebSocketService {
 
   /// Connect to WebSocket with JWT token
   Future<void> connect() async {
-    if (_state == WsState.connecting || _state == WsState.connected) return;
+    if (_state == WsState.connecting || _state == WsState.connected) {
+      print('[WS] Already ${_state.name}, skipping connect');
+      return;
+    }
     _state = WsState.connecting;
+    print('[WS] Connecting...');
 
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    final token = prefs.getString('auth_token');
     if (token == null || token.isEmpty) {
+      print('[WS] FAIL: No auth_token in SharedPreferences');
       _state = WsState.disconnected;
       return;
     }
+    print('[WS] Token found: ${token.substring(0, 20)}...');
 
     final baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://127.0.0.1:8080/api';
-    // Convert http(s) to ws(s) and remove /api suffix
     final wsBase = baseUrl
         .replaceFirst('https://', 'wss://')
         .replaceFirst('http://', 'ws://')
         .replaceFirst('/api', '');
     final wsUrl = '$wsBase/ws?token=$token';
+    print('[WS] URL: $wsBase/ws?token=...');
 
     try {
       _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
       await _channel!.ready;
       _state = WsState.connected;
       _reconnectAttempts = 0;
+      print('[WS] OK: Connected!');
 
       _startHeartbeat();
 
@@ -64,15 +71,25 @@ class WebSocketService {
               final json = jsonDecode(data) as Map<String, dynamic>;
               final type = json['type'] as String? ?? '';
               final payload = json['payload'] as Map<String, dynamic>? ?? json;
+              print('[WS] <<< Received: $type');
               _eventController.add(WsEvent(type: type, payload: payload));
-            } catch (_) {}
+            } catch (e) {
+              print('[WS] Parse error: $e | data: $data'); 
+            }
           }
         },
-        onError: (_) => _handleDisconnect(),
-        onDone: () => _handleDisconnect(),
+        onError: (e) {
+          print('[WS] Stream error: $e');
+          _handleDisconnect();
+        },
+        onDone: () {
+          print('[WS] Stream closed');
+          _handleDisconnect();
+        },
         cancelOnError: false,
       );
-    } catch (_) {
+    } catch (e) {
+      print('[WS] FAIL: Connection error: $e');
       _handleDisconnect();
     }
   }
@@ -102,7 +119,10 @@ class WebSocketService {
   /// Send a JSON message through the WebSocket
   void send(Map<String, dynamic> message) {
     if (_state == WsState.connected && _channel != null) {
+      print('[WS] >>> Sending: ${message['type']}');
       _channel!.sink.add(jsonEncode(message));
+    } else {
+      print('[WS] WARN: Cannot send ${message['type']}, state=$_state, channel=${_channel != null}');
     }
   }
 

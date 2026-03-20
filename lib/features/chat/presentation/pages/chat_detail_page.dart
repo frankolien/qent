@@ -126,15 +126,37 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
   }
 
   Future<void> _startVoiceRecording() async {
-    final status = await Permission.microphone.request();
-    if (!status.isGranted) return;
+    try {
+      // Use the recorder's own permission check (more reliable than permission_handler)
+      final hasPermission = await _recorder.hasPermission();
+      print('[Voice] Recorder hasPermission: $hasPermission');
 
-    final dir = await getTemporaryDirectory();
-    final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      if (!hasPermission) {
+        print('[Voice] No mic permission from recorder');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Microphone permission required. Check Settings > Qent > Microphone.')),
+          );
+        }
+        return;
+      }
 
-    await _recorder.start(path: path, encoder: AudioEncoder.aacLc);
-    setState(() => _isRecording = true);
-    HapticFeedback.heavyImpact();
+      final dir = await getTemporaryDirectory();
+      final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      print('[Voice] Starting recording at: $path');
+
+      await _recorder.start(path: path, encoder: AudioEncoder.aacLc);
+      print('[Voice] Recording started!');
+      setState(() => _isRecording = true);
+      HapticFeedback.heavyImpact();
+    } catch (e) {
+      print('[Voice] FAILED to start recording: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not start recording: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _stopAndSendVoiceRecording() async {
@@ -520,74 +542,110 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ProfileImageWidget(
-              userId: widget.chat.userId,
-              size: 40,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(64),
+        child: SafeArea(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(bottom: BorderSide(color: Colors.grey[200]!, width: 0.5)),
             ),
-            const SizedBox(width: 12),
-            Flexible(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    widget.chat.userName,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                  Consumer(
-                    builder: (context, ref, _) {
-                      final onlineAsync = ref.watch(
-                        onlineStatusStreamProvider(widget.chat.userId),
-                      );
-                      final isOnline = onlineAsync.value ?? false;
-                      return Text(
-                        isOnline ? 'Online' : 'Offline',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w400,
-                          color: isOnline ? const Color(0xFF4CAF50) : Colors.grey[400],
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.videocam, color: Colors.black),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.phone, color: Colors.black),
-            onPressed: () {
-              HapticFeedback.mediumImpact();
-              Navigator.push(context, MaterialPageRoute(
-                builder: (_) => VoiceCallPage(
-                  targetId: widget.chat.userId,
-                  targetName: widget.chat.userName,
-                  conversationId: widget.chat.id,
-                  isOutgoing: true,
+            child: Row(
+              children: [
+                // Back button
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: Color(0xFF1A1A1A)),
+                  onPressed: () => Navigator.pop(context),
                 ),
-              ));
-            },
+                // Avatar with online dot
+                Consumer(
+                  builder: (context, ref, _) {
+                    final onlineAsync = ref.watch(onlineStatusStreamProvider(widget.chat.userId));
+                    final isOnline = onlineAsync.value ?? false;
+                    return SizedBox(
+                      width: 44, height: 44,
+                      child: Stack(
+                        children: [
+                          ProfileImageWidget(userId: widget.chat.userId, size: 44),
+                          if (isOnline)
+                            Positioned(
+                              bottom: 1, right: 1,
+                              child: Container(
+                                width: 12, height: 12,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF4CAF50),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 2),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(width: 10),
+                // Name + status
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        widget.chat.userName,
+                        style: const TextStyle(
+                          fontSize: 17, fontWeight: FontWeight.w700,
+                          color: Color(0xFF1A1A1A),
+                        ),
+                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                      ),
+                      Consumer(
+                        builder: (context, ref, _) {
+                          final onlineAsync = ref.watch(onlineStatusStreamProvider(widget.chat.userId));
+                          final isOnline = onlineAsync.value ?? false;
+                          return Text(
+                            isOnline ? 'Online' : 'Offline',
+                            style: TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w400,
+                              color: isOnline ? const Color(0xFF4CAF50) : Colors.grey[400],
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                // Video call
+                IconButton(
+                  icon: Image.asset('assets/images/video_call.png', width: 24, height: 24,
+                    color: const Color(0xFF1A1A1A),
+                    errorBuilder: (_, __, ___) => const Icon(Icons.videocam_outlined, size: 24, color: Color(0xFF1A1A1A)),
+                  ),
+                  onPressed: () {},
+                ),
+                // Voice call
+                IconButton(
+                  icon: Image.asset('assets/images/voice_call.png', width: 24, height: 24,
+                    color: const Color(0xFF1A1A1A),
+                    errorBuilder: (_, __, ___) => const Icon(Icons.phone_outlined, size: 24, color: Color(0xFF1A1A1A)),
+                  ),
+                  onPressed: () {
+                    HapticFeedback.mediumImpact();
+                    Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => VoiceCallPage(
+                        targetId: widget.chat.userId,
+                        targetName: widget.chat.userName,
+                        conversationId: widget.chat.id,
+                        isOutgoing: true,
+                      ),
+                    ));
+                  },
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
       ),
       body: Column(
         children: [
@@ -609,7 +667,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
     switch (message.type) {
       case MessageType.image:
         return ClipRRect(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(15),
           child: GestureDetector(
             onTap: () => _showFullImage(message.message),
             child: ConstrainedBox(
@@ -620,13 +678,13 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                 loadingBuilder: (_, child, progress) {
                   if (progress == null) return child;
                   return Container(
-                    width: 180, height: 140,
+                    width: 200, height: 150,
                     color: Colors.grey[200],
                     child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
                   );
                 },
                 errorBuilder: (_, __, ___) => Container(
-                  width: 180, height: 80,
+                  width: 200, height: 80,
                   color: Colors.grey[200],
                   child: const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
                 ),
@@ -641,10 +699,11 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
       case MessageType.text:
         return Text(
           message.message,
-          style: TextStyle(
-            fontSize: 14,
-            color: isMe ? Colors.white : Colors.black87,
+          style: const TextStyle(
+            fontSize: 15,
+            color: Color(0xFF1A1A1A),
             fontWeight: FontWeight.w400,
+            height: 1.4,
           ),
           softWrap: true,
         );
@@ -889,9 +948,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
   Widget _buildMessageBubble(ChatMessage message, {required bool showAvatar, required bool isMe}) {
     return Padding(
       padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: showAvatar ? 8 : 2, // Less spacing between grouped messages
+        left: isMe ? 60 : 16,
+        right: isMe ? 16 : 60,
+        top: showAvatar ? 10 : 2,
         bottom: 2,
       ),
       child: Row(
@@ -899,108 +958,65 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isMe) ...[
-            // Only show avatar if this is the first message in a group
-            if (showAvatar) ...[
-              ProfileImageWidget(
-                userId: message.senderId,
-                size: 32,
-              ),
-              const SizedBox(width: 8),
-            ] else ...[
-              // Spacer to align with messages that have avatars
-              const SizedBox(width: 40),
-            ],
+            if (showAvatar)
+              ProfileImageWidget(userId: message.senderId, size: 32)
+            else
+              const SizedBox(width: 32),
+            const SizedBox(width: 8),
           ],
           Flexible(
             child: Column(
               crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
-                // Reply indicator
+                // Reply preview
                 if (message.replyTo != null)
-                  Padding(
-                    padding: EdgeInsets.only(
-                      bottom: 4,
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border(left: BorderSide(color: Colors.grey[400]!, width: 3)),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(Icons.arrow_back, size: 14, color: Colors.grey[600]),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                'Replying to',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                message.replyTo!.message.length > 40
-                                    ? '${message.replyTo!.message.substring(0, 40)}...'
-                                    : message.replyTo!.message,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey[700],
-                                  fontWeight: FontWeight.w400,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      message.replyTo!.message.length > 50
+                          ? '${message.replyTo!.message.substring(0, 50)}...'
+                          : message.replyTo!.message,
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      maxLines: 2, overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                // Message bubble
                 Container(
-                  constraints: BoxConstraints(
-                    maxWidth: MediaQuery.of(context).size.width * 0.7,
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
+                  padding: message.type == MessageType.image
+                      ? const EdgeInsets.all(3)
+                      : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: isMe ? Colors.black : Colors.grey[200],
+                    color: isMe ? Colors.white : Colors.white,
                     borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(20),
-                      topRight: const Radius.circular(20),
-                      bottomLeft: Radius.circular(isMe ? 20 : 4),
-                      bottomRight: Radius.circular(isMe ? 4 : 20),
+                      topLeft: const Radius.circular(18),
+                      topRight: const Radius.circular(18),
+                      bottomLeft: Radius.circular(isMe ? 18 : 4),
+                      bottomRight: Radius.circular(isMe ? 4 : 18),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                    border: isMe ? Border.all(color: Colors.grey[200]!, width: 0.8) : Border.all(color: Colors.grey[200]!, width: 0.8),
                   ),
                   child: _buildMessageContent(message, isMe),
                 ),
-                // Timestamp below each message
+                // Timestamp + read receipt
                 Padding(
-                  padding: const EdgeInsets.only(top: 4),
+                  padding: const EdgeInsets.only(top: 4, bottom: 2),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         _formatMessageTime(message.timestamp),
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey[500],
-                        ),
+                        style: TextStyle(fontSize: 11, color: Colors.grey[400]),
                       ),
                       if (isMe && message.isRead) ...[
                         const SizedBox(width: 4),
-                        Icon(
-                          Icons.done_all,
-                          size: 14,
-                          color: Colors.blue[600],
-                        ),
+                        Icon(Icons.done_all, size: 14, color: Colors.blue[500]),
                       ],
                     ],
                   ),
@@ -1015,56 +1031,30 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
 
   Widget _buildTypingIndicator() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.only(left: 16, right: 60, top: 8, bottom: 8),
       child: Row(
         children: [
-          ProfileImageWidget(
-            userId: widget.chat.userId,
-            size: 32,
-          ),
+          ProfileImageWidget(userId: widget.chat.userId, size: 32),
           const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.grey[200],
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: AnimatedBuilder(
-              animation: _typingAnimationController,
-              builder: (context, child) {
-                return Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildAnimatedDot(0),
-                    const SizedBox(width: 4),
-                    _buildAnimatedDot(0.3),
-                    const SizedBox(width: 4),
-                    _buildAnimatedDot(0.6),
-                  ],
-                );
-              },
-            ),
+          AnimatedBuilder(
+            animation: _typingAnimationController,
+            builder: (context, child) {
+              // Animate the dots count
+              final dotCount = ((_typingAnimationController.value * 6) % 6).toInt() + 1;
+              final dots = '.' * dotCount;
+              return Text(
+                'Typing$dots',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[500],
+                  fontWeight: FontWeight.w400,
+                  fontStyle: FontStyle.italic,
+                ),
+              );
+            },
           ),
         ],
       ),
-    );
-  }
-  
-  Widget _buildAnimatedDot(double delay) {
-    return AnimatedBuilder(
-      animation: _typingAnimationController,
-      builder: (context, child) {
-        final value = (_typingAnimationController.value + delay) % 1.0;
-        final opacity = value < 0.5 ? value * 2 : (1 - value) * 2;
-        return Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(
-            color: Colors.grey[600]?.withOpacity(opacity),
-            shape: BoxShape.circle,
-          ),
-        );
-      },
     );
   }
 
@@ -1083,38 +1073,25 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
               bottom: MediaQuery.of(context).padding.bottom + 8,
               top: 12, left: 20, right: 20,
             ),
-            color: Colors.white,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: Colors.grey[200]!, width: 0.5)),
+            ),
             child: Row(
               children: [
                 Container(
                   width: 10, height: 10,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFEF4444),
-                    shape: BoxShape.circle,
-                  ),
+                  decoration: const BoxDecoration(color: Color(0xFFEF4444), shape: BoxShape.circle),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
-                  child: Text(
-                    'Recording...',
-                    style: TextStyle(
-                      fontSize: 15, color: Color(0xFFEF4444),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                  child: Text('Recording...', style: TextStyle(fontSize: 15, color: Color(0xFFEF4444), fontWeight: FontWeight.w500)),
                 ),
                 GestureDetector(
-                  onTap: () {
-                    _recorder.stop();
-                    setState(() => _isRecording = false);
-                    HapticFeedback.lightImpact();
-                  },
+                  onTap: () { _recorder.stop(); setState(() => _isRecording = false); HapticFeedback.lightImpact(); },
                   child: Container(
                     padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      shape: BoxShape.circle,
-                    ),
+                    decoration: BoxDecoration(color: Colors.grey[100], shape: BoxShape.circle),
                     child: Icon(Icons.delete_outline, color: Colors.grey[600], size: 22),
                   ),
                 ),
@@ -1123,10 +1100,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                   onTap: _stopAndSendVoiceRecording,
                   child: Container(
                     padding: const EdgeInsets.all(10),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF22C55E),
-                      shape: BoxShape.circle,
-                    ),
+                    decoration: const BoxDecoration(color: Color(0xFF22C55E), shape: BoxShape.circle),
                     child: const Icon(Icons.send_rounded, color: Colors.white, size: 22),
                   ),
                 ),
@@ -1137,8 +1111,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
           // Normal input bar
           Container(
             padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).padding.bottom + 4,
-              top: 8, left: 12, right: 8,
+              bottom: MediaQuery.of(context).padding.bottom + 6,
+              top: 10, left: 12, right: 12,
             ),
             decoration: BoxDecoration(
               color: Colors.white,
@@ -1147,24 +1121,31 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                // Camera button
+                // Expand/attachment button (chevron)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 6),
                   child: GestureDetector(
                     onTap: () {
                       HapticFeedback.lightImpact();
-                      _pickAndSendImage(fromCamera: true);
+                      _showAttachmentSheet();
                     },
-                    child: Icon(Icons.camera_alt_outlined, color: Colors.grey[600], size: 26),
+                    child: Container(
+                      width: 36, height: 36,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.grey[300]!, width: 1.5),
+                      ),
+                      child: Icon(Icons.chevron_right_rounded, color: Colors.grey[600], size: 22),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                // Text field
+                const SizedBox(width: 10),
+                // Text field with emoji
                 Expanded(
                   child: Container(
                     constraints: const BoxConstraints(maxHeight: 120),
                     decoration: BoxDecoration(
-                      color: Colors.grey[100],
+                      color: const Color(0xFFF5F5F5),
                       borderRadius: BorderRadius.circular(24),
                     ),
                     child: Row(
@@ -1178,75 +1159,111 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                               hintText: 'Message...',
                               hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
                               border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 10,
-                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                             ),
                             maxLines: 5,
                             minLines: 1,
-                            textInputAction: TextInputAction.newline,
-                            style: const TextStyle(fontSize: 15),
+                            style: const TextStyle(fontSize: 15, color: Color(0xFF1A1A1A)),
                           ),
                         ),
-                        // Gallery button inside text field
-                        if (!hasText)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 4, bottom: 4),
-                            child: GestureDetector(
-                              onTap: () {
-                                HapticFeedback.lightImpact();
-                                _pickAndSendImage();
-                              },
-                              child: Padding(
-                                padding: const EdgeInsets.all(8),
-                                child: Icon(Icons.photo_outlined, color: Colors.grey[500], size: 24),
-                              ),
-                            ),
+                        // Emoji button
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8, bottom: 6),
+                          child: GestureDetector(
+                            onTap: () {},
+                            child: Icon(Icons.emoji_emotions_outlined, color: Colors.grey[400], size: 24),
                           ),
+                        ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 6),
-                // Send / Mic / Upload indicator
+                const SizedBox(width: 10),
+                // Send / Mic / Upload
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 2),
+                  padding: const EdgeInsets.only(bottom: 4),
                   child: _isUploading
                       ? const Padding(
-                          padding: EdgeInsets.all(10),
-                          child: SizedBox(
-                            width: 24, height: 24,
-                            child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFF1A1A1A)),
-                          ),
+                          padding: EdgeInsets.all(6),
+                          child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFF1A1A1A))),
                         )
                       : hasText
                           ? GestureDetector(
                               onTap: _sendMessage,
-                              child: Container(
-                                width: 42, height: 42,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFF1A1A1A),
-                                  shape: BoxShape.circle,
+                              child: Image.asset(
+                                'assets/images/send_message.png',
+                                width: 36, height: 36,
+                                errorBuilder: (_, __, ___) => Container(
+                                  width: 36, height: 36,
+                                  decoration: const BoxDecoration(color: Color(0xFF1A1A1A), shape: BoxShape.circle),
+                                  child: const Icon(Icons.send_rounded, color: Colors.white, size: 18),
                                 ),
-                                child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
                               ),
                             )
                           : GestureDetector(
                               onTap: _startVoiceRecording,
-                              child: Container(
-                                width: 42, height: 42,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[100],
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(Icons.mic_rounded, color: Colors.grey[700], size: 24),
-                              ),
+                              child: Icon(Icons.mic_none_rounded, color: Colors.grey[600], size: 28),
                             ),
                 ),
               ],
             ),
           ),
       ],
+    );
+  }
+
+  void _showAttachmentSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildAttachOption(Icons.photo_library_rounded, 'Gallery', const Color(0xFF7C4DFF), () {
+                    Navigator.pop(ctx);
+                    _pickAndSendImage();
+                  }),
+                  _buildAttachOption(Icons.camera_alt_rounded, 'Camera', const Color(0xFFFF6D00), () {
+                    Navigator.pop(ctx);
+                    _pickAndSendImage(fromCamera: true);
+                  }),
+                  _buildAttachOption(Icons.mic_rounded, 'Voice', const Color(0xFF00C853), () {
+                    Navigator.pop(ctx);
+                    _startVoiceRecording();
+                  }),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAttachOption(IconData icon, String label, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: () { HapticFeedback.lightImpact(); onTap(); },
+      child: Column(
+        children: [
+          Container(
+            width: 56, height: 56,
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
+            child: Icon(icon, color: color, size: 26),
+          ),
+          const SizedBox(height: 8),
+          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.w500)),
+        ],
+      ),
     );
   }
   
@@ -1373,45 +1390,55 @@ class _VoiceMessageBubbleState extends State<_VoiceMessageBubble> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // Play/pause circle button
         GestureDetector(
           onTap: _togglePlay,
           child: Container(
-            width: 36, height: 36,
+            width: 40, height: 40,
             decoration: BoxDecoration(
-              color: widget.isMe ? Colors.white.withValues(alpha: 0.2) : const Color(0xFF1A1A1A).withValues(alpha: 0.08),
               shape: BoxShape.circle,
+              border: Border.all(color: Colors.grey[400]!, width: 1.5),
             ),
             child: Icon(
               _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-              color: widget.isMe ? Colors.white : const Color(0xFF1A1A1A),
+              color: const Color(0xFF1A1A1A),
               size: 22,
             ),
           ),
         ),
         const SizedBox(width: 10),
+        // Waveform bars
         Flexible(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SizedBox(
-                height: 4,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(2),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    backgroundColor: widget.isMe ? Colors.white.withValues(alpha: 0.15) : Colors.grey[300],
-                    color: widget.isMe ? Colors.white : const Color(0xFF1A1A1A),
-                    minHeight: 4,
-                  ),
+                height: 28,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: List.generate(20, (i) {
+                    // Fake waveform heights
+                    final heights = [0.3, 0.5, 0.7, 0.4, 0.8, 0.6, 0.9, 0.5, 0.7, 0.4,
+                                     0.6, 0.8, 0.5, 0.7, 0.3, 0.6, 0.8, 0.4, 0.7, 0.5];
+                    final barProgress = i / 20;
+                    final isPlayed = barProgress <= progress;
+                    return Expanded(
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 1),
+                        height: 28 * heights[i],
+                        decoration: BoxDecoration(
+                          color: isPlayed ? const Color(0xFF1A1A1A) : Colors.grey[350],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    );
+                  }),
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 _isPlaying || _position > Duration.zero ? _fmt(_position) : _fmt(_duration),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: widget.isMe ? Colors.white.withValues(alpha: 0.6) : Colors.grey[500],
-                ),
+                style: TextStyle(fontSize: 11, color: Colors.grey[500]),
               ),
             ],
           ),

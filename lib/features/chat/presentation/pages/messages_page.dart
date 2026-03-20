@@ -42,6 +42,19 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
     super.dispose();
   }
 
+  String _formatPreview(String message) {
+    final lower = message.toLowerCase();
+    if (lower.contains('/uploads/') || lower.contains('cloudinary')) {
+      if (lower.endsWith('.m4a') || lower.endsWith('.aac') || lower.endsWith('.mp3') || lower.endsWith('.ogg') || lower.endsWith('.wav') || lower.endsWith('.opus')) {
+        return '🎤 Voice message';
+      }
+      if (lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png') || lower.endsWith('.gif') || lower.endsWith('.webp')) {
+        return '📷 Photo';
+      }
+    }
+    return message;
+  }
+
   String _formatTime(DateTime dateTime) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -473,7 +486,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                         children: [
                           Expanded(
                             child: Text(
-                              chat.lastMessage,
+                              _formatPreview(chat.lastMessage),
                               style: GoogleFonts.roboto(
                                 fontSize: 14,
                                 color: hasUnread

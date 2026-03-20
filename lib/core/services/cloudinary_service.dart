@@ -87,6 +87,60 @@ class CloudinaryService {
     }
   }
 
+  /// Upload a non-image file (audio, video, etc.) via Cloudinary's raw upload.
+  Future<String?> uploadRaw({
+    required File file,
+    String? folder,
+  }) async {
+    _log('> Uploading raw file: ${file.path} | folder: $folder');
+    final sw = Stopwatch()..start();
+    try {
+      final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+      final url = 'https://api.cloudinary.com/v1_1/$_cloudName/raw/upload';
+
+      final request = http.MultipartRequest('POST', Uri.parse(url));
+      request.fields['timestamp'] = timestamp;
+      if (folder != null) request.fields['folder'] = folder;
+
+      request.files.add(
+        await http.MultipartFile.fromPath('file', file.path),
+      );
+
+      final params = <String, String>{'timestamp': timestamp};
+      if (folder != null) params['folder'] = folder;
+
+      final sortedParams = Map.fromEntries(
+        params.entries.toList()..sort((a, b) => a.key.compareTo(b.key))
+      );
+      final queryString = sortedParams.entries
+          .map((e) => '${e.key}=${e.value}')
+          .join('&');
+      final signature = sha1.convert(utf8.encode('$queryString$_apiSecret')).toString();
+
+      request.fields['api_key'] = _apiKey;
+      request.fields['signature'] = signature;
+
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      sw.stop();
+
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(responseBody) as Map<String, dynamic>;
+        final secureUrl = jsonResponse['secure_url'] as String?;
+        _log('OK: Raw upload success (${sw.elapsedMilliseconds}ms) -> $secureUrl');
+        return secureUrl;
+      } else {
+        _log('FAIL: Raw upload failed: ${response.statusCode} (${sw.elapsedMilliseconds}ms)');
+        _log('  Response: $responseBody');
+        return null;
+      }
+    } catch (e) {
+      sw.stop();
+      _log('ERROR: Raw upload error (${sw.elapsedMilliseconds}ms): $e');
+      return null;
+    }
+  }
+
   Future<String?> uploadImageFromBytes({
     required List<int> imageBytes,
     required String fileName,
