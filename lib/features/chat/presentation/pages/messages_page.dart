@@ -370,6 +370,8 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
   }
 
   Widget _buildChatItem(Chat chat) {
+    final hasUnread = chat.unreadCount > 0;
+
     return InkWell(
       onTap: () {
         HapticFeedback.selectionClick();
@@ -378,118 +380,136 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
           MaterialPageRoute(builder: (_) => ChatDetailPage(chat: chat)),
         );
       },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Avatar with online indicator
-            Consumer(
-              builder: (context, ref, child) {
-                final onlineAsync =
-                    ref.watch(onlineStatusStreamProvider(chat.userId));
-                final isOnline = onlineAsync.value ?? false;
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Avatar with online indicator
+                Consumer(
+                  builder: (context, ref, child) {
+                    final onlineAsync =
+                        ref.watch(onlineStatusStreamProvider(chat.userId));
+                    final isOnline = onlineAsync.value ?? false;
 
-                return SizedBox(
-                  width: 56,
-                  height: 56,
-                  child: Stack(
+                    return SizedBox(
+                      width: 56,
+                      height: 56,
+                      child: Stack(
+                        children: [
+                          ProfileImageWidget(userId: chat.userId, size: 56),
+                          if (isOnline)
+                            Positioned(
+                              bottom: 2,
+                              left: 2,
+                              child: Container(
+                                width: 14,
+                                height: 14,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF4CAF50),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 2.5),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(width: 16),
+                // Name + message
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      ProfileImageWidget(userId: chat.userId, size: 56),
-                      if (isOnline)
-                        Positioned(
-                          bottom: 1,
-                          right: 1,
-                          child: Container(
-                            width: 14,
-                            height: 14,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF4CAF50),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2.5),
+                      // Row 1: Name + unread badge
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              chat.userName,
+                              style: GoogleFonts.roboto(
+                                fontSize: 16,
+                                fontWeight: hasUnread
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                                color: const Color(0xFF1A1A1A),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                        ),
-                    ],
-                  ),
-                );
-              },
-            ),
-            const SizedBox(width: 14),
-            // Name + message
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          chat.userName,
-                          style: GoogleFonts.roboto(
-                            fontSize: 16,
-                            fontWeight: chat.unreadCount > 0
-                                ? FontWeight.w700
-                                : FontWeight.w500,
-                            color: const Color(0xFF1A1A1A),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                          if (hasUnread) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              width: 24,
+                              height: 24,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF5B7BF9),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  chat.unreadCount > 99
+                                      ? '99'
+                                      : '${chat.unreadCount}',
+                                  style: GoogleFonts.roboto(
+                                    fontSize: 12,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                      Text(
-                        _formatTime(chat.lastMessageTime),
-                        style: GoogleFonts.roboto(
-                          fontSize: 12,
-                          color: Colors.grey[400],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          chat.lastMessage,
-                          style: GoogleFonts.roboto(
-                            fontSize: 14,
-                            color: Colors.grey[500],
+                      const SizedBox(height: 6),
+                      // Row 2: Message preview + time
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              chat.lastMessage,
+                              style: GoogleFonts.roboto(
+                                fontSize: 14,
+                                color: hasUnread
+                                    ? Colors.grey[700]
+                                    : Colors.grey[500],
+                                fontWeight: hasUnread
+                                    ? FontWeight.w500
+                                    : FontWeight.w400,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (chat.unreadCount > 0) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 7,
-                            vertical: 3,
-                          ),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFFF385C),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text(
-                            chat.unreadCount > 99
-                                ? '99+'
-                                : '${chat.unreadCount}',
+                          const SizedBox(width: 12),
+                          Text(
+                            _formatTime(chat.lastMessageTime),
                             style: GoogleFonts.roboto(
-                              fontSize: 11,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              color: Colors.grey[400],
+                              fontWeight: FontWeight.w400,
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+          // Divider
+          Padding(
+            padding: const EdgeInsets.only(left: 96),
+            child: Divider(height: 1, thickness: 0.5, color: Colors.grey[200]),
+          ),
+        ],
       ),
     );
   }
