@@ -37,7 +37,6 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
   bool _hasMarkedAsRead = false;
-  bool _showAttachmentOptions = false;
   ReplyInfo? _replyingTo;
   Timer? _typingTimer;
   Timer? _pollTimer;
@@ -1071,169 +1070,183 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
 
   Widget _buildMessageInput() {
     final hasText = _messageController.text.trim().isNotEmpty;
-    
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Reply preview in input
         if (_replyingTo != null) _buildInputReplyPreview(),
-        // Attachment options (shown when focused)
-        if (_showAttachmentOptions) _buildAttachmentOptions(),
-        Container(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).padding.bottom,
-            top: 8,
-            left: 16,
-            right: 16,
-          ),
-          decoration: BoxDecoration(
+
+        // Recording bar
+        if (_isRecording)
+          Container(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).padding.bottom + 8,
+              top: 12, left: 20, right: 20,
+            ),
             color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, -2),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              // Plus button (circular, light grey background)
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  shape: BoxShape.circle,
-                ),
-                child: IconButton(
-                  padding: EdgeInsets.zero,
-                  icon: Icon(
-                    _showAttachmentOptions ? Icons.close : Icons.add,
-                    color: Colors.grey[700],
-                    size: 20,
+            child: Row(
+              children: [
+                Container(
+                  width: 10, height: 10,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFEF4444),
+                    shape: BoxShape.circle,
                   ),
-                  onPressed: () {
-                    HapticFeedback.lightImpact();
-                    setState(() {
-                      _showAttachmentOptions = !_showAttachmentOptions;
-                    });
-                  },
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Container(
-                  constraints: const BoxConstraints(maxHeight: 100),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  child: TextField(
-                    controller: _messageController,
-                    focusNode: _focusNode,
-                    decoration: InputDecoration(
-                      hintText: 'Start a message',
-                      hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Recording...',
+                    style: TextStyle(
+                      fontSize: 15, color: Color(0xFFEF4444),
+                      fontWeight: FontWeight.w500,
                     ),
-                    maxLines: 4,
-                    minLines: 1,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => _sendMessage(),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              // Microphone button or Send button
-              if (hasText)
-                IconButton(
-                  icon: Container(
-                    padding: const EdgeInsets.all(8),
+                GestureDetector(
+                  onTap: () {
+                    _recorder.stop();
+                    setState(() => _isRecording = false);
+                    HapticFeedback.lightImpact();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: Colors.blue[600],
+                      color: Colors.grey[100],
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.send, color: Colors.white, size: 20),
+                    child: Icon(Icons.delete_outline, color: Colors.grey[600], size: 22),
                   ),
-                  onPressed: _sendMessage,
-                )
-              else if (_isRecording)
+                ),
+                const SizedBox(width: 12),
                 GestureDetector(
                   onTap: _stopAndSendVoiceRecording,
                   child: Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(10),
                     decoration: const BoxDecoration(
-                      color: Color(0xFFEF4444),
+                      color: Color(0xFF22C55E),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.stop_rounded, color: Colors.white, size: 22),
+                    child: const Icon(Icons.send_rounded, color: Colors.white, size: 22),
                   ),
-                )
-              else if (_isUploading)
-                const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: SizedBox(
-                    width: 22, height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF1A1A1A)),
-                  ),
-                )
-              else
-                IconButton(
-                  icon: Icon(Icons.mic, color: Colors.grey[700], size: 24),
-                  onPressed: _startVoiceRecording,
                 ),
-            ],
+              ],
+            ),
+          )
+        else
+          // Normal input bar
+          Container(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).padding.bottom + 4,
+              top: 8, left: 12, right: 8,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: Colors.grey[200]!, width: 0.5)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                // Camera button
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: GestureDetector(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      _pickAndSendImage(fromCamera: true);
+                    },
+                    child: Icon(Icons.camera_alt_outlined, color: Colors.grey[600], size: 26),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Text field
+                Expanded(
+                  child: Container(
+                    constraints: const BoxConstraints(maxHeight: 120),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _messageController,
+                            focusNode: _focusNode,
+                            decoration: InputDecoration(
+                              hintText: 'Message...',
+                              hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 10,
+                              ),
+                            ),
+                            maxLines: 5,
+                            minLines: 1,
+                            textInputAction: TextInputAction.newline,
+                            style: const TextStyle(fontSize: 15),
+                          ),
+                        ),
+                        // Gallery button inside text field
+                        if (!hasText)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 4, bottom: 4),
+                            child: GestureDetector(
+                              onTap: () {
+                                HapticFeedback.lightImpact();
+                                _pickAndSendImage();
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.all(8),
+                                child: Icon(Icons.photo_outlined, color: Colors.grey[500], size: 24),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                // Send / Mic / Upload indicator
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: _isUploading
+                      ? const Padding(
+                          padding: EdgeInsets.all(10),
+                          child: SizedBox(
+                            width: 24, height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFF1A1A1A)),
+                          ),
+                        )
+                      : hasText
+                          ? GestureDetector(
+                              onTap: _sendMessage,
+                              child: Container(
+                                width: 42, height: 42,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF1A1A1A),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                              ),
+                            )
+                          : GestureDetector(
+                              onTap: _startVoiceRecording,
+                              child: Container(
+                                width: 42, height: 42,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[100],
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(Icons.mic_rounded, color: Colors.grey[700], size: 24),
+                              ),
+                            ),
+                ),
+              ],
+            ),
           ),
-        ),
       ],
-    );
-  }
-  
-  Widget _buildAttachmentOptions() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        border: Border(
-          bottom: BorderSide(color: Colors.grey[200]!, width: 1),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildAttachmentOption(
-            icon: Icons.photo_library,
-            label: 'Gallery',
-            onTap: () {
-              HapticFeedback.lightImpact();
-              setState(() => _showAttachmentOptions = false);
-              _pickAndSendImage();
-            },
-          ),
-          _buildAttachmentOption(
-            icon: Icons.camera_alt,
-            label: 'Camera',
-            onTap: () {
-              HapticFeedback.lightImpact();
-              setState(() => _showAttachmentOptions = false);
-              _pickAndSendImage(fromCamera: true);
-            },
-          ),
-          _buildAttachmentOption(
-            icon: Icons.mic,
-            label: 'Voice',
-            onTap: () {
-              HapticFeedback.lightImpact();
-              setState(() => _showAttachmentOptions = false);
-              _startVoiceRecording();
-            },
-          ),
-        ],
-      ),
     );
   }
   
@@ -1297,41 +1310,6 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
     );
   }
 
-  Widget _buildAttachmentOption({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue[50],
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: Colors.blue[700], size: 24),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[700],
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 /// Playable voice message bubble with play/pause and progress

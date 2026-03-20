@@ -109,11 +109,36 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
       if (!mounted) return;
       if (response.isSuccess) {
         final url = response.body['authorization_url'] as String?;
+        final reference = response.body['reference'] as String?;
         if (url != null && url.isNotEmpty) {
           await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-          // Poll for status change after returning from browser
-          for (int i = 0; i < 5; i++) {
+          // After returning from Paystack, verify the payment server-side
+          if (!mounted) return;
+          if (reference != null) {
             await Future.delayed(const Duration(seconds: 2));
+            if (!mounted) return;
+            final verifyResp = await ApiClient().post(
+              '/payments/verify',
+              body: {'reference': reference},
+            );
+            if (verifyResp.isSuccess && verifyResp.body['status'] == 'success') {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Payment successful!'),
+                    backgroundColor: const Color(0xFF2E7D32),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                );
+                Navigator.of(context).pop();
+              }
+              return;
+            }
+          }
+          // Fallback: poll for status change
+          for (int i = 0; i < 5; i++) {
+            await Future.delayed(const Duration(seconds: 3));
             if (!mounted) return;
             final check = await ApiClient().get('/bookings/${widget.trip.id}');
             if (check.isSuccess) {

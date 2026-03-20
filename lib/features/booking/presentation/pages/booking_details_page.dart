@@ -3,9 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:qent/core/services/api_client.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
-import 'package:qent/features/booking/domain/models/booking_confirmation.dart';
 import 'package:qent/features/booking/domain/models/booking_form.dart';
-import 'package:qent/features/booking/presentation/pages/payment_methods_page.dart';
 import 'package:qent/features/home/domain/models/car.dart';
 import 'package:qent/features/search/presentation/widgets/custom_date_range_picker.dart';
 import 'package:qent/features/search/presentation/widgets/location_picker.dart';
@@ -169,33 +167,10 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
       if (!mounted) return;
 
       if (response.isSuccess) {
-        final booking = BookingResponse.fromJson(response.body as Map<String, dynamic>);
-
-        final confirmation = BookingConfirmation(
-          bookingId: booking.id,
-          customerName: _fullNameController.text.trim(),
-          email: _emailController.text.trim(),
-          pickupDate: _pickupDate!,
-          pickupTime: _pickupTime ?? const TimeOfDay(hour: 10, minute: 0),
-          returnDate: _returnDate!,
-          returnTime: _returnTime ?? const TimeOfDay(hour: 17, minute: 0),
-          location: _locationController.text.trim(),
-          amount: booking.subtotal,
-          serviceFee: booking.serviceFee,
-          protectionFee: booking.protectionFee,
-          totalAmount: booking.totalAmount,
-          paymentMethod: 'Card',
-        );
-
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => PaymentMethodsPage(
-              car: widget.car,
-              confirmationData: confirmation,
-            ),
-          ),
-        );
+        // Booking created as 'pending' — host needs to approve before payment
+        if (mounted) {
+          _showBookingSubmittedDialog();
+        }
       } else {
         _showError(response.errorMessage);
       }
@@ -214,6 +189,73 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
+  void _showBookingSubmittedDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 72, height: 72,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF22C55E).withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check_circle_rounded, color: Color(0xFF22C55E), size: 44),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Booking Submitted!',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A)),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Your booking request has been sent to the host. You\'ll be notified once they accept, then you can proceed to pay.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: Colors.grey[600], height: 1.5),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    // Pop back to car detail or home
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1A1A1A),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 0,
+                  ),
+                  child: const Text('Back to Home', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  Navigator.of(context).pop(); // Go back to car detail
+                },
+                child: Text(
+                  'View My Trips',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[700]),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
