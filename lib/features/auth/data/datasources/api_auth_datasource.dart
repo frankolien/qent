@@ -40,6 +40,44 @@ class ApiAuthDataSource {
     return user;
   }
 
+  /// Sign in with Apple. The [identityToken] is the JWT Apple returns after
+  /// a successful authorization; the backend verifies it against Apple's JWKS.
+  ///
+  /// [fullName] and [email] are only populated on the user's FIRST authorization
+  /// ever for this app — Apple never sends them again. Pass them through so the
+  /// backend can save them to a newly created account.
+  Future<AuthUser> signInWithApple({
+    required String identityToken,
+    String? fullName,
+    String? email,
+  }) async {
+    _log('> Sign in with Apple');
+    final sw = Stopwatch()..start();
+
+    final response = await _client.post(
+      '/auth/signin/apple',
+      body: {
+        'identity_token': identityToken,
+        if (fullName != null && fullName.isNotEmpty) 'full_name': fullName,
+        if (email != null && email.isNotEmpty) 'email': email,
+      },
+      auth: false,
+    );
+    sw.stop();
+
+    if (!response.isSuccess) {
+      _log('FAIL: Apple sign in failed (${sw.elapsedMilliseconds}ms): ${response.errorMessage}');
+      throw Exception(response.errorMessage);
+    }
+
+    final data = response.body;
+    await _client.setToken(data['token']);
+    final user = AuthUser.fromJson(data['user']);
+    _log('OK: Signed in with Apple as ${user.email} | uid: ${user.uid} (${sw.elapsedMilliseconds}ms)');
+
+    return user;
+  }
+
   /// Sign up with email and password. Returns AuthUser with JWT token.
   Future<AuthUser> signUpWithEmailAndPassword({
     required String email,

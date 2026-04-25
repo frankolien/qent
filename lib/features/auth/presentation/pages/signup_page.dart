@@ -584,7 +584,7 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
         children: [
           _buildSocialButton(
             icon: Icons.apple,
-            label: 'Apple pay',
+            label: 'Sign in with apple',
             onPressed: () {
               // TODO: Implement Apple Sign In
             },
@@ -592,7 +592,7 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
           const SizedBox(height: 12),
           _buildSocialButton(
             icon: Icons.g_mobiledata,
-            label: 'Google Pay',
+            label: 'Sign in with google ',
             onPressed: () {
               // TODO: Implement Google Sign In
             },

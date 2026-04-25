@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/auth/presentation/controllers/auth_state.dart';
 import 'package:qent/features/home/presentation/providers/car_providers.dart';
@@ -42,6 +43,51 @@ class AuthController extends Notifier<AuthState> {
       );
       state = state.copyWith(isLoading: false, user: user);
       ref.read(wsServiceProvider).connect();
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+    }
+  }
+
+  /// Launch the native Apple Sign-In flow and exchange the returned
+  /// identityToken for our own JWT via the backend.
+  ///
+  /// Apple only returns the user's given/family name on the *first* sign-in
+  /// ever — we forward it to the backend so it lands on the new account.
+  Future<void> signInWithApple() async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      final idToken = credential.identityToken;
+      if (idToken == null || idToken.isEmpty) {
+        throw Exception('Apple did not return an identity token');
+      }
+
+      final fullName = [credential.givenName, credential.familyName]
+          .whereType<String>()
+          .where((s) => s.isNotEmpty)
+          .join(' ');
+
+      final dataSource = ref.read(apiAuthDataSourceProvider);
+      final user = await dataSource.signInWithApple(
+        identityToken: idToken,
+        fullName: fullName.isEmpty ? null : fullName,
+        email: credential.email,
+      );
+      state = state.copyWith(isLoading: false, user: user);
+      ref.read(wsServiceProvider).connect();
+    } on SignInWithAppleAuthorizationException catch (e) {
+      // User-cancelled should be silent, not an error banner.
+      if (e.code == AuthorizationErrorCode.canceled) {
+        state = state.copyWith(isLoading: false);
+      } else {
+        state = state.copyWith(isLoading: false, errorMessage: e.message);
+      }
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
     }

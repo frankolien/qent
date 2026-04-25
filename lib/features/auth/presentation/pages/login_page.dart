@@ -1,3 +1,6 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
@@ -390,27 +393,19 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Widget _buildSocialButtons() {
-    return Column(
-      children: [
-        _buildSocialButton(
-          icon: Icons.apple,
-          label: 'Apple pay',
-          iconSize: 22,
-          onPressed: () {
-            // TODO: Implement Apple Sign In
-          },
-        ),
-        const SizedBox(height: 10),
-        _buildSocialButton(
-          icon: Icons.g_mobiledata,
-          label: 'Google Pay',
-          iconSize: 26,
-          onPressed: () {
-            // TODO: Implement Google Sign In
-          },
-        ),
-      ],
+    final showApple = !kIsWeb && Platform.isIOS;
+    if (!showApple) return const SizedBox.shrink();
+
+    return _buildSocialButton(
+      icon: Icons.apple,
+      label: 'Continue with Apple',
+      iconSize: 22,
+      onPressed: _handleAppleSignIn,
     );
+  }
+
+  Future<void> _handleAppleSignIn() async {
+    await ref.read(authControllerProvider.notifier).signInWithApple();
   }
 
   Widget _buildSocialButton({

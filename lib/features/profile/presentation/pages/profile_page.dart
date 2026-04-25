@@ -281,34 +281,41 @@ class ProfilePage extends ConsumerWidget {
   }
 
   Widget _buildDarkModeToggle(WidgetRef ref) {
-    final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
-    return Builder(builder: (context) => Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      child: Row(
-        children: [
-          Icon(
-            isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
-            size: 20,
-            color: context.textSecondary,
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              'Dark Mode',
-              style: GoogleFonts.roboto(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-                color: context.textPrimary,
+    final mode = ref.watch(themeModeProvider);
+    final (icon, label) = switch (mode) {
+      ThemeMode.system => (Icons.brightness_auto_rounded, 'System'),
+      ThemeMode.light => (Icons.light_mode_rounded, 'Light'),
+      ThemeMode.dark => (Icons.dark_mode_rounded, 'Dark'),
+    };
+    return Builder(builder: (context) => InkWell(
+      onTap: () => ref.read(themeModeProvider.notifier).cycle(),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: context.textSecondary),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                'Appearance',
+                style: GoogleFonts.roboto(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: context.textPrimary,
+                ),
               ),
             ),
-          ),
-          Switch.adaptive(
-            value: isDark,
-            activeTrackColor: const Color(0xFF22C55E),
-            activeThumbColor: Colors.white,
-            onChanged: (_) => ref.read(themeModeProvider.notifier).toggle(),
-          ),
-        ],
+            Text(
+              label,
+              style: GoogleFonts.roboto(
+                fontSize: 14,
+                color: context.textSecondary,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Icon(Icons.chevron_right_rounded, size: 20, color: context.textSecondary),
+          ],
+        ),
       ),
     ));
   }

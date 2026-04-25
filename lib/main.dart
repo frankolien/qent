@@ -44,6 +44,10 @@ void main() async {
         : (dotenv.env['API_BASE_URL'] ?? prodUrl),
   );
 
+  // Load the saved theme BEFORE the first frame so we never paint with the
+  // wrong colors. Defaults to ThemeMode.system for first-time users.
+  ThemeModeNotifier.initial = await loadInitialThemeMode();
+
   runApp(const ProviderScope(child: MainApp()));
 
   if (!_servicesInitialized) {
