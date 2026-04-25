@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/core/services/email_verification_service.dart';
 import 'package:qent/features/auth/presentation/pages/verification_code_page.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
+import 'package:qent/core/theme/app_theme.dart';
 
 String? validateEmail(String? value) {
   if (value == null || value.trim().isEmpty) {
@@ -255,22 +256,23 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
     final authState = ref.watch(authControllerProvider);
     final isLoading = authState.isLoading || _isSendingCode;
 
-    // Show error message if signup fails
-    if (authState.errorMessage != null && mounted) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        showError(_getErrorMessage(authState.errorMessage!));
-      });
-    }
-
-    // Navigate on successful signup
+    // Navigate on successful signup (check this FIRST)
     if (authState.user != null && mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.pushReplacementNamed(context, '/home');
+        if (mounted) Navigator.pushReplacementNamed(context, '/home');
+      });
+    }
+    // Show error only if signup actually failed (no user)
+    else if (authState.errorMessage != null && !authState.isLoading && mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) showError(_getErrorMessage(authState.errorMessage!));
+        // Clear the error so it doesn't show again on rebuild
+        ref.read(authControllerProvider.notifier).clearError();
       });
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.bgPrimary,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Form(
@@ -320,12 +322,12 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
             ),
           ),
           const SizedBox(width: 12),
-          const Text(
+          Text(
             'Qent',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: Colors.black,
+              color: context.textPrimary,
             ),
           ),
         ],
@@ -334,13 +336,13 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
   }
 
   Widget _buildTitle() {
-    return const Center(
+    return Center(
       child: Text(
         'Sign Up',
         style: TextStyle(
           fontSize: 32,
           fontWeight: FontWeight.bold,
-          color: Colors.black,
+          color: context.textPrimary,
         ),
       ),
     );
@@ -355,22 +357,23 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
             controller: _fullNameController,
             keyboardType: TextInputType.name,
             textCapitalization: TextCapitalization.words,
+            style: TextStyle(color: context.textPrimary),
             decoration: InputDecoration(
               hintText: 'Full Name',
-              hintStyle: TextStyle(color: Colors.grey[400]),
+              hintStyle: TextStyle(color: context.textTertiary),
               filled: true,
-              fillColor: Colors.grey[50],
+              fillColor: context.inputBg,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+                borderSide: BorderSide(color: context.inputBorder),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+                borderSide: BorderSide(color: context.inputBorder),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Colors.black),
+                borderSide: BorderSide(color: context.isDark ? context.accent : Colors.black),
               ),
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             ),
@@ -388,22 +391,23 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
           TextFormField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
+            style: TextStyle(color: context.textPrimary),
             decoration: InputDecoration(
               hintText: 'Email Address',
-              hintStyle: TextStyle(color: Colors.grey[400]),
+              hintStyle: TextStyle(color: context.textTertiary),
               filled: true,
-              fillColor: Colors.grey[50],
+              fillColor: context.inputBg,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+                borderSide: BorderSide(color: context.inputBorder),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+                borderSide: BorderSide(color: context.inputBorder),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Colors.black),
+                borderSide: BorderSide(color: context.isDark ? context.accent : Colors.black),
               ),
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             ),
@@ -413,28 +417,29 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
           TextFormField(
             controller: _passwordController,
             obscureText: _obscurePassword,
+            style: TextStyle(color: context.textPrimary),
             decoration: InputDecoration(
               hintText: 'Password',
-              hintStyle: TextStyle(color: Colors.grey[400]),
+              hintStyle: TextStyle(color: context.textTertiary),
               filled: true,
-              fillColor: Colors.grey[50],
+              fillColor: context.inputBg,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+                borderSide: BorderSide(color: context.inputBorder),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+                borderSide: BorderSide(color: context.inputBorder),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Colors.black),
+                borderSide: BorderSide(color: context.isDark ? context.accent : Colors.black),
               ),
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               suffixIcon: IconButton(
                 icon: Icon(
                   _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                  color: Colors.grey[600],
+                  color: context.textTertiary,
                 ),
                 onPressed: () {
                   setState(() {
@@ -459,9 +464,9 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               decoration: BoxDecoration(
-                color: Colors.grey[50],
+                color: context.inputBg,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[300]!),
+                border: Border.all(color: context.inputBorder),
               ),
               child: Row(
                 children: [
@@ -473,10 +478,10 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
                   Expanded(
                     child: Text(
                       _selectedCountry,
-                      style: const TextStyle(fontSize: 16, color: Colors.black),
+                      style: TextStyle(fontSize: 16, color: context.textPrimary),
                     ),
                   ),
-                  Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey[500]),
+                  Icon(Icons.keyboard_arrow_down_rounded, color: context.textTertiary),
                 ],
               ),
             ),
@@ -495,8 +500,8 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
         child: ElevatedButton(
           onPressed: isLoading ? null : _handleSignUp,
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF2C2C2C),
-            foregroundColor: Colors.white,
+            backgroundColor: context.isDark ? context.accent : const Color(0xFF2C2C2C),
+            foregroundColor: context.isDark ? Colors.black : Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -534,9 +539,9 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
             Navigator.pushNamed(context, '/login');
           },
           style: OutlinedButton.styleFrom(
-            backgroundColor: Colors.grey[100],
-            foregroundColor: Colors.black,
-            side: BorderSide(color: Colors.grey[300]!),
+            backgroundColor: context.bgSecondary,
+            foregroundColor: context.textPrimary,
+            side: BorderSide(color: context.borderColor),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -558,15 +563,15 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Row(
         children: [
-          Expanded(child: Divider(color: Colors.grey[300])),
+          Expanded(child: Divider(color: context.borderColor)),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
               'Or',
-              style: TextStyle(color: Colors.grey[600], fontSize: 14),
+              style: TextStyle(color: context.textSecondary, fontSize: 14),
             ),
           ),
-          Expanded(child: Divider(color: Colors.grey[300])),
+          Expanded(child: Divider(color: context.borderColor)),
         ],
       ),
     );
@@ -608,9 +613,9 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
       child: OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.grey[100],
-          foregroundColor: Colors.black,
-          side: BorderSide(color: Colors.grey[300]!),
+          backgroundColor: context.bgSecondary,
+          foregroundColor: context.textPrimary,
+          side: BorderSide(color: context.borderColor),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -642,16 +647,16 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
           children: [
             Text(
               'Already have an account? ',
-              style: TextStyle(color: Colors.grey[600], fontSize: 14),
+              style: TextStyle(color: context.textSecondary, fontSize: 14),
             ),
             GestureDetector(
               onTap: () {
                 Navigator.pushNamed(context, '/login');
               },
-              child: const Text(
+              child: Text(
                 'Login.',
                 style: TextStyle(
-                  color: Colors.black,
+                  color: context.textPrimary,
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
                 ),
@@ -730,9 +735,9 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
     final bottomPad = MediaQuery.of(context).viewInsets.bottom;
     return Container(
       height: MediaQuery.of(context).size.height * 0.65 + bottomPad,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: context.bgPrimary,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
         children: [
@@ -742,18 +747,18 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.grey[300],
+              color: context.borderColor,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
           const SizedBox(height: 16),
           // Title
-          const Text(
+          Text(
             'Select Country',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: Colors.black,
+              color: context.textPrimary,
             ),
           ),
           const SizedBox(height: 14),
@@ -766,10 +771,10 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
               style: const TextStyle(fontSize: 15),
               decoration: InputDecoration(
                 hintText: 'Search country...',
-                hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
-                prefixIcon: Icon(Icons.search, color: Colors.grey[400], size: 20),
+                hintStyle: TextStyle(color: context.textTertiary, fontSize: 15),
+                prefixIcon: Icon(Icons.search, color: context.textTertiary, size: 20),
                 filled: true,
-                fillColor: const Color(0xFFF5F5F5),
+                fillColor: context.inputBg,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
                   borderSide: BorderSide.none,
@@ -800,7 +805,7 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         selected: isSelected,
-                        selectedTileColor: const Color(0xFFF0F0F0),
+                        selectedTileColor: context.bgSecondary,
                         leading: Text(
                           c.flag,
                           style: const TextStyle(fontSize: 26),
@@ -810,11 +815,11 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                            color: Colors.black,
+                            color: context.textPrimary,
                           ),
                         ),
                         trailing: isSelected
-                            ? const Icon(Icons.check_circle, color: Colors.black, size: 20)
+                            ? Icon(Icons.check_circle, color: context.textPrimary, size: 20)
                             : null,
                       );
                     },

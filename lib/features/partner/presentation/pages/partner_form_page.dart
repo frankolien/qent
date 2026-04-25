@@ -8,6 +8,7 @@ import 'package:qent/core/services/cloudinary_service.dart';
 import 'package:qent/core/services/email_verification_service.dart';
 import 'package:qent/features/partner/presentation/pages/partner_otp_page.dart';
 import 'package:qent/features/partner/presentation/providers/partner_providers.dart';
+import 'package:qent/core/theme/app_theme.dart';
 
 class PartnerFormPage extends ConsumerStatefulWidget {
   const PartnerFormPage({super.key});
@@ -70,22 +71,22 @@ class _PartnerFormPageState extends ConsumerState<PartnerFormPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.bgPrimary,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: context.bgPrimary,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: context.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           'QENT Partner Program',
-          style: GoogleFonts.inter(color: Colors.black, fontWeight: FontWeight.w700, fontSize: 16),
+          style: GoogleFonts.inter(color: context.textPrimary, fontWeight: FontWeight.w700, fontSize: 16),
         ),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.more_horiz, color: Colors.black),
+            icon: Icon(Icons.more_horiz, color: context.textPrimary),
             onPressed: () {},
           )
         ],

@@ -7,6 +7,7 @@ import 'package:qent/features/chat/presentation/controllers/chat_controller.dart
 import 'package:qent/features/chat/presentation/pages/chat_detail_page.dart';
 import 'package:qent/features/home/domain/models/car.dart';
 import 'package:qent/features/home/presentation/providers/car_providers.dart';
+import 'package:qent/core/theme/app_theme.dart';
 
 class CarDetailsPage extends ConsumerStatefulWidget {
   final Car car;
@@ -102,7 +103,7 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
     final topPadding = MediaQuery.of(context).padding.top;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.bgPrimary,
       body: Column(
         children: [
           Expanded(
@@ -117,7 +118,7 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
                   const SizedBox(height: 20),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Divider(color: Colors.grey[200], height: 1),
+                    child: Divider(color: context.dividerColor, height: 1),
                   ),
                   const SizedBox(height: 20),
                   _buildHostSection(context),
@@ -250,16 +251,16 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
               ),
             ),
 
-          // Bottom white curve overlay
+          // Bottom curve overlay
           Positioned(
             bottom: -1,
             left: 0,
             right: 0,
             child: Container(
               height: 20,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(60)),
+              decoration: BoxDecoration(
+                color: context.bgPrimary,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(60)),
               ),
             ),
           ),
@@ -284,10 +285,10 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
           // Car name
           Text(
             _carDetail.name,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF1A1A1A),
+              color: context.textPrimary,
               letterSpacing: -0.3,
             ),
           ),
@@ -315,10 +316,10 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
                     children: [
                       Text(
                         _carDetail.rating.toStringAsFixed(1),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF1A1A1A),
+                          color: context.textPrimary,
                         ),
                       ),
                       const SizedBox(width: 4),
@@ -368,10 +369,10 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
               children: [
                 Text(
                   _carDetail.host.name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF1A1A1A),
+                    color: context.textPrimary,
                   ),
                 ),
                 if (_carDetail.host.isVerified) ...[
@@ -388,16 +389,16 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.isDark ? context.bgSecondary : Colors.white,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.grey.shade200, width: 1),
+                border: Border.all(color: context.borderColor, width: 1),
               ),
               child: Center(
                 child: Image.asset(
                   'assets/images/carFeatures/call.png',
                   width: 20,
                   height: 20,
-                  errorBuilder: (_, __, ___) => const Icon(Icons.phone_outlined, size: 18, color: Color(0xFF1A1A1A)),
+                  errorBuilder: (_, __, ___) => Icon(Icons.phone_outlined, size: 18, color: context.textPrimary),
                 ),
               ),
             ),
@@ -430,16 +431,16 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color:  Colors.white,
+                color: context.isDark ? context.bgSecondary : Colors.white,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.grey.shade200, width: 1),
+                border: Border.all(color: context.borderColor, width: 1),
               ),
               child: Center(
                 child: Image.asset(
                   'assets/images/carFeatures/message.png',
                   width: 20,
                   height: 20,
-                  errorBuilder: (_, __, ___) => const Icon(Icons.chat_bubble_outline_rounded, size: 18, color: Color(0xFF1A1A1A)),
+                  errorBuilder: (_, __, ___) => Icon(Icons.chat_bubble_outline_rounded, size: 18, color: context.textPrimary),
                 ),
               ),
             ),
@@ -455,12 +456,12 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Car features',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF1A1A1A),
+              color: context.textPrimary,
             ),
           ),
           //const SizedBox(height: 16),
@@ -485,7 +486,7 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F8F8),
+        color: context.isDark ? context.bgSecondary : const Color(0xFFF8F8F8),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -496,7 +497,7 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.isDark ? context.bgTertiary : Colors.white,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Center(
@@ -508,13 +509,13 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
                       errorBuilder: (_, __, ___) => Icon(
                         feature.icon ?? Icons.check_circle_outline,
                         size: 20,
-                        color: const Color(0xFF1A1A1A),
+                        color: context.textPrimary,
                       ),
                     )
                   : Icon(
                       feature.icon ?? Icons.check_circle_outline,
                       size: 20,
-                      color: const Color(0xFF1A1A1A),
+                      color: context.textPrimary,
                     ),
             ),
           ),
@@ -535,10 +536,10 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
           // Value
           Text(
             feature.value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF1A1A1A),
+              color: context.textPrimary,
             ),
             textAlign: TextAlign.center,
             maxLines: 1,
@@ -562,10 +563,10 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
             children: [
               Text(
                 'Review ($reviewCount)',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF1A1A1A),
+                  color: context.textPrimary,
                 ),
               ),
               GestureDetector(
@@ -618,7 +619,7 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
       width: 240,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F8F8),
+        color: context.isDark ? context.bgSecondary : const Color(0xFFF8F8F8),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -644,19 +645,19 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
               Expanded(
                 child: Text(
                   review.userName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF1A1A1A),
+                    color: context.textPrimary,
                   ),
                 ),
               ),
               Text(
                 review.rating.toStringAsFixed(1),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF1A1A1A),
+                  color: context.textPrimary,
                 ),
               ),
               const SizedBox(width: 3),
@@ -723,7 +724,8 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
         bottom: MediaQuery.of(context).padding.bottom + 16,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.bgPrimary,
+        border: Border(top: BorderSide(color: context.borderColor)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -742,10 +744,10 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
         child: Container(
           height: 56,
           decoration: BoxDecoration(
-            color: const Color(0xFF1A1A1A),
+            color: context.isDark ? const Color(0xFF22C55E) : const Color(0xFF1A1A1A),
             borderRadius: BorderRadius.circular(16),
           ),
-          child: const Row(
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
@@ -753,11 +755,11 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: Colors.white,
+                  color: context.isDark ? Colors.black : Colors.white,
                 ),
               ),
-              SizedBox(width: 10),
-              Icon(Icons.arrow_forward_rounded, size: 20, color: Colors.white),
+              const SizedBox(width: 10),
+              Icon(Icons.arrow_forward_rounded, size: 20, color: context.isDark ? Colors.black : Colors.white),
             ],
           ),
         ),

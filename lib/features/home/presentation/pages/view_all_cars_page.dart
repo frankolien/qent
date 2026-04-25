@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/features/car_details/presentation/pages/car_details_page.dart';
 import 'package:qent/features/home/domain/models/car.dart';
 import 'package:qent/features/home/presentation/providers/car_providers.dart';
+import 'package:qent/core/theme/app_theme.dart';
 
 class ViewAllCarsPage extends ConsumerWidget {
   final String title;
@@ -17,7 +18,7 @@ class ViewAllCarsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: context.bgPrimary,
       body: SafeArea(
         child: Column(
           children: [
@@ -36,7 +37,7 @@ class ViewAllCarsPage extends ConsumerWidget {
   Widget _buildHeader(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 12, 20, 16),
-      color: const Color(0xFFF5F5F5),
+      color: context.bgPrimary,
       child: Row(
         children: [
           GestureDetector(
@@ -45,13 +46,13 @@ class ViewAllCarsPage extends ConsumerWidget {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.bgSecondary,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.arrow_back_ios_new_rounded,
                 size: 18,
-                color: Color(0xFF1A1A1A),
+                color: context.textPrimary,
               ),
             ),
           ),
@@ -59,10 +60,10 @@ class ViewAllCarsPage extends ConsumerWidget {
           Expanded(
             child: Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF1A1A1A),
+                color: context.textPrimary,
                 letterSpacing: -0.3,
               ),
             ),
@@ -156,7 +157,7 @@ class _ViewAllCarCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.isDark ? context.bgSecondary : Colors.white,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
@@ -179,7 +180,7 @@ class _ViewAllCarCard extends StatelessWidget {
                   child: Container(
                     width: double.infinity,
                     height: 180,
-                    color: const Color(0xFFF0F0F0),
+                    color: context.isDark ? context.bgTertiary : const Color(0xFFF0F0F0),
                     child: car.imageUrl.isNotEmpty
                         ? Image.network(
                             car.imageUrl,
@@ -240,10 +241,10 @@ class _ViewAllCarCard extends StatelessWidget {
                           children: [
                             Text(
                               car.name,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
-                                color: Color(0xFF1A1A1A),
+                                color: context.textPrimary,
                                 height: 1.2,
                               ),
                               maxLines: 1,
@@ -293,10 +294,10 @@ class _ViewAllCarCard extends StatelessWidget {
                       const SizedBox(width: 4),
                       Text(
                         car.rating.toStringAsFixed(1),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF1A1A1A),
+                          color: context.textPrimary,
                         ),
                       ),
                       const SizedBox(width: 16),

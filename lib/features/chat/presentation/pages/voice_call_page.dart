@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:qent/core/services/websocket_service.dart';
 import 'package:qent/core/widgets/profile_image_widget.dart';
+import 'package:qent/core/providers/user_cache_provider.dart';
 
 enum CallState { ringing, connecting, connected, ended }
 
@@ -307,42 +308,32 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Blurred background with profile image
-          AnimatedBuilder(
-            animation: _bgController,
-            builder: (_, __) => Container(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  center: Alignment(
-                    0.0,
-                    -0.3 + (_bgController.value * 0.1),
+          // Full-screen blurred profile photo background
+          Consumer(
+            builder: (context, ref, _) {
+              final userDataAsync = ref.watch(
+                userDataStreamProvider(widget.targetId),
+              );
+              final photoUrl = userDataAsync.value?['profileImageUrl'] as String?;
+
+              if (photoUrl != null && photoUrl.isNotEmpty) {
+                return SizedBox.expand(
+                  child: ImageFiltered(
+                    imageFilter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
+                    child: Image.network(
+                      photoUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(color: const Color(0xFF1a1a2e)),
+                    ),
                   ),
-                  radius: 1.2,
-                  colors: [
-                    const Color(0xFF1a1a2e).withValues(alpha: 0.8),
-                    const Color(0xFF0a0a0a),
-                  ],
-                ),
-              ),
-            ),
+                );
+              }
+              return Container(color: const Color(0xFF1a1a2e));
+            },
           ),
 
-          // Large blurred avatar in background
-          Positioned(
-            top: MediaQuery.of(context).size.height * 0.1,
-            left: -50,
-            right: -50,
-            child: ImageFiltered(
-              imageFilter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
-              child: Opacity(
-                opacity: 0.3,
-                child: ProfileImageWidget(
-                  userId: widget.targetId,
-                  size: MediaQuery.of(context).size.width + 100,
-                ),
-              ),
-            ),
-          ),
+          // Dark overlay for readability
+          Container(color: Colors.black.withValues(alpha: 0.3)),
 
           // Content
           SafeArea(
@@ -350,53 +341,50 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
               children: [
                 const Spacer(flex: 2),
 
-                // Profile image with animated ring
-                _buildProfileSection(),
-                const SizedBox(height: 20),
-
-                // Online indicator dot
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: _callState == CallState.connected
-                        ? const Color(0xFF22C55E)
-                        : Colors.grey,
-                    shape: BoxShape.circle,
-                    boxShadow: _callState == CallState.connected
-                        ? [
-                            BoxShadow(
-                              color:
-                                  const Color(0xFF22C55E).withValues(alpha: 0.5),
-                              blurRadius: 8,
-                              spreadRadius: 2,
-                            ),
-                          ]
-                        : null,
-                  ),
+                // Profile image with green dot
+                Stack(
+                  alignment: Alignment.bottomRight,
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 3),
+                      ),
+                      child: ProfileImageWidget(userId: widget.targetId, size: 130),
+                    ),
+                    Positioned(
+                      bottom: 8, right: 8,
+                      child: Container(
+                        width: 24, height: 24,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF22C55E),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 3),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
                 // Name
                 Text(
                   widget.targetName,
                   style: const TextStyle(
-                    fontSize: 32,
+                    fontSize: 28,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
-                    letterSpacing: -0.5,
+                    letterSpacing: -0.3,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
-                // Status
+                // Status / Timer
                 Text(
                   statusText,
                   style: TextStyle(
-                    fontSize: 16,
-                    color: _callState == CallState.connected
-                        ? const Color(0xFF22C55E)
-                        : Colors.white.withValues(alpha: 0.5),
+                    fontSize: 15,
+                    color: Colors.white.withValues(alpha: 0.7),
                     fontWeight: FontWeight.w400,
                   ),
                 ),
@@ -411,84 +399,6 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildProfileSection() {
-    return AnimatedBuilder(
-      animation: _pulseController,
-      builder: (_, child) {
-        final pulseValue = _pulseController.value;
-        final isRinging = _callState == CallState.ringing;
-
-        return Stack(
-          alignment: Alignment.center,
-          children: [
-            // Outer pulse rings (only when ringing)
-            if (isRinging) ...[
-              _buildPulseRing(pulseValue, 160, 0.15),
-              _buildPulseRing((pulseValue + 0.33) % 1.0, 180, 0.1),
-              _buildPulseRing((pulseValue + 0.66) % 1.0, 200, 0.05),
-            ],
-
-            // Connected green ring
-            if (_callState == CallState.connected)
-              Container(
-                width: 140,
-                height: 140,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: const Color(0xFF22C55E).withValues(alpha: 0.3),
-                    width: 3,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF22C55E).withValues(alpha: 0.15),
-                      blurRadius: 30,
-                      spreadRadius: 5,
-                    ),
-                  ],
-                ),
-              ),
-
-            // Profile image
-            Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  width: 3,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.4),
-                    blurRadius: 30,
-                    spreadRadius: 5,
-                  ),
-                ],
-              ),
-              child: ProfileImageWidget(userId: widget.targetId, size: 120),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildPulseRing(double value, double maxSize, double maxOpacity) {
-    final size = 120 + (maxSize - 120) * value;
-    final opacity = maxOpacity * (1 - value);
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: Colors.white.withValues(alpha: opacity),
-          width: 2,
-        ),
       ),
     );
   }

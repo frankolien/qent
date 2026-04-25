@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -47,7 +48,8 @@ class WebSocketService {
     }
     print('[WS] Token found: ${token.substring(0, 20)}...');
 
-    final baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://127.0.0.1:8080/api';
+    const prodUrl = 'https://qent-backend.onrender.com/api';
+    final baseUrl = kReleaseMode ? prodUrl : (dotenv.env['API_BASE_URL'] ?? prodUrl);
     final wsBase = baseUrl
         .replaceFirst('https://', 'wss://')
         .replaceFirst('http://', 'ws://')

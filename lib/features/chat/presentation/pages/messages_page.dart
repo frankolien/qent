@@ -9,6 +9,7 @@ import 'package:qent/features/chat/presentation/controllers/chat_controller.dart
 import 'package:qent/features/chat/presentation/pages/chat_detail_page.dart';
 import 'package:qent/features/chat/presentation/providers/online_status_providers.dart';
 import 'package:qent/features/chat/presentation/widgets/chat_skeleton.dart';
+import 'package:qent/core/theme/app_theme.dart';
 
 class MessagesPage extends ConsumerStatefulWidget {
   const MessagesPage({super.key});
@@ -77,7 +78,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.bgPrimary,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -118,10 +119,10 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
         height: 44,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.grey[300]!, width: 1),
+          border: Border.all(color: context.borderColor, width: 1),
         ),
         child: Center(
-          child: Icon(icon, size: 22, color: const Color(0xFF1A1A1A)),
+          child: Icon(icon, size: 22, color: context.textPrimary),
         ),
       ),
     );
@@ -135,7 +136,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
         style: GoogleFonts.roboto(
           fontSize: 28,
           fontWeight: FontWeight.w800,
-          color: const Color(0xFF1A1A1A),
+          color: context.textPrimary,
           letterSpacing: -0.5,
         ),
       ),
@@ -160,11 +161,13 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               decoration: BoxDecoration(
-                color: isSelected ? const Color(0xFF1A1A1A) : Colors.grey[100],
+                color: isSelected
+                    ? (context.isDark ? const Color(0xFF22C55E) : const Color(0xFF1A1A1A))
+                    : (context.isDark ? context.bgSecondary : Colors.grey[100]),
                 borderRadius: BorderRadius.circular(20),
                 border: isSelected
                     ? null
-                    : Border.all(color: Colors.grey[300]!, width: 1),
+                    : Border.all(color: context.borderColor, width: 1),
               ),
               child: Center(
                 child: Text(
@@ -172,7 +175,9 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                   style: GoogleFonts.roboto(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: isSelected ? Colors.white : Colors.grey[600],
+                    color: isSelected
+                        ? (context.isDark ? Colors.black : Colors.white)
+                        : (context.isDark ? context.textSecondary : Colors.grey[600]),
                   ),
                 ),
               ),
@@ -227,14 +232,14 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 48, color: Colors.grey[300]),
+            Icon(Icons.error_outline, size: 48, color: context.textTertiary),
             const SizedBox(height: 16),
             Text(
               'Error loading messages',
               style: GoogleFonts.roboto(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFF1A1A1A),
+                color: context.textPrimary,
               ),
             ),
             const SizedBox(height: 16),
@@ -246,7 +251,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1A1A1A),
+                  color: context.isDark ? context.accent : const Color(0xFF1A1A1A),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -254,7 +259,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                   style: GoogleFonts.roboto(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                    color: context.isDark ? Colors.black : Colors.white,
                   ),
                 ),
               ),
@@ -273,7 +278,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
           Icon(
             Icons.forum_outlined,
             size: 56,
-            color: Colors.grey[800],
+            color: context.textTertiary,
           ),
           const SizedBox(height: 20),
           Text(
@@ -281,7 +286,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
             style: GoogleFonts.roboto(
               fontSize: 17,
               fontWeight: FontWeight.w700,
-              color: const Color(0xFF1A1A1A),
+              color: context.textPrimary,
             ),
           ),
           const SizedBox(height: 8),
@@ -290,7 +295,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
             textAlign: TextAlign.center,
             style: GoogleFonts.roboto(
               fontSize: 14,
-              color: Colors.grey[500],
+              color: context.textTertiary,
               height: 1.5,
             ),
           ),
@@ -335,7 +340,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                     style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
                 content: Text(
                   'Delete your conversation with ${chat.userName}? This cannot be undone.',
-                  style: const TextStyle(fontSize: 14, color: Colors.black87),
+                  style: const TextStyle(fontSize: 14),
                 ),
                 actions: [
                   TextButton(
@@ -423,7 +428,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                                 decoration: BoxDecoration(
                                   color: const Color(0xFF4CAF50),
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white, width: 2.5),
+                                  border: Border.all(color: context.bgPrimary, width: 2.5),
                                 ),
                               ),
                             ),
@@ -449,7 +454,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                                 fontWeight: hasUnread
                                     ? FontWeight.w700
                                     : FontWeight.w500,
-                                color: const Color(0xFF1A1A1A),
+                                color: context.textPrimary,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -490,8 +495,8 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                               style: GoogleFonts.roboto(
                                 fontSize: 14,
                                 color: hasUnread
-                                    ? Colors.grey[700]
-                                    : Colors.grey[500],
+                                    ? context.textSecondary
+                                    : context.textTertiary,
                                 fontWeight: hasUnread
                                     ? FontWeight.w500
                                     : FontWeight.w400,
@@ -505,7 +510,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                             _formatTime(chat.lastMessageTime),
                             style: GoogleFonts.roboto(
                               fontSize: 13,
-                              color: Colors.grey[400],
+                              color: context.textTertiary,
                               fontWeight: FontWeight.w400,
                             ),
                           ),
@@ -520,7 +525,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
           // Divider
           Padding(
             padding: const EdgeInsets.only(left: 96),
-            child: Divider(height: 1, thickness: 0.5, color: Colors.grey[200]),
+            child: Divider(height: 1, thickness: 0.5, color: context.dividerColor),
           ),
         ],
       ),
@@ -531,7 +536,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: context.bgPrimary,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -549,7 +554,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.grey[300],
+                    color: context.borderColor,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -568,7 +573,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                     ),
                     prefixIcon: Icon(Icons.search, color: Colors.grey[500]),
                     filled: true,
-                    fillColor: Colors.grey[100],
+                    fillColor: context.inputBg,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
                       borderSide: BorderSide.none,

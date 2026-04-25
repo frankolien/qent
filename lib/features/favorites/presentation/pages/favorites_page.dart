@@ -5,6 +5,7 @@ import 'package:qent/core/widgets/animated_loading.dart';
 import 'package:qent/features/car_details/presentation/pages/car_details_page.dart';
 import 'package:qent/features/home/domain/models/car.dart';
 import 'package:qent/features/home/presentation/providers/car_providers.dart';
+import 'package:qent/core/theme/app_theme.dart';
 
 class FavoritesPage extends ConsumerWidget {
   const FavoritesPage({super.key});
@@ -14,7 +15,7 @@ class FavoritesPage extends ConsumerWidget {
     final favoriteCarsAsync = ref.watch(favoriteCarsProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: context.bgSecondary,
       body: SafeArea(
         child: Column(
           children: [
@@ -111,7 +112,7 @@ class FavoritesPage extends ConsumerWidget {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.bgCard,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(

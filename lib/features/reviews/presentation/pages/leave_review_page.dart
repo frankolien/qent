@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:qent/core/services/api_client.dart';
 import 'package:qent/core/widgets/profile_image_widget.dart';
+import 'package:qent/core/theme/app_theme.dart';
 
 class LeaveReviewPage extends ConsumerStatefulWidget {
   final String bookingId;
@@ -102,7 +103,7 @@ class _LeaveReviewPageState extends ConsumerState<LeaveReviewPage> {
               const SizedBox(height: 20),
               Text(
                 'Thank You!',
-                style: GoogleFonts.roboto(fontSize: 22, fontWeight: FontWeight.w800, color: const Color(0xFF1A1A1A)),
+                style: GoogleFonts.roboto(fontSize: 22, fontWeight: FontWeight.w800, color: context.textPrimary),
               ),
               const SizedBox(height: 8),
               Text(
@@ -140,9 +141,9 @@ class _LeaveReviewPageState extends ConsumerState<LeaveReviewPage> {
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: context.bgPrimary,
         appBar: AppBar(
-          backgroundColor: Colors.white,
+          backgroundColor: context.bgPrimary,
           elevation: 0,
           scrolledUnderElevation: 0,
           leading: Padding(
@@ -155,15 +156,15 @@ class _LeaveReviewPageState extends ConsumerState<LeaveReviewPage> {
                   height: 40,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.grey[300]!, width: 1),
+                    border: Border.all(color: context.borderColor, width: 1),
                   ),
-                  child: const Icon(Icons.arrow_back_ios_new, size: 16, color: Colors.black),
+                  child: Icon(Icons.arrow_back_ios_new, size: 16, color: context.textPrimary),
                 ),
               ),
             ),
           ),
           centerTitle: true,
-          title: Text('Leave a Review', style: GoogleFonts.roboto(fontSize: 17, fontWeight: FontWeight.w700, color: Colors.black)),
+          title: Text('Leave a Review', style: GoogleFonts.roboto(fontSize: 17, fontWeight: FontWeight.w700, color: context.textPrimary)),
         ),
         body: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -192,7 +193,7 @@ class _LeaveReviewPageState extends ConsumerState<LeaveReviewPage> {
               // Car name
               Text(
                 widget.carName,
-                style: GoogleFonts.roboto(fontSize: 20, fontWeight: FontWeight.w800, color: const Color(0xFF1A1A1A)),
+                style: GoogleFonts.roboto(fontSize: 20, fontWeight: FontWeight.w800, color: context.textPrimary),
               ),
               const SizedBox(height: 6),
 
@@ -208,7 +209,7 @@ class _LeaveReviewPageState extends ConsumerState<LeaveReviewPage> {
                   ),
                   Text(
                     widget.revieweeName,
-                    style: GoogleFonts.roboto(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF1A1A1A)),
+                    style: GoogleFonts.roboto(fontSize: 13, fontWeight: FontWeight.w600, color: context.textPrimary),
                   ),
                 ],
               ),
@@ -218,7 +219,7 @@ class _LeaveReviewPageState extends ConsumerState<LeaveReviewPage> {
               // Star rating
               Text(
                 'How was your experience?',
-                style: GoogleFonts.roboto(fontSize: 16, fontWeight: FontWeight.w700, color: const Color(0xFF1A1A1A)),
+                style: GoogleFonts.roboto(fontSize: 16, fontWeight: FontWeight.w700, color: context.textPrimary),
               ),
               const SizedBox(height: 16),
               Row(
@@ -262,7 +263,7 @@ class _LeaveReviewPageState extends ConsumerState<LeaveReviewPage> {
                 alignment: Alignment.centerLeft,
                 child: Text(
                   'Write a comment (optional)',
-                  style: GoogleFonts.roboto(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF1A1A1A)),
+                  style: GoogleFonts.roboto(fontSize: 14, fontWeight: FontWeight.w600, color: context.textPrimary),
                 ),
               ),
               const SizedBox(height: 12),

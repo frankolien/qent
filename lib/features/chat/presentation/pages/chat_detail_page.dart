@@ -19,6 +19,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
 import 'dart:io';
+import 'package:qent/core/theme/app_theme.dart';
 
 class ChatDetailPage extends ConsumerStatefulWidget {
   final Chat chat;
@@ -293,9 +294,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        decoration: BoxDecoration(
+          color: context.bgPrimary,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: SafeArea(
           child: Column(
@@ -541,21 +542,21 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.bgPrimary,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(64),
         child: SafeArea(
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(bottom: BorderSide(color: Colors.grey[200]!, width: 0.5)),
+              color: context.bgPrimary,
+              border: Border(bottom: BorderSide(color: context.borderColor, width: 0.5)),
             ),
             child: Row(
               children: [
                 // Back button
                 IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: Color(0xFF1A1A1A)),
+                  icon:  Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: context.textPrimary),
                   onPressed: () => Navigator.pop(context),
                 ),
                 // Avatar with online dot
@@ -594,9 +595,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                     children: [
                       Text(
                         widget.chat.userName,
-                        style: const TextStyle(
+                        style:  TextStyle(
                           fontSize: 17, fontWeight: FontWeight.w700,
-                          color: Color(0xFF1A1A1A),
+                          color: context.textPrimary,
                         ),
                         maxLines: 1, overflow: TextOverflow.ellipsis,
                       ),
@@ -620,15 +621,15 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                 IconButton(
                   icon: Image.asset('assets/images/video_call.png', width: 24, height: 24,
                     color: const Color(0xFF1A1A1A),
-                    errorBuilder: (_, __, ___) => const Icon(Icons.videocam_outlined, size: 24, color: Color(0xFF1A1A1A)),
+                    errorBuilder: (_, __, ___) =>  Icon(Icons.videocam_outlined, size: 24, color: context.textPrimary),
                   ),
                   onPressed: () {},
                 ),
                 // Voice call
                 IconButton(
                   icon: Image.asset('assets/images/voice_call.png', width: 24, height: 24,
-                    color: const Color(0xFF1A1A1A),
-                    errorBuilder: (_, __, ___) => const Icon(Icons.phone_outlined, size: 24, color: Color(0xFF1A1A1A)),
+                    color:  Color(0xFF1A1A1A),
+                    errorBuilder: (_, __, ___) =>  Icon(Icons.phone_outlined, size: 24, color: context.textPrimary),
                   ),
                   onPressed: () {
                     HapticFeedback.mediumImpact();
@@ -699,9 +700,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
       case MessageType.text:
         return Text(
           message.message,
-          style: const TextStyle(
+          style:  TextStyle(
             fontSize: 15,
-            color: Color(0xFF1A1A1A),
+            color: context.textPrimary,
             fontWeight: FontWeight.w400,
             height: 1.4,
           ),
@@ -735,9 +736,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F7F7),
+        color: context.bgSecondary,
         border: Border(
-          bottom: BorderSide(color: Colors.grey[200]!, width: 1),
+          bottom: BorderSide(color: context.borderColor, width: 1),
         ),
       ),
       child: Column(
@@ -757,16 +758,16 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                       children: [
                         Text(
                           widget.chat.userName,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF1A1A1A),
+                            color: context.textPrimary,
                           ),
                         ),
                         const SizedBox(height: 1),
                         Text(
                           '${widget.chat.userName.split(' ').first} is a partner of QENT',
-                          style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                          style: TextStyle(fontSize: 12, color: context.textSecondary),
                         ),
                       ],
                     ),
@@ -794,10 +795,10 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                     children: [
                       Text(
                         widget.chat.carName!,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF1A1A1A),
+                          color: context.textPrimary,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -993,14 +994,14 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                       ? const EdgeInsets.all(3)
                       : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: isMe ? Colors.white : Colors.white,
+                    color: isMe ? context.bgSecondary : context.bgTertiary,
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(18),
                       topRight: const Radius.circular(18),
                       bottomLeft: Radius.circular(isMe ? 18 : 4),
                       bottomRight: Radius.circular(isMe ? 4 : 18),
                     ),
-                    border: isMe ? Border.all(color: Colors.grey[200]!, width: 0.8) : Border.all(color: Colors.grey[200]!, width: 0.8),
+                    border: Border.all(color: context.borderColor, width: 0.8),
                   ),
                   child: _buildMessageContent(message, isMe),
                 ),
@@ -1074,8 +1075,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
               top: 12, left: 20, right: 20,
             ),
             decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: Colors.grey[200]!, width: 0.5)),
+              color: context.bgPrimary,
+              border: Border(top: BorderSide(color: context.borderColor, width: 0.5)),
             ),
             child: Row(
               children: [
@@ -1115,8 +1116,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
               top: 10, left: 12, right: 12,
             ),
             decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: Colors.grey[200]!, width: 0.5)),
+              color: context.bgPrimary,
+              border: Border(top: BorderSide(color: context.borderColor, width: 0.5)),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -1145,7 +1146,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                   child: Container(
                     constraints: const BoxConstraints(maxHeight: 120),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF5F5F5),
+                      color: context.inputBg,
                       borderRadius: BorderRadius.circular(24),
                     ),
                     child: Row(
@@ -1157,13 +1158,13 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                             focusNode: _focusNode,
                             decoration: InputDecoration(
                               hintText: 'Message...',
-                              hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
+                              hintStyle: TextStyle(color: context.textTertiary, fontSize: 15),
                               border: InputBorder.none,
                               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                             ),
                             maxLines: 5,
                             minLines: 1,
-                            style: const TextStyle(fontSize: 15, color: Color(0xFF1A1A1A)),
+                            style: TextStyle(fontSize: 15, color: context.textPrimary),
                           ),
                         ),
                         // Emoji button
@@ -1183,9 +1184,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4),
                   child: _isUploading
-                      ? const Padding(
+                      ?  Padding(
                           padding: EdgeInsets.all(6),
-                          child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFF1A1A1A))),
+                          child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: context.textPrimary)),
                         )
                       : hasText
                           ? GestureDetector(
@@ -1195,7 +1196,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                                 width: 36, height: 36,
                                 errorBuilder: (_, __, ___) => Container(
                                   width: 36, height: 36,
-                                  decoration: const BoxDecoration(color: Color(0xFF1A1A1A), shape: BoxShape.circle),
+                                  decoration:  BoxDecoration(color: context.textPrimary, shape: BoxShape.circle),
                                   child: const Icon(Icons.send_rounded, color: Colors.white, size: 18),
                                 ),
                               ),
@@ -1215,7 +1216,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
   void _showAttachmentSheet() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: context.bgPrimary,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => SafeArea(
         child: Padding(

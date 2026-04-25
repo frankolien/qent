@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:qent/core/services/email_verification_service.dart';
 import 'package:qent/features/partner/presentation/pages/partner_payout_setup_page.dart';
+import 'package:qent/core/theme/app_theme.dart';
 
 class PartnerOtpPage extends StatefulWidget {
   final String email;
@@ -120,29 +121,29 @@ class _PartnerOtpPageState extends State<PartnerOtpPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.bgPrimary,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: context.bgPrimary,
         elevation: 0,
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.grey[300]!),
+              border: Border.all(color: context.borderColor),
             ),
-            child: const Icon(Icons.arrow_back, color: Colors.black, size: 18),
+            child: Icon(Icons.arrow_back, color: context.textPrimary, size: 18),
           ),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           'OTP Verification',
-          style: GoogleFonts.inter(color: Colors.black, fontWeight: FontWeight.w700, fontSize: 16),
+          style: GoogleFonts.inter(color: context.textPrimary, fontWeight: FontWeight.w700, fontSize: 16),
         ),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.more_horiz, color: Colors.black),
+            icon: Icon(Icons.more_horiz, color: context.textPrimary),
             onPressed: () {},
           ),
         ],
@@ -155,7 +156,7 @@ class _PartnerOtpPageState extends State<PartnerOtpPage> {
               const SizedBox(height: 32),
               Text(
                 'Enter your Verification Code',
-                style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.grey[900]),
+                style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: context.textPrimary),
               ),
               const SizedBox(height: 12),
               RichText(
@@ -223,7 +224,7 @@ class _PartnerOtpPageState extends State<PartnerOtpPage> {
                   style: GoogleFonts.inter(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: _remainingSeconds == 0 ? Colors.black : Colors.grey[400],
+                    color: _remainingSeconds == 0 ? context.textPrimary : context.textTertiary,
                     decoration: TextDecoration.underline,
                   ),
                 ),
@@ -241,10 +242,10 @@ class _PartnerOtpPageState extends State<PartnerOtpPage> {
       height: 56,
       margin: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
-        color: Colors.grey[100],
+        color: context.inputBg,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: _focusNodes[index].hasFocus ? Colors.black : Colors.grey[200]!,
+          color: _focusNodes[index].hasFocus ? context.textPrimary : context.inputBorder,
           width: 1.5,
         ),
       ),

@@ -11,6 +11,7 @@ import 'package:qent/features/chat/presentation/pages/chat_detail_page.dart';
 import 'package:qent/features/trips/presentation/pages/trips_page.dart';
 import 'package:qent/features/reviews/presentation/pages/leave_review_page.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:qent/core/theme/app_theme.dart';
 
 class TripDetailPage extends ConsumerStatefulWidget {
   final TripBooking trip;
@@ -278,9 +279,9 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
     } catch (_) {}
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.bgPrimary,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: context.bgPrimary,
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: Padding(
@@ -293,15 +294,15 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
                 height: 40,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.grey[300]!, width: 1),
+                  border: Border.all(color: context.borderColor, width: 1),
                 ),
-                child: const Icon(Icons.arrow_back_ios_new, size: 16, color: Colors.black),
+                child: Icon(Icons.arrow_back_ios_new, size: 16, color: context.textPrimary),
               ),
             ),
           ),
         ),
         centerTitle: true,
-        title: Text('Trip Details', style: GoogleFonts.roboto(fontSize: 17, fontWeight: FontWeight.w700, color: Colors.black)),
+        title: Text('Trip Details', style: GoogleFonts.roboto(fontSize: 17, fontWeight: FontWeight.w700, color: context.textPrimary)),
       ),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
@@ -331,7 +332,7 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
                       Expanded(
                         child: Text(
                           trip.carName,
-                          style: GoogleFonts.roboto(fontSize: 22, fontWeight: FontWeight.w800, color: const Color(0xFF1A1A1A)),
+                          style: GoogleFonts.roboto(fontSize: 22, fontWeight: FontWeight.w800, color: context.textPrimary),
                         ),
                       ),
                       _buildStatusBadge(),
@@ -358,12 +359,12 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
                               children: [
                                 Text(
                                   trip.renterName!,
-                                  style: GoogleFonts.roboto(fontSize: 15, fontWeight: FontWeight.w600, color: const Color(0xFF1A1A1A)),
+                                  style: GoogleFonts.roboto(fontSize: 15, fontWeight: FontWeight.w600, color: context.textPrimary),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
                                   'Renter',
-                                  style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey[500]),
+                                  style: GoogleFonts.roboto(fontSize: 12, color: context.textTertiary),
                                 ),
                               ],
                             ),
@@ -505,13 +506,13 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
+        color: context.bgSecondary,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Trip Timeline', style: GoogleFonts.roboto(fontSize: 16, fontWeight: FontWeight.w700, color: const Color(0xFF1A1A1A))),
+          Text('Trip Timeline', style: GoogleFonts.roboto(fontSize: 16, fontWeight: FontWeight.w700, color: context.textPrimary)),
           const SizedBox(height: 16),
           ...List.generate(steps.length, (i) {
             final step = steps[i];
@@ -580,13 +581,13 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
                     style: GoogleFonts.roboto(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: step.isError ? Colors.red[700] : const Color(0xFF1A1A1A),
+                      color: step.isError ? Colors.red[700] : context.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     step.subtitle,
-                    style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey[500]),
+                    style: GoogleFonts.roboto(fontSize: 12, color: context.textTertiary),
                   ),
                 ],
               ),
@@ -602,13 +603,13 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
+        color: context.bgSecondary,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: GoogleFonts.roboto(fontSize: 16, fontWeight: FontWeight.w700, color: const Color(0xFF1A1A1A))),
+          Text(title, style: GoogleFonts.roboto(fontSize: 16, fontWeight: FontWeight.w700, color: context.textPrimary)),
           const SizedBox(height: 14),
           ...rows,
         ],
@@ -622,11 +623,11 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: GoogleFonts.roboto(fontSize: 13, color: Colors.grey[500])),
+          Text(label, style: GoogleFonts.roboto(fontSize: 13, color: context.textTertiary)),
           Flexible(
             child: Text(
               value,
-              style: GoogleFonts.roboto(fontSize: 13, fontWeight: FontWeight.w500, color: const Color(0xFF1A1A1A)),
+              style: GoogleFonts.roboto(fontSize: 13, fontWeight: FontWeight.w500, color: context.textPrimary),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -654,7 +655,7 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
     return Container(
       padding: EdgeInsets.only(left: 20, right: 20, top: 14, bottom: bottomPadding + 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.bgPrimary,
         boxShadow: [
           BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, -2)),
         ],
@@ -671,8 +672,8 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
                 child: ElevatedButton(
                   onPressed: _isPaying ? null : _initiatePayment,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1A1A1A),
-                    foregroundColor: Colors.white,
+                    backgroundColor: context.isDark ? context.accent : const Color(0xFF1A1A1A),
+                    foregroundColor: context.isDark ? Colors.black : Colors.white,
                     disabledBackgroundColor: Colors.grey[400],
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -794,8 +795,8 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
                   child: ElevatedButton(
                     onPressed: _isMessaging ? null : _messageOtherParty,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1A1A1A),
-                      foregroundColor: Colors.white,
+                      backgroundColor: context.isDark ? context.accent : const Color(0xFF1A1A1A),
+                      foregroundColor: context.isDark ? Colors.black : Colors.white,
                       disabledBackgroundColor: Colors.grey[400],
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -841,8 +842,8 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
     return Container(
       height: 220,
       width: double.infinity,
-      color: Colors.grey[100],
-      child: Icon(Icons.directions_car_rounded, size: 56, color: Colors.grey[300]),
+      color: context.bgSecondary,
+      child: Icon(Icons.directions_car_rounded, size: 56, color: context.textTertiary),
     );
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qent/features/car_details/presentation/pages/car_details_page.dart';
 import 'package:qent/features/home/domain/models/car.dart';
+import 'package:qent/core/theme/app_theme.dart';
 
 class SearchCarCard extends StatelessWidget {
   final Car car;
@@ -29,7 +30,7 @@ class SearchCarCard extends StatelessWidget {
       child: Container(
         width: cardWidth,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.isDark ? context.bgSecondary : Colors.white,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
@@ -50,7 +51,7 @@ class SearchCarCard extends StatelessWidget {
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                     child: Container(
                       width: double.infinity,
-                      color: const Color(0xFFF0F0F0),
+                      color: context.isDark ? context.bgTertiary : const Color(0xFFF0F0F0),
                       child: car.imageUrl.isNotEmpty
                           ? Image.network(
                               car.imageUrl,
@@ -101,10 +102,10 @@ class SearchCarCard extends StatelessWidget {
                 children: [
                   Text(
                     car.name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF1A1A1A),
+                      color: context.textPrimary,
                       height: 1.2,
                     ),
                     maxLines: 1,
@@ -117,10 +118,10 @@ class SearchCarCard extends StatelessWidget {
                       const SizedBox(width: 3),
                       Text(
                         car.rating.toStringAsFixed(1),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF1A1A1A),
+                          color: context.textPrimary,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -157,10 +158,10 @@ class SearchCarCard extends StatelessWidget {
                       ),
                       Text(
                         '₦${_formatPrice(car.pricePerDay)}/d',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF1A1A1A),
+                          color: context.textPrimary,
                         ),
                       ),
                     ],

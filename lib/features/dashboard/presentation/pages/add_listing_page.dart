@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:qent/core/services/cloudinary_service.dart';
+import 'package:qent/core/theme/app_theme.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/dashboard/presentation/providers/dashboard_providers.dart';
 import 'package:qent/features/partner/presentation/providers/partner_providers.dart';
@@ -56,7 +57,7 @@ class _AddListingPageState extends ConsumerState<AddListingPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.bgPrimary,
       body: SafeArea(
         child: Column(
           children: [
@@ -71,20 +72,20 @@ class _AddListingPageState extends ConsumerState<AddListingPage> {
                       width: 42,
                       height: 42,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF2F2F2),
+                        color: context.bgSecondary,
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      child: const Icon(Icons.arrow_back_ios_new, size: 16, color: Color(0xFF1A1A1A)),
+                      child: Icon(Icons.arrow_back_ios_new, size: 16, color: context.textPrimary),
                     ),
                   ),
                   const SizedBox(width: 14),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Add New Listing',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF1A1A1A),
+                        color: context.textPrimary,
                       ),
                     ),
                   ),
@@ -95,9 +96,9 @@ class _AddListingPageState extends ConsumerState<AddListingPage> {
             // Form content
             Expanded(
               child: Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                decoration: BoxDecoration(
+                  color: context.bgPrimary,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
                 ),
                 child: Form(
                   key: _formKey,
@@ -152,7 +153,7 @@ class _AddListingPageState extends ConsumerState<AddListingPage> {
       children: [
         Text(
           label,
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.grey[600]),
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: context.textSecondary),
         ),
         const SizedBox(height: 6),
         TextFormField(
@@ -162,14 +163,22 @@ class _AddListingPageState extends ConsumerState<AddListingPage> {
             hintText: hint,
             hintStyle: TextStyle(color: Colors.grey[350], fontSize: 14),
             filled: true,
-            fillColor: const Color(0xFFF8F8F8),
+            fillColor: context.inputBg,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
+              borderSide: BorderSide(color: context.inputBorder),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: context.inputBorder),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: context.accent, width: 1.5),
             ),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Color(0xFF1A1A1A)),
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: context.textPrimary),
           validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
         ),
       ],
@@ -184,13 +193,13 @@ class _AddListingPageState extends ConsumerState<AddListingPage> {
       children: [
         Text(
           'Vehicle',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.grey[600]),
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: context.textSecondary),
         ),
         const SizedBox(height: 8),
         // Toggle
         Container(
           decoration: BoxDecoration(
-            color: const Color(0xFFF2F2F2),
+            color: context.bgSecondary,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
@@ -212,23 +221,23 @@ class _AddListingPageState extends ConsumerState<AddListingPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8F8F8),
+              color: context.inputBg,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               children: [
                 Text(
                   brand,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1A1A1A)),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: context.textPrimary),
                 ),
                 if (_selectedModel != null) ...[
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Text('/', style: TextStyle(color: Colors.grey[400])),
+                    child: Text('/', style: TextStyle(color: context.textSecondary)),
                   ),
                   Text(
                     _selectedModel!,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1A1A1A)),
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: context.textPrimary),
                   ),
                 ],
                 const Spacer(),
@@ -256,14 +265,18 @@ class _AddListingPageState extends ConsumerState<AddListingPage> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 11),
           decoration: BoxDecoration(
-            color: active ? const Color(0xFF1A1A1A) : Colors.transparent,
+            color: active
+                ? (context.isDark ? context.accent : const Color(0xFF1A1A1A))
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
           ),
           alignment: Alignment.center,
           child: Text(
             label,
             style: TextStyle(
-              color: active ? Colors.white : Colors.grey[600],
+              color: active
+                  ? (context.isDark ? Colors.black : Colors.white)
+                  : context.textSecondary,
               fontWeight: active ? FontWeight.w600 : FontWeight.w500,
               fontSize: 14,
             ),
@@ -280,7 +293,7 @@ class _AddListingPageState extends ConsumerState<AddListingPage> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F8F8),
+        color: context.bgSecondary,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -290,7 +303,7 @@ class _AddListingPageState extends ConsumerState<AddListingPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Regular', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey[500])),
+                Text('Regular', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: context.textSecondary)),
                 const SizedBox(height: 6),
                 ...regular.map((b) => _brandTile(b, () {
                   setState(() {
@@ -303,14 +316,14 @@ class _AddListingPageState extends ConsumerState<AddListingPage> {
               ],
             ),
           ),
-          Container(width: 1, height: 220, color: Colors.grey[300]),
+          Container(width: 1, height: 220, color: context.borderColor),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.only(left: 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Luxury', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey[500])),
+                  Text('Luxury', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: context.textSecondary)),
                   const SizedBox(height: 6),
                   ...luxury.map((b) => _brandTile(b, () {
                     setState(() {
@@ -346,7 +359,7 @@ class _AddListingPageState extends ConsumerState<AddListingPage> {
           style: TextStyle(
             fontSize: 13,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-            color: const Color(0xFF1A1A1A),
+            color: context.textPrimary,
           ),
         ),
       ),
@@ -358,18 +371,18 @@ class _AddListingPageState extends ConsumerState<AddListingPage> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F8F8),
+        color: context.bgSecondary,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Models for $brand', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey[500])),
+          Text('Models for $brand', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: context.textSecondary)),
           const SizedBox(height: 6),
           if (models.isEmpty)
             Padding(
               padding: const EdgeInsets.all(16),
-              child: Text('No models available', style: TextStyle(color: Colors.grey[400], fontSize: 13)),
+              child: Text('No models available', style: TextStyle(color: context.textSecondary, fontSize: 13)),
             )
           else
             Wrap(
@@ -382,10 +395,14 @@ class _AddListingPageState extends ConsumerState<AddListingPage> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFF1A1A1A) : Colors.white,
+                      color: isSelected
+                          ? (context.isDark ? context.accent : const Color(0xFF1A1A1A))
+                          : context.bgPrimary,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: isSelected ? const Color(0xFF1A1A1A) : Colors.grey[300]!,
+                        color: isSelected
+                            ? (context.isDark ? context.accent : const Color(0xFF1A1A1A))
+                            : context.borderColor,
                       ),
                     ),
                     child: Text(
@@ -393,7 +410,9 @@ class _AddListingPageState extends ConsumerState<AddListingPage> {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                        color: isSelected ? Colors.white : const Color(0xFF1A1A1A),
+                        color: isSelected
+                            ? (context.isDark ? Colors.black : Colors.white)
+                            : context.textPrimary,
                       ),
                     ),
                   ),
@@ -411,7 +430,7 @@ class _AddListingPageState extends ConsumerState<AddListingPage> {
       children: [
         Text(
           'Photos',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.grey[600]),
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: context.textSecondary),
         ),
         const SizedBox(height: 8),
         SizedBox(
@@ -427,7 +446,7 @@ class _AddListingPageState extends ConsumerState<AddListingPage> {
                   width: 90,
                   height: 90,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF2F2F2),
+                    color: context.bgSecondary,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Column(
@@ -499,7 +518,7 @@ class _AddListingPageState extends ConsumerState<AddListingPage> {
       children: [
         Text(
           'Color',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.grey[600]),
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: context.textSecondary),
         ),
         const SizedBox(height: 10),
         SingleChildScrollView(
@@ -541,7 +560,7 @@ class _AddListingPageState extends ConsumerState<AddListingPage> {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
-                          color: sel ? const Color(0xFF1A1A1A) : Colors.grey[500],
+                          color: sel ? context.textPrimary : context.textSecondary,
                         ),
                       ),
                     ],
@@ -561,7 +580,7 @@ class _AddListingPageState extends ConsumerState<AddListingPage> {
       children: [
         Text(
           'Description',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.grey[600]),
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: context.textSecondary),
         ),
         const SizedBox(height: 6),
         TextFormField(
@@ -573,15 +592,23 @@ class _AddListingPageState extends ConsumerState<AddListingPage> {
             hintText: 'Describe your vehicle...',
             hintStyle: TextStyle(color: Colors.grey[350], fontSize: 14),
             filled: true,
-            fillColor: const Color(0xFFF8F8F8),
+            fillColor: context.inputBg,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
+              borderSide: BorderSide(color: context.inputBorder),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: context.inputBorder),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: context.accent, width: 1.5),
             ),
             contentPadding: const EdgeInsets.all(16),
-            counterStyle: TextStyle(color: Colors.grey[400], fontSize: 11),
+            counterStyle: TextStyle(color: context.textSecondary, fontSize: 11),
           ),
-          style: const TextStyle(fontSize: 14, color: Color(0xFF1A1A1A)),
+          style: TextStyle(fontSize: 14, color: context.textPrimary),
         ),
       ],
     );
@@ -595,7 +622,9 @@ class _AddListingPageState extends ConsumerState<AddListingPage> {
         onTap: _isSubmitting ? null : _handleSubmit,
         child: Container(
           decoration: BoxDecoration(
-            color: _isSubmitting ? Colors.grey[400] : const Color(0xFF1A1A1A),
+            color: _isSubmitting
+                ? Colors.grey[400]
+                : (context.isDark ? context.accent : const Color(0xFF1A1A1A)),
             borderRadius: BorderRadius.circular(16),
           ),
           alignment: Alignment.center,
@@ -605,10 +634,10 @@ class _AddListingPageState extends ConsumerState<AddListingPage> {
                   height: 22,
                   child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                 )
-              : const Text(
+              : Text(
                   'Submit Listing',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: context.isDark ? Colors.black : Colors.white,
                     fontWeight: FontWeight.w700,
                     fontSize: 16,
                   ),

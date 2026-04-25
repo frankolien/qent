@@ -14,6 +14,7 @@ import 'package:qent/features/home/presentation/pages/view_all_cars_page.dart';
 import 'package:qent/features/home/presentation/providers/location_provider.dart';
 import 'package:qent/features/home/presentation/widgets/location_picker_sheet.dart';
 import 'package:qent/features/profile/presentation/pages/profile_page.dart';
+import 'package:qent/core/theme/app_theme.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -67,7 +68,7 @@ class HomePageState extends ConsumerState<HomePage> {
     final userId = authState.user?.uid ?? '';
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.bgPrimary,
       body: SafeArea(
         bottom: true,
         child: CarPullToRefresh(
@@ -103,9 +104,9 @@ class HomePageState extends ConsumerState<HomePage> {
                 child: Padding(
                   padding: const EdgeInsets.only(top: 24),
                   child: Container(
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                    decoration: BoxDecoration(
+                      color: context.bgPrimary,
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
                     ),
                     child: homepageAsync.when(
                       data: (sections) {
@@ -218,7 +219,7 @@ class HomePageState extends ConsumerState<HomePage> {
             },
             child: Row(
               children: [
-                const Icon(Icons.location_on, size: 20, color: Color(0xFF1A1A1A)),
+                Icon(Icons.location_on, size: 20, color: context.textPrimary),
                 const SizedBox(width: 6),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -228,7 +229,7 @@ class HomePageState extends ConsumerState<HomePage> {
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w400,
-                        color: Colors.grey[500],
+                        color: context.textSecondary,
                       ),
                     ),
                     const SizedBox(height: 1),
@@ -237,10 +238,10 @@ class HomePageState extends ConsumerState<HomePage> {
                         locationAsync.when(
                           data: (loc) => Text(
                             '${loc.city ?? loc.name}, ${loc.country ?? 'Nigeria'}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF1A1A1A),
+                              color: context.textPrimary,
                               letterSpacing: -0.2,
                             ),
                           ),
@@ -249,12 +250,12 @@ class HomePageState extends ConsumerState<HomePage> {
                             height: 12,
                             child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFF1A1A1A)),
                           ),
-                          error: (_, __) => const Text(
+                          error: (_, __) => Text(
                             'Lagos, Nigeria',
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF1A1A1A),
+                              color: context.textPrimary,
                               letterSpacing: -0.2,
                             ),
                           ),
@@ -295,13 +296,13 @@ class HomePageState extends ConsumerState<HomePage> {
         width: 42,
         height: 42,
         decoration: BoxDecoration(
-          color: const Color(0xFFF2F2F2),
+          color: context.bgSecondary,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Stack(
           alignment: Alignment.center,
           children: [
-            Icon(icon, size: 22, color: const Color(0xFF1A1A1A)),
+            Icon(icon, size: 22, color: context.textPrimary),
             if (badgeCount > 0)
               Positioned(
                 top: 8,
@@ -343,7 +344,7 @@ class HomePageState extends ConsumerState<HomePage> {
         width: 42,
         height: 42,
         decoration: BoxDecoration(
-          color: const Color(0xFFF2F2F2),
+          color: context.bgSecondary,
           borderRadius: BorderRadius.circular(14),
         ),
         child: ClipRRect(
@@ -353,9 +354,9 @@ class HomePageState extends ConsumerState<HomePage> {
                   photoUrl,
                   fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) =>
-                      const Icon(Icons.person_outline_rounded, size: 22, color: Color(0xFF1A1A1A)),
+                      Icon(Icons.person_outline_rounded, size: 22, color: context.textPrimary),
                 )
-              : const Icon(Icons.person_outline_rounded, size: 22, color: Color(0xFF1A1A1A)),
+              : Icon(Icons.person_outline_rounded, size: 22, color: context.textPrimary),
         ),
       ),
     );
@@ -368,9 +369,9 @@ class HomePageState extends ConsumerState<HomePage> {
           child: Container(
             height: 50,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.bgPrimary,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFEEEEEE)),
+              border: Border.all(color: context.borderColor),
             ),
             child: Row(
               children: [
@@ -469,10 +470,10 @@ class HomePageState extends ConsumerState<HomePage> {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF1A1A1A),
+                      color: context.isDark ? context.accent : context.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -562,10 +563,10 @@ class HomePageState extends ConsumerState<HomePage> {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF1A1A1A),
+                      color: context.isDark ? context.accent : context.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -647,10 +648,10 @@ class HomePageState extends ConsumerState<HomePage> {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF1A1A1A),
+              color: context.textPrimary,
             ),
           ),
         ),
@@ -682,10 +683,10 @@ class HomePageState extends ConsumerState<HomePage> {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF1A1A1A),
+              color: context.textPrimary,
             ),
           ),
         ),

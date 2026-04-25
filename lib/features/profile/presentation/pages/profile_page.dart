@@ -9,6 +9,8 @@ import 'package:qent/features/dashboard/presentation/pages/host_dashboard_page.d
 import 'package:qent/features/dashboard/presentation/pages/add_listing_page.dart';
 import 'package:qent/features/booking/presentation/pages/booking_history_page.dart';
 import 'package:qent/features/admin/presentation/pages/admin_panel_page.dart';
+import 'package:qent/core/providers/theme_provider.dart';
+import 'package:qent/core/theme/app_theme.dart';
 
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
@@ -20,25 +22,25 @@ class ProfilePage extends ConsumerWidget {
     final userId = user?.uid;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.bgPrimary,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: context.bgPrimary,
         elevation: 0,
         scrolledUnderElevation: 0,
-      
+
         centerTitle: true,
         title: Text(
           'Profile',
           style: GoogleFonts.roboto(
             fontSize: 17,
             fontWeight: FontWeight.w700,
-            color: Colors.black,
+            color: context.textPrimary,
           ),
         ),
-       
+
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(color: Colors.grey[200], height: 1),
+          child: Container(color: context.borderColor, height: 1),
         ),
       ),
       body: SafeArea(
@@ -92,6 +94,7 @@ class ProfilePage extends ConsumerWidget {
                 'Notification',
                 onTap: () {},
               ),
+              _buildDarkModeToggle(ref),
               _buildMenuItem(
                 'assets/images/Profile/connect.png',
                 'Connected to QENT Partnerships',
@@ -190,7 +193,7 @@ class ProfilePage extends ConsumerWidget {
                   style: GoogleFonts.roboto(
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
-                    color: Colors.black,
+                    color: context.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -198,7 +201,7 @@ class ProfilePage extends ConsumerWidget {
                   email,
                   style: GoogleFonts.roboto(
                     fontSize: 13,
-                    color: Colors.grey[500],
+                    color: context.textSecondary,
                   ),
                 ),
               ],
@@ -230,21 +233,21 @@ class ProfilePage extends ConsumerWidget {
   }
 
   Widget _buildSectionTitle(String title) {
-    return Padding(
+    return Builder(builder: (context) => Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Text(
         title,
         style: GoogleFonts.roboto(
           fontSize: 16,
           fontWeight: FontWeight.w700,
-          color: Colors.black,
+          color: context.textPrimary,
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildMenuItem(String assetPath, String title, {required VoidCallback onTap}) {
-    return GestureDetector(
+    return Builder(builder: (context) => GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Padding(
@@ -256,7 +259,7 @@ class ProfilePage extends ConsumerWidget {
                 assetPath,
                 width: 20,
                 height: 20,
-                color: Colors.grey[600],
+                color: context.textSecondary,
               ),
             ),
             const SizedBox(width: 14),
@@ -266,26 +269,59 @@ class ProfilePage extends ConsumerWidget {
                 style: GoogleFonts.roboto(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
-                  color: Colors.black,
+                  color: context.textPrimary,
                 ),
               ),
             ),
-            Icon(Icons.chevron_right, size: 22, color: Colors.grey[400]),
+            Icon(Icons.chevron_right, size: 22, color: context.textTertiary),
           ],
         ),
       ),
-    );
+    ));
+  }
+
+  Widget _buildDarkModeToggle(WidgetRef ref) {
+    final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
+    return Builder(builder: (context) => Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      child: Row(
+        children: [
+          Icon(
+            isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+            size: 20,
+            color: context.textSecondary,
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              'Dark Mode',
+              style: GoogleFonts.roboto(
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                color: context.textPrimary,
+              ),
+            ),
+          ),
+          Switch.adaptive(
+            value: isDark,
+            activeTrackColor: const Color(0xFF22C55E),
+            activeThumbColor: Colors.white,
+            onChanged: (_) => ref.read(themeModeProvider.notifier).toggle(),
+          ),
+        ],
+      ),
+    ));
   }
 
   Widget _buildMenuItemIcon(IconData icon, String title, {required VoidCallback onTap}) {
-    return GestureDetector(
+    return Builder(builder: (context) => GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         child: Row(
           children: [
-            Icon(icon, size: 20, color: Colors.grey[600]),
+            Icon(icon, size: 20, color: context.textSecondary),
             const SizedBox(width: 14),
             Expanded(
               child: Text(
@@ -293,15 +329,15 @@ class ProfilePage extends ConsumerWidget {
                 style: GoogleFonts.roboto(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
-                  color: Colors.black,
+                  color: context.textPrimary,
                 ),
               ),
             ),
-            Icon(Icons.chevron_right, size: 22, color: Colors.grey[400]),
+            Icon(Icons.chevron_right, size: 22, color: context.textTertiary),
           ],
         ),
       ),
-    );
+    ));
   }
 
   void _showLogoutDialog(BuildContext context, WidgetRef ref) {
@@ -327,7 +363,7 @@ class ProfilePage extends ConsumerWidget {
                 const SizedBox(height: 16),
                 Text(
                   'Log Out',
-                  style: GoogleFonts.roboto(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.black),
+                  style: GoogleFonts.roboto(fontSize: 18, fontWeight: FontWeight.w700, color: context.textPrimary),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -344,13 +380,13 @@ class ProfilePage extends ConsumerWidget {
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF5F5F5),
+                            color: context.bgSecondary,
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Center(
                             child: Text(
                               'Cancel',
-                              style: GoogleFonts.roboto(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.black),
+                              style: GoogleFonts.roboto(fontSize: 15, fontWeight: FontWeight.w600, color: context.textPrimary),
                             ),
                           ),
                         ),

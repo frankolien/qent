@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:qent/core/services/api_client.dart';
 import 'package:qent/features/trips/presentation/pages/trip_detail_page.dart';
+import 'package:qent/core/theme/app_theme.dart';
 
 class TripBooking {
   final String id;
@@ -132,7 +133,7 @@ class _TripsPageState extends State<TripsPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.bgPrimary,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -144,7 +145,7 @@ class _TripsPageState extends State<TripsPage>
                 style: GoogleFonts.roboto(
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
-                  color: const Color(0xFF1A1A1A),
+                  color: context.textPrimary,
                   letterSpacing: -0.5,
                 ),
               ),
@@ -152,11 +153,11 @@ class _TripsPageState extends State<TripsPage>
             const SizedBox(height: 16),
             TabBar(
               controller: _tabController,
-              labelColor: Colors.black,
-              unselectedLabelColor: Colors.grey[400],
+              labelColor: context.textPrimary,
+              unselectedLabelColor: context.textTertiary,
               labelStyle: GoogleFonts.roboto(fontSize: 15, fontWeight: FontWeight.w600),
               unselectedLabelStyle: GoogleFonts.roboto(fontSize: 15, fontWeight: FontWeight.w500),
-              indicatorColor: Colors.black,
+              indicatorColor: context.textPrimary,
               indicatorWeight: 2.5,
               padding: const EdgeInsets.symmetric(horizontal: 24),
               tabs: const [
@@ -167,7 +168,7 @@ class _TripsPageState extends State<TripsPage>
             ),
             Expanded(
               child: _isLoading
-                  ? const Center(child: CircularProgressIndicator(color: Color(0xFF1A1A1A)))
+                  ? Center(child: CircularProgressIndicator(color: context.textPrimary))
                   : _error != null
                       ? _buildError()
                       : TabBarView(
@@ -190,19 +191,19 @@ class _TripsPageState extends State<TripsPage>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.wifi_off_rounded, size: 48, color: Colors.grey[300]),
+          Icon(Icons.wifi_off_rounded, size: 48, color: context.textTertiary),
           const SizedBox(height: 16),
-          Text('Failed to load trips', style: GoogleFonts.roboto(fontSize: 16, fontWeight: FontWeight.w600)),
+          Text('Failed to load trips', style: GoogleFonts.roboto(fontSize: 16, fontWeight: FontWeight.w600, color: context.textPrimary)),
           const SizedBox(height: 20),
           GestureDetector(
             onTap: _fetchTrips,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFF1A1A1A),
+                color: context.isDark ? context.accent : const Color(0xFF1A1A1A),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Text('Retry', style: GoogleFonts.roboto(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
+              child: Text('Retry', style: GoogleFonts.roboto(fontSize: 14, fontWeight: FontWeight.w600, color: context.isDark ? Colors.black : Colors.white)),
             ),
           ),
         ],
@@ -214,7 +215,7 @@ class _TripsPageState extends State<TripsPage>
     if (trips.isEmpty) return _buildEmpty(tabIndex);
     return RefreshIndicator(
       onRefresh: _fetchTrips,
-      color: const Color(0xFF1A1A1A),
+      color: context.textPrimary,
       child: ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
         padding: const EdgeInsets.all(20),
@@ -237,11 +238,11 @@ class _TripsPageState extends State<TripsPage>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icons[tabIndex], size: 56, color: Colors.grey[300]),
+          Icon(icons[tabIndex], size: 56, color: context.textTertiary),
           const SizedBox(height: 16),
-          Text(titles[tabIndex], style: GoogleFonts.roboto(fontSize: 17, fontWeight: FontWeight.w700, color: const Color(0xFF1A1A1A))),
+          Text(titles[tabIndex], style: GoogleFonts.roboto(fontSize: 17, fontWeight: FontWeight.w700, color: context.textPrimary)),
           const SizedBox(height: 6),
-          Text(subtitles[tabIndex], style: GoogleFonts.roboto(fontSize: 14, color: Colors.grey[500])),
+          Text(subtitles[tabIndex], style: GoogleFonts.roboto(fontSize: 14, color: context.textSecondary)),
         ],
       ),
     );
@@ -271,9 +272,9 @@ class _TripsPageState extends State<TripsPage>
       },
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.bgCard,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.grey[200]!),
+          border: Border.all(color: context.borderColor),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
@@ -308,7 +309,7 @@ class _TripsPageState extends State<TripsPage>
                       Expanded(
                         child: Text(
                           trip.carName,
-                          style: GoogleFonts.roboto(fontSize: 17, fontWeight: FontWeight.w700, color: const Color(0xFF1A1A1A)),
+                          style: GoogleFonts.roboto(fontSize: 17, fontWeight: FontWeight.w700, color: context.textPrimary),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -329,25 +330,25 @@ class _TripsPageState extends State<TripsPage>
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      Icon(Icons.calendar_today_rounded, size: 14, color: Colors.grey[500]),
+                      Icon(Icons.calendar_today_rounded, size: 14, color: context.textTertiary),
                       const SizedBox(width: 6),
-                      Text(dates, style: GoogleFonts.roboto(fontSize: 13, color: Colors.grey[600])),
+                      Text(dates, style: GoogleFonts.roboto(fontSize: 13, color: context.textSecondary)),
                       const SizedBox(width: 16),
-                      Icon(Icons.schedule_rounded, size: 14, color: Colors.grey[500]),
+                      Icon(Icons.schedule_rounded, size: 14, color: context.textTertiary),
                       const SizedBox(width: 4),
-                      Text('${trip.totalDays} day${trip.totalDays == 1 ? '' : 's'}', style: GoogleFonts.roboto(fontSize: 13, color: Colors.grey[600])),
+                      Text('${trip.totalDays} day${trip.totalDays == 1 ? '' : 's'}', style: GoogleFonts.roboto(fontSize: 13, color: context.textSecondary)),
                     ],
                   ),
                   if (trip.carLocation != null) ...[
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        Icon(Icons.location_on_outlined, size: 14, color: Colors.grey[500]),
+                        Icon(Icons.location_on_outlined, size: 14, color: context.textTertiary),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
                             trip.carLocation!,
-                            style: GoogleFonts.roboto(fontSize: 13, color: Colors.grey[600]),
+                            style: GoogleFonts.roboto(fontSize: 13, color: context.textSecondary),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -361,13 +362,13 @@ class _TripsPageState extends State<TripsPage>
                     children: [
                       Text(
                         '\u20a6${formatter.format(trip.totalAmount.toInt())}',
-                        style: GoogleFonts.roboto(fontSize: 18, fontWeight: FontWeight.w700, color: const Color(0xFF1A1A1A)),
+                        style: GoogleFonts.roboto(fontSize: 18, fontWeight: FontWeight.w700, color: context.textPrimary),
                       ),
                       Row(
                         children: [
-                          Text('View details', style: GoogleFonts.roboto(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.grey[500])),
+                          Text('View details', style: GoogleFonts.roboto(fontSize: 13, fontWeight: FontWeight.w500, color: context.textTertiary)),
                           const SizedBox(width: 4),
-                          Icon(Icons.arrow_forward_ios_rounded, size: 12, color: Colors.grey[500]),
+                          Icon(Icons.arrow_forward_ios_rounded, size: 12, color: context.textTertiary),
                         ],
                       ),
                     ],
@@ -385,8 +386,8 @@ class _TripsPageState extends State<TripsPage>
     return Container(
       height: 160,
       width: double.infinity,
-      color: Colors.grey[100],
-      child: Icon(Icons.directions_car_rounded, size: 48, color: Colors.grey[300]),
+      color: context.bgSecondary,
+      child: Icon(Icons.directions_car_rounded, size: 48, color: context.textTertiary),
     );
   }
 

@@ -5,6 +5,7 @@ import 'package:qent/features/home/presentation/widgets/custom_bottom_nav.dart';
 import 'package:qent/features/trips/presentation/pages/trips_page.dart';
 import 'package:qent/features/profile/presentation/pages/profile_page.dart';
 import 'package:qent/features/search/presentation/pages/search_page.dart';
+import 'package:qent/core/theme/app_theme.dart';
 
 class MainNavPage extends StatefulWidget {
   static final globalKey = GlobalKey<MainNavPageState>();
@@ -35,7 +36,7 @@ class MainNavPageState extends State<MainNavPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.bgPrimary,
       extendBody: true,
       body: IndexedStack(
         index: _currentIndex,

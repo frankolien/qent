@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:qent/core/theme/app_theme.dart';
 
 class BrandItem extends StatelessWidget {
   final String brand;
@@ -35,10 +36,14 @@ class BrandItem extends StatelessWidget {
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                color: isSelected ? const Color(0xFF1A1A1A) : const Color(0xFFF5F5F5),
+                color: isSelected
+                    ? (context.isDark ? const Color(0xFF22C55E) : const Color(0xFF1A1A1A))
+                    : context.bgSecondary,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isSelected ? const Color(0xFF1A1A1A) : const Color(0xFFE8E8E8),
+                  color: isSelected
+                      ? (context.isDark ? const Color(0xFF22C55E) : const Color(0xFF1A1A1A))
+                      : context.borderColor,
                   width: 1.5,
                 ),
               ),
@@ -47,9 +52,9 @@ class BrandItem extends StatelessWidget {
                     ? Icon(
                         Icons.apps_rounded,
                         size: 22,
-                        color: isSelected ? Colors.white : const Color(0xFF1A1A1A),
+                        color: isSelected ? (context.isDark ? Colors.black : Colors.white) : context.textPrimary,
                       )
-                    : _buildBrandLogo(),
+                    : _buildBrandLogo(context),
               ),
             ),
             const SizedBox(height: 6),
@@ -58,7 +63,7 @@ class BrandItem extends StatelessWidget {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected ? const Color(0xFF1A1A1A) : Colors.grey[500],
+                color: isSelected ? context.textPrimary : Colors.grey[500],
               ),
             ),
           ],
@@ -67,23 +72,27 @@ class BrandItem extends StatelessWidget {
     );
   }
 
-  Widget _buildBrandLogo() {
+  Widget _buildBrandLogo(BuildContext context) {
     final logoUrl = _brandLogos[brand];
+    final selectedColor = context.isDark ? Colors.black : Colors.white;
+    final unselectedColor = context.textPrimary;
+
     if (logoUrl == null) {
       return Text(
         brand.substring(0, 1),
         style: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w700,
-          color: isSelected ? Colors.white : const Color(0xFF1A1A1A),
+          color: isSelected ? selectedColor : unselectedColor,
         ),
       );
     }
 
     return ColorFiltered(
-      colorFilter: isSelected
-          ? const ColorFilter.mode(Colors.white, BlendMode.srcIn)
-          : const ColorFilter.mode(Color(0xFF1A1A1A), BlendMode.srcIn),
+      colorFilter: ColorFilter.mode(
+        isSelected ? selectedColor : unselectedColor,
+        BlendMode.srcIn,
+      ),
       child: Image.network(
         logoUrl,
         width: 28,
@@ -94,7 +103,7 @@ class BrandItem extends StatelessWidget {
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w700,
-            color: isSelected ? Colors.white : const Color(0xFF1A1A1A),
+            color: isSelected ? selectedColor : unselectedColor,
           ),
         ),
       ),

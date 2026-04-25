@@ -8,6 +8,7 @@ import 'package:qent/features/search/domain/models/filter_options.dart';
 import 'package:qent/features/search/presentation/providers/search_providers.dart';
 import 'package:qent/features/search/presentation/widgets/filter_bottom_sheet.dart';
 import 'package:qent/features/search/presentation/widgets/search_car_card.dart';
+import 'package:qent/core/theme/app_theme.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key});
@@ -49,7 +50,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final carController = ref.read(carControllerProvider);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.bgPrimary,
       body: SafeArea(
         child: Column(
           children: [
@@ -83,12 +84,12 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           const SizedBox(width: 40),
-          const Text(
+          Text(
             'Search',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF1A1A1A),
+              color: context.textPrimary,
             ),
           ),
           GestureDetector(
@@ -97,10 +98,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: const Color(0xFFF2F2F2),
+                color: context.bgSecondary,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.more_horiz, size: 20, color: Color(0xFF1A1A1A)),
+              child: Icon(Icons.more_horiz, size: 20, color: context.textPrimary),
             ),
           ),
         ],
@@ -115,7 +116,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           child: Container(
             height: 50,
             decoration: BoxDecoration(
-              color: const Color(0xFFF5F5F5),
+              color: context.bgSecondary,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
@@ -200,8 +201,11 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFF1A1A1A) : const Color(0xFFF5F5F5),
+                  color: isSelected
+                      ? (context.isDark ? const Color(0xFF22C55E) : const Color(0xFF1A1A1A))
+                      : context.bgSecondary,
                   borderRadius: BorderRadius.circular(22),
+                  border: isSelected ? null : Border.all(color: context.borderColor),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -209,7 +213,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     if (filter.logoUrl != null) ...[
                       ColorFiltered(
                         colorFilter: ColorFilter.mode(
-                          isSelected ? Colors.white : const Color(0xFF1A1A1A),
+                          isSelected ? (context.isDark ? Colors.black : Colors.white) : context.textPrimary,
                           BlendMode.srcIn,
                         ),
                         child: Image.network(
@@ -219,7 +223,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                           fit: BoxFit.contain,
                           errorBuilder: (_, __, ___) => Icon(
                             Icons.directions_car,
-                            color: isSelected ? Colors.white : const Color(0xFF1A1A1A),
+                            color: isSelected ? (context.isDark ? Colors.black : Colors.white) : context.textPrimary,
                             size: 18,
                           ),
                         ),
@@ -229,7 +233,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     if (filter.name == 'ALL')
                       Icon(
                         Icons.apps_rounded,
-                        color: isSelected ? Colors.white : Colors.grey[600],
+                        color: isSelected ? (context.isDark ? Colors.black : Colors.white) : Colors.grey[600],
                         size: 16,
                       ),
                     if (filter.name == 'ALL') const SizedBox(width: 6),
@@ -238,7 +242,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: isSelected ? Colors.white : Colors.grey[600],
+                        color: isSelected ? (context.isDark ? Colors.black : Colors.white) : Colors.grey[600],
                       ),
                     ),
                   ],
@@ -362,10 +366,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF1A1A1A),
+                      color: context.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 2),

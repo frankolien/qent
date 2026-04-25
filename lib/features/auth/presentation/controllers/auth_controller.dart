@@ -79,6 +79,12 @@ class AuthController extends Notifier<AuthState> {
     } catch (_) {}
   }
 
+  void clearError() {
+    if (state.errorMessage != null) {
+      state = state.copyWith(errorMessage: null);
+    }
+  }
+
   Future<void> signOut() async {
     state = state.copyWith(isLoading: true);
     try {

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:qent/core/services/cloudinary_service.dart';
+import 'package:qent/core/theme/app_theme.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 
 class EditProfilePage extends ConsumerStatefulWidget {
@@ -222,26 +223,26 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   Widget build(BuildContext context) {
     if (_isInitializing) {
       return Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: context.bgPrimary,
         appBar: AppBar(
-          backgroundColor: Colors.white,
+          backgroundColor: context.bgPrimary,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.black),
+            icon: Icon(Icons.arrow_back, color: context.textPrimary),
             onPressed: () => Navigator.of(context).pop(),
           ),
-          title: const Text(
+          title: Text(
             'Edit Profile',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.black,
+              color: context.textPrimary,
             ),
           ),
           centerTitle: true,
           actions: [
             IconButton(
-              icon: const Icon(Icons.more_vert, color: Colors.black),
+              icon: Icon(Icons.more_vert, color: context.textPrimary),
               onPressed: () {},
             ),
           ],
@@ -251,26 +252,26 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.bgPrimary,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: context.bgPrimary,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: context.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text(
+        title: Text(
           'Edit Profile',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Colors.black,
+            color: context.textPrimary,
           ),
         ),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.more_vert, color: Colors.black),
+            icon: Icon(Icons.more_vert, color: context.textPrimary),
             onPressed: () {},
           ),
         ],
@@ -322,9 +323,9 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                             width: 32,
                             height: 32,
                             decoration: BoxDecoration(
-                              color: Colors.grey[800],
+                              color: context.isDark ? context.bgSecondary : Colors.grey[800],
                               shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2),
+                              border: Border.all(color: context.bgPrimary, width: 2),
                             ),
                             child: const Icon(
                               Icons.edit,
@@ -344,29 +345,33 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                     final fullName = '${_firstNameController.text} ${_lastNameController.text}'.trim();
                     return fullName.isEmpty ? 'User' : fullName;
                   })(),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                    color: context.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 40),
                 // First Name Field
                 TextFormField(
                   controller: _firstNameController,
+                  style: TextStyle(color: context.textPrimary),
                   decoration: InputDecoration(
                     labelText: 'First Name',
+                    labelStyle: TextStyle(color: context.textSecondary),
                     hintText: 'Benjamin',
+                    filled: true,
+                    fillColor: context.inputBg,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
+                      borderSide: BorderSide(color: context.inputBorder),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey[800]!),
+                      borderSide: BorderSide(color: context.accent, width: 1.5),
                     ),
                   ),
                   validator: (value) {
@@ -380,19 +385,23 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                 // Last Name Field
                 TextFormField(
                   controller: _lastNameController,
+                  style: TextStyle(color: context.textPrimary),
                   decoration: InputDecoration(
                     labelText: 'Last Name',
+                    labelStyle: TextStyle(color: context.textSecondary),
                     hintText: 'Jack',
+                    filled: true,
+                    fillColor: context.inputBg,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
+                      borderSide: BorderSide(color: context.inputBorder),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey[800]!),
+                      borderSide: BorderSide(color: context.accent, width: 1.5),
                     ),
                   ),
                   validator: (value) {
@@ -407,19 +416,23 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
+                  style: TextStyle(color: context.textPrimary),
                   decoration: InputDecoration(
                     labelText: 'Email',
+                    labelStyle: TextStyle(color: context.textSecondary),
                     hintText: 'benjaminJack@gmail.com',
+                    filled: true,
+                    fillColor: context.inputBg,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
+                      borderSide: BorderSide(color: context.inputBorder),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey[800]!),
+                      borderSide: BorderSide(color: context.accent, width: 1.5),
                     ),
                   ),
                   validator: (value) {
@@ -437,19 +450,23 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                 TextFormField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
+                  style: TextStyle(color: context.textPrimary),
                   decoration: InputDecoration(
                     labelText: 'Phone',
+                    labelStyle: TextStyle(color: context.textSecondary),
                     hintText: '+100******00',
+                    filled: true,
+                    fillColor: context.inputBg,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
+                      borderSide: BorderSide(color: context.inputBorder),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey[800]!),
+                      borderSide: BorderSide(color: context.accent, width: 1.5),
                     ),
                   ),
                 ),
@@ -461,8 +478,8 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _saveProfile,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey[800],
-                      foregroundColor: Colors.white,
+                      backgroundColor: context.isDark ? context.accent : const Color(0xFF1A1A1A),
+                      foregroundColor: context.isDark ? Colors.black : Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),

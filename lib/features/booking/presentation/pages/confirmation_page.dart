@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:qent/core/services/api_client.dart';
+import 'package:qent/core/theme/app_theme.dart';
 import 'package:qent/features/booking/domain/models/booking_confirmation.dart';
 import 'package:qent/features/booking/presentation/pages/payment_states_page.dart';
 import 'package:qent/features/home/domain/models/car.dart';
@@ -112,7 +113,7 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.bgPrimary,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -155,20 +156,20 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: const Color(0xFFF5F5F5),
+                color: context.bgSecondary,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(Icons.arrow_back_rounded, size: 20, color: Color(0xFF1A1A1A)),
+              child: Icon(Icons.arrow_back_rounded, size: 20, color: context.textPrimary),
             ),
           ),
-          const Expanded(
+          Expanded(
             child: Center(
               child: Text(
                 'Confirmation',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF1A1A1A),
+                  color: context.textPrimary,
                 ),
               ),
             ),
@@ -187,9 +188,9 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
           Row(
             children: [
               _buildStepCircle(0, activeStep),
-              Expanded(child: Container(height: 2, color: const Color(0xFF1A1A1A))),
+              Expanded(child: Container(height: 2, color: context.textPrimary)),
               _buildStepCircle(1, activeStep),
-              Expanded(child: Container(height: 2, color: const Color(0xFF1A1A1A))),
+              Expanded(child: Container(height: 2, color: context.textPrimary)),
               _buildStepCircle(2, activeStep),
             ],
           ),
@@ -197,9 +198,9 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Details', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w400, color: Colors.grey[500])),
-              Text('Payment', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w400, color: Colors.grey[500])),
-              Text('Confirm', style: TextStyle(fontSize: 11, fontWeight: activeStep == 2 ? FontWeight.w600 : FontWeight.w400, color: activeStep == 2 ? const Color(0xFF1A1A1A) : Colors.grey[500])),
+              Text('Details', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w400, color: context.textTertiary)),
+              Text('Payment', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w400, color: context.textTertiary)),
+              Text('Confirm', style: TextStyle(fontSize: 11, fontWeight: activeStep == 2 ? FontWeight.w600 : FontWeight.w400, color: activeStep == 2 ? context.textPrimary : context.textTertiary)),
             ],
           ),
         ],
@@ -215,10 +216,10 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
       width: 28,
       height: 28,
       decoration: BoxDecoration(
-        color: (isActive || isCompleted) ? const Color(0xFF1A1A1A) : Colors.white,
+        color: (isActive || isCompleted) ? context.textPrimary : context.bgPrimary,
         shape: BoxShape.circle,
         border: Border.all(
-          color: (isActive || isCompleted) ? const Color(0xFF1A1A1A) : Colors.grey[300]!,
+          color: (isActive || isCompleted) ? context.textPrimary : context.borderColor,
           width: 2,
         ),
       ),
@@ -245,7 +246,7 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
           height: 200,
           width: double.infinity,
           decoration: BoxDecoration(
-            color: const Color(0xFFF0F0F0),
+            color: context.bgSecondary,
             borderRadius: BorderRadius.circular(20),
           ),
           child: ClipRRect(
@@ -265,7 +266,7 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
                     },
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
-                        color: const Color(0xFFF0F0F0),
+                        color: context.bgSecondary,
                         child: const Center(
                           child: Icon(Icons.directions_car_rounded, size: 64, color: Colors.grey),
                         ),
@@ -287,10 +288,10 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
                 children: [
                   Text(
                     widget.car.name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF1A1A1A),
+                      color: context.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -298,7 +299,7 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
                     'A car with high specs that are rented at an affordable price.',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.grey[600],
+                      color: context.textSecondary,
                       height: 1.5,
                     ),
                   ),
@@ -312,10 +313,10 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
                   children: [
                     Text(
                       widget.car.rating.toStringAsFixed(1),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF1A1A1A),
+                        color: context.textPrimary,
                       ),
                     ),
                     const SizedBox(width: 4),
@@ -327,7 +328,7 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
                   '(100+ Reviews)',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey[500],
+                    color: context.textTertiary,
                   ),
                 ),
               ],
@@ -342,12 +343,12 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Booking Information',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF1A1A1A),
+            color: context.textPrimary,
           ),
         ),
         const SizedBox(height: 16),
@@ -389,8 +390,8 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
             Container(
               width: 4,
               height: 4,
-              decoration: const BoxDecoration(
-                color: Color(0xFF1A1A1A),
+              decoration: BoxDecoration(
+                color: context.textPrimary,
                 shape: BoxShape.circle,
               ),
             ),
@@ -399,7 +400,7 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
               label,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[600],
+                color: context.textSecondary,
               ),
             ),
           ],
@@ -407,10 +408,10 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
         Flexible(
           child: Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: Color(0xFF1A1A1A),
+              color: context.textPrimary,
             ),
             overflow: TextOverflow.ellipsis,
           ),
@@ -428,8 +429,8 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
             Container(
               width: 4,
               height: 4,
-              decoration: const BoxDecoration(
-                color: Color(0xFF1A1A1A),
+              decoration: BoxDecoration(
+                color: context.textPrimary,
                 shape: BoxShape.circle,
               ),
             ),
@@ -438,7 +439,7 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
               label,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[600],
+                color: context.textSecondary,
               ),
             ),
           ],
@@ -447,15 +448,15 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 16, color: const Color(0xFF1A1A1A)),
+              Icon(icon, size: 16, color: context.textPrimary),
               const SizedBox(width: 4),
               Flexible(
                 child: Text(
                   value,
-                  style: const TextStyle(
+                  style:  TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF1A1A1A),
+                    color: context.textPrimary,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -489,12 +490,12 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Payment',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF1A1A1A),
+            color: context.textPrimary,
           ),
         ),
         const SizedBox(height: 16),
@@ -522,20 +523,20 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'Total amount',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF1A1A1A),
+                color: context.textPrimary,
               ),
             ),
             Text(
               _formatAmount(widget.confirmation.totalAmount),
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF1A1A1A),
+                color: context.textPrimary,
               ),
             ),
           ],
@@ -548,7 +549,7 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
               'Payment with ${widget.confirmation.paymentMethod}',
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.grey[500],
+                color: context.textTertiary,
               ),
             ),
           ],
@@ -566,7 +567,7 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
         bottom: MediaQuery.of(context).padding.bottom + 16,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.bgPrimary,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
@@ -578,8 +579,8 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
       child: ElevatedButton(
         onPressed: _isLoading ? null : _handleConfirm,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF1A1A1A),
-          foregroundColor: Colors.white,
+          backgroundColor: context.isDark ? context.accent : const Color(0xFF1A1A1A),
+          foregroundColor: context.isDark ? Colors.black : Colors.white,
           disabledBackgroundColor: Colors.grey[400],
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
+import 'package:qent/core/theme/app_theme.dart';
 
 // ─── Providers ────────────────────────────────────────────────
 
@@ -72,7 +73,7 @@ class _WalletPageState extends ConsumerState<WalletPage> with SingleTickerProvid
     
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.bgPrimary,
       body: SafeArea(
         child: Column(
           children: [
@@ -120,20 +121,20 @@ class _WalletPageState extends ConsumerState<WalletPage> with SingleTickerProvid
             onTap: () => Navigator.of(context).maybePop(),
             child: Container(
               width: 42, height: 42,
-              decoration: BoxDecoration(color: const Color(0xFFF2F2F2), borderRadius: BorderRadius.circular(14)),
-              child: const Icon(Icons.arrow_back_ios_new, size: 16, color: Color(0xFF1A1A1A)),
+              decoration: BoxDecoration(color: context.bgSecondary, borderRadius: BorderRadius.circular(14)),
+              child: Icon(Icons.arrow_back_ios_new, size: 16, color: context.textPrimary),
             ),
           ),
           const SizedBox(width: 14),
-          const Expanded(
-            child: Text('Wallet & Earnings', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A))),
+          Expanded(
+            child: Text('Wallet & Earnings', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: context.textPrimary)),
           ),
           GestureDetector(
             onTap: _refresh,
             child: Container(
               width: 42, height: 42,
-              decoration: BoxDecoration(color: const Color(0xFFF2F2F2), borderRadius: BorderRadius.circular(14)),
-              child: const Icon(Icons.refresh_rounded, size: 20, color: Color(0xFF1A1A1A)),
+              decoration: BoxDecoration(color: context.bgSecondary, borderRadius: BorderRadius.circular(14)),
+              child: Icon(Icons.refresh_rounded, size: 20, color: context.textPrimary),
             ),
           ),
         ],
@@ -162,8 +163,11 @@ class _WalletPageState extends ConsumerState<WalletPage> with SingleTickerProvid
                   onTap: () => _showWithdrawSheet(balance),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
-                    child: const Text('Withdraw', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1A1A1A))),
+                    decoration: BoxDecoration(
+                      color: context.isDark ? context.accent : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text('Withdraw', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: context.isDark ? Colors.black : const Color(0xFF1A1A1A))),
                   ),
                 ),
               ],
@@ -235,12 +239,12 @@ class _WalletPageState extends ConsumerState<WalletPage> with SingleTickerProvid
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+        decoration: BoxDecoration(color: context.bgSecondary, borderRadius: BorderRadius.circular(16)),
         child: Column(
           children: [
-            Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A))),
+            Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: context.textPrimary)),
             const SizedBox(height: 2),
-            Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[400])),
+            Text(label, style: TextStyle(fontSize: 11, color: context.textSecondary)),
           ],
         ),
       ),
@@ -249,9 +253,9 @@ class _WalletPageState extends ConsumerState<WalletPage> with SingleTickerProvid
 
   Widget _buildTabSection() {
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: context.bgSecondary,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
         children: [
@@ -259,14 +263,17 @@ class _WalletPageState extends ConsumerState<WalletPage> with SingleTickerProvid
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
             child: Container(
               height: 44,
-              decoration: BoxDecoration(color: const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(22)),
+              decoration: BoxDecoration(color: context.bgTertiary, borderRadius: BorderRadius.circular(22)),
               child: TabBar(
                 controller: _tabController,
                 onTap: (_) => setState(() {}),
-                indicator: BoxDecoration(color: const Color(0xFF1A1A1A), borderRadius: BorderRadius.circular(22)),
+                indicator: BoxDecoration(
+                  color: context.isDark ? context.accent : const Color(0xFF1A1A1A),
+                  borderRadius: BorderRadius.circular(22),
+                ),
                 indicatorSize: TabBarIndicatorSize.tab,
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.grey[600],
+                labelColor: context.isDark ? Colors.black : Colors.white,
+                unselectedLabelColor: context.textSecondary,
                 labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                 dividerColor: Colors.transparent,
                 tabs: const [Tab(text: 'Transactions'), Tab(text: 'Earnings')],
@@ -315,7 +322,7 @@ class _WalletPageState extends ConsumerState<WalletPage> with SingleTickerProvid
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(desc, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF1A1A1A)), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        Text(desc, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: context.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
                         const SizedBox(height: 2),
                         Row(
                           children: [
@@ -379,7 +386,7 @@ class _WalletPageState extends ConsumerState<WalletPage> with SingleTickerProvid
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(carName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF1A1A1A)), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        Text(carName, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: context.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
                         const SizedBox(height: 2),
                         Text('$renter \u2022 ${DateFormat('d MMM').format(date)}', style: TextStyle(fontSize: 11, color: Colors.grey[400])),
                       ],
@@ -401,7 +408,7 @@ class _WalletPageState extends ConsumerState<WalletPage> with SingleTickerProvid
   Widget _buildEmpty(String message) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 48),
-      child: Center(child: Text(message, style: TextStyle(fontSize: 13, color: Colors.grey[400]))),
+      child: Center(child: Text(message, style: TextStyle(fontSize: 13, color: context.textSecondary))),
     );
   }
 

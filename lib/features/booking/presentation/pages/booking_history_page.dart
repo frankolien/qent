@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:qent/core/services/api_client.dart';
+import 'package:qent/core/theme/app_theme.dart';
 
 class BookingHistory {
   final String id;
@@ -122,9 +123,9 @@ class _BookingHistoryPageState extends State<BookingHistoryPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.bgPrimary,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: context.bgPrimary,
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: Padding(
@@ -137,9 +138,9 @@ class _BookingHistoryPageState extends State<BookingHistoryPage>
                 height: 40,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.grey[300]!, width: 1),
+                  border: Border.all(color: context.borderColor, width: 1),
                 ),
-                child: const Icon(Icons.arrow_back_ios_new, size: 16, color: Colors.black),
+                child: Icon(Icons.arrow_back_ios_new, size: 16, color: context.textPrimary),
               ),
             ),
           ),
@@ -150,21 +151,21 @@ class _BookingHistoryPageState extends State<BookingHistoryPage>
           style: GoogleFonts.roboto(
             fontSize: 17,
             fontWeight: FontWeight.w700,
-            color: Colors.black,
+            color: context.textPrimary,
           ),
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(49),
           child: Column(
             children: [
-              Container(color: Colors.grey[200], height: 1),
+              Container(color: context.borderColor, height: 1),
               TabBar(
                 controller: _tabController,
-                labelColor: Colors.black,
-                unselectedLabelColor: Colors.grey[400],
+                labelColor: context.textPrimary,
+                unselectedLabelColor: context.textTertiary,
                 labelStyle: GoogleFonts.roboto(fontSize: 14, fontWeight: FontWeight.w600),
                 unselectedLabelStyle: GoogleFonts.roboto(fontSize: 14, fontWeight: FontWeight.w500),
-                indicatorColor: Colors.black,
+                indicatorColor: context.textPrimary,
                 indicatorWeight: 2.5,
                 tabs: _tabs.map((t) => Tab(text: t)).toList(),
               ),
@@ -183,7 +184,7 @@ class _BookingHistoryPageState extends State<BookingHistoryPage>
                     if (bookings.isEmpty) return _buildEmptyState(i);
                     return RefreshIndicator(
                       onRefresh: _fetchBookings,
-                      color: const Color(0xFF1A1A1A),
+                      color: context.textPrimary,
                       child: ListView.separated(
                         physics: const AlwaysScrollableScrollPhysics(
                           parent: BouncingScrollPhysics(),
@@ -206,17 +207,17 @@ class _BookingHistoryPageState extends State<BookingHistoryPage>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline_rounded, size: 48, color: Colors.grey[300]),
+            Icon(Icons.error_outline_rounded, size: 48, color: context.textTertiary),
             const SizedBox(height: 16),
             Text(
               'Something went wrong',
-              style: GoogleFonts.roboto(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black),
+              style: GoogleFonts.roboto(fontSize: 16, fontWeight: FontWeight.w600, color: context.textPrimary),
             ),
             const SizedBox(height: 8),
             Text(
               _error!,
               textAlign: TextAlign.center,
-              style: GoogleFonts.roboto(fontSize: 13, color: Colors.grey[500]),
+              style: GoogleFonts.roboto(fontSize: 13, color: context.textTertiary),
             ),
             const SizedBox(height: 24),
             GestureDetector(
@@ -224,7 +225,7 @@ class _BookingHistoryPageState extends State<BookingHistoryPage>
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1A1A1A),
+                  color: context.textPrimary,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -256,16 +257,16 @@ class _BookingHistoryPageState extends State<BookingHistoryPage>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.directions_car_outlined, size: 56, color: Colors.grey[300]),
+          Icon(Icons.directions_car_outlined, size: 56, color: context.textTertiary),
           const SizedBox(height: 16),
           Text(
             messages[tabIndex],
-            style: GoogleFonts.roboto(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black),
+            style: GoogleFonts.roboto(fontSize: 16, fontWeight: FontWeight.w600, color: context.textPrimary),
           ),
           const SizedBox(height: 6),
           Text(
             subtitles[tabIndex],
-            style: GoogleFonts.roboto(fontSize: 13, color: Colors.grey[500]),
+            style: GoogleFonts.roboto(fontSize: 13, color: context.textTertiary),
           ),
         ],
       ),
@@ -288,7 +289,7 @@ class _BookingHistoryPageState extends State<BookingHistoryPage>
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F8F8),
+        color: context.bgSecondary,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Padding(
@@ -322,7 +323,7 @@ class _BookingHistoryPageState extends State<BookingHistoryPage>
                           style: GoogleFonts.roboto(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
-                            color: const Color(0xFF1A1A1A),
+                            color: context.textPrimary,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -349,11 +350,11 @@ class _BookingHistoryPageState extends State<BookingHistoryPage>
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      Icon(Icons.calendar_today_rounded, size: 13, color: Colors.grey[500]),
+                      Icon(Icons.calendar_today_rounded, size: 13, color: context.textTertiary),
                       const SizedBox(width: 4),
                       Text(
                         formattedDates,
-                        style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey[500]),
+                        style: GoogleFonts.roboto(fontSize: 12, color: context.textTertiary),
                       ),
                     ],
                   ),
@@ -361,12 +362,12 @@ class _BookingHistoryPageState extends State<BookingHistoryPage>
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.location_on_outlined, size: 13, color: Colors.grey[500]),
+                        Icon(Icons.location_on_outlined, size: 13, color: context.textTertiary),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             booking.carLocation!,
-                            style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey[500]),
+                            style: GoogleFonts.roboto(fontSize: 12, color: context.textTertiary),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -380,14 +381,14 @@ class _BookingHistoryPageState extends State<BookingHistoryPage>
                     children: [
                       Text(
                         '${booking.totalDays} day${booking.totalDays == 1 ? '' : 's'}',
-                        style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey[500]),
+                        style: GoogleFonts.roboto(fontSize: 12, color: context.textTertiary),
                       ),
                       Text(
                         '\u20a6${formatter.format(booking.totalAmount.toInt())}',
                         style: GoogleFonts.roboto(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
-                          color: const Color(0xFF1A1A1A),
+                          color: context.textPrimary,
                         ),
                       ),
                     ],
@@ -406,7 +407,7 @@ class _BookingHistoryPageState extends State<BookingHistoryPage>
       width: 80,
       height: 80,
       decoration: BoxDecoration(
-        color: Colors.grey[200],
+        color: context.bgSecondary,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Icon(Icons.directions_car_rounded, size: 32, color: Colors.grey[400]),

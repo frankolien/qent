@@ -5,6 +5,7 @@ import 'package:qent/features/notifications/domain/models/notification.dart';
 import 'package:qent/features/notifications/presentation/controllers/notification_controller.dart';
 import 'package:qent/features/notifications/presentation/providers/notification_providers.dart';
 import 'package:qent/features/notifications/presentation/widgets/notification_skeleton.dart';
+import 'package:qent/core/theme/app_theme.dart';
 
 class NotificationsPage extends ConsumerStatefulWidget {
   const NotificationsPage({super.key});
@@ -36,7 +37,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
         : const AsyncValue<List<NotificationModel>>.data([]);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.bgPrimary,
       body: SafeArea(
         child: notificationsAsync.when(
           data: (notifications) {
@@ -120,12 +121,12 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           const SizedBox(width: 40),
-          const Text(
+          Text(
             'Notification',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Colors.black,
+              color: context.textPrimary,
             ),
           ),
           GestureDetector(
@@ -142,7 +143,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
               alignment: Alignment.center,
               child: Icon(
                 state.isSelectionMode ? Icons.delete_outline : Icons.more_vert,
-                color: Colors.black,
+                color: context.textPrimary,
                 size: 24,
               ),
             ),

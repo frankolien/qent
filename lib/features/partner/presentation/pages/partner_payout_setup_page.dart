@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:qent/core/services/api_client.dart';
 import 'package:qent/features/home/presentation/providers/car_providers.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
+import 'package:qent/core/theme/app_theme.dart';
 
 class PartnerPayoutSetupPage extends ConsumerStatefulWidget {
   const PartnerPayoutSetupPage({super.key});
@@ -62,9 +63,9 @@ class _PartnerPayoutSetupPageState extends ConsumerState<PartnerPayoutSetupPage>
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
         padding: const EdgeInsets.all(32),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: context.bgPrimary,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -73,7 +74,7 @@ class _PartnerPayoutSetupPageState extends ConsumerState<PartnerPayoutSetupPage>
             const SizedBox(height: 16),
             Text(
               'Congratulations',
-              style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.black),
+              style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w700, color: context.textPrimary),
             ),
             const SizedBox(height: 12),
             Text(
@@ -113,29 +114,29 @@ class _PartnerPayoutSetupPageState extends ConsumerState<PartnerPayoutSetupPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.bgPrimary,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: context.bgPrimary,
         elevation: 0,
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.grey[300]!),
+              border: Border.all(color: context.borderColor),
             ),
-            child: const Icon(Icons.arrow_back, color: Colors.black, size: 18),
+            child: Icon(Icons.arrow_back, color: context.textPrimary, size: 18),
           ),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           'Payment receive methods',
-          style: GoogleFonts.inter(color: Colors.black, fontWeight: FontWeight.w700, fontSize: 16),
+          style: GoogleFonts.inter(color: context.textPrimary, fontWeight: FontWeight.w700, fontSize: 16),
         ),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.more_horiz, color: Colors.black),
+            icon: Icon(Icons.more_horiz, color: context.textPrimary),
             onPressed: () {},
           ),
         ],
@@ -168,7 +169,7 @@ class _PartnerPayoutSetupPageState extends ConsumerState<PartnerPayoutSetupPage>
                     const SizedBox(height: 12),
                     Text(
                       'Successful',
-                      style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black),
+                      style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: context.textPrimary),
                     ),
                     const SizedBox(height: 6),
                     Text(
@@ -220,7 +221,7 @@ class _PartnerPayoutSetupPageState extends ConsumerState<PartnerPayoutSetupPage>
               // Card information
               Text(
                 'Card information',
-                style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black),
+                style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: context.textPrimary),
               ),
               const SizedBox(height: 16),
               _buildTextField(label: 'Full Name', controller: _fullNameController),
@@ -268,7 +269,7 @@ class _PartnerPayoutSetupPageState extends ConsumerState<PartnerPayoutSetupPage>
               // Country
               Text(
                 'Country or region',
-                style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black),
+                style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: context.textPrimary),
               ),
               const SizedBox(height: 12),
               Container(

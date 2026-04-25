@@ -9,6 +9,7 @@ import 'package:qent/core/widgets/animated_loading.dart';
 import 'package:qent/core/widgets/profile_image_widget.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/wallet/presentation/pages/wallet_page.dart';
+import 'package:qent/core/theme/app_theme.dart';
 
 class HostDashboardPage extends ConsumerStatefulWidget {
   const HostDashboardPage({super.key});
@@ -36,7 +37,7 @@ class _HostDashboardPageState extends ConsumerState<HostDashboardPage> {
     final pendingAsync = ref.watch(hostPendingBookingsProvider);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.bgPrimary,
       body: SafeArea(
         child: statsAsync.when(
           loading: () => const Center(
@@ -89,20 +90,20 @@ class _HostDashboardPageState extends ConsumerState<HostDashboardPage> {
                           width: 42,
                           height: 42,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF2F2F2),
+                            color: context.bgSecondary,
                             borderRadius: BorderRadius.circular(14),
                           ),
-                          child: const Icon(Icons.arrow_back_ios_new, size: 16, color: Color(0xFF1A1A1A)),
+                          child: Icon(Icons.arrow_back_ios_new, size: 16, color: context.textPrimary),
                         ),
                       ),
                       const SizedBox(width: 14),
-                      const Expanded(
+                      Expanded(
                         child: Text(
                           'Dashboard',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF1A1A1A),
+                            color: context.textPrimary,
                           ),
                         ),
                       ),
@@ -115,10 +116,10 @@ class _HostDashboardPageState extends ConsumerState<HostDashboardPage> {
                           width: 42,
                           height: 42,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF2F2F2),
+                            color: context.bgSecondary,
                             borderRadius: BorderRadius.circular(14),
                           ),
-                          child: const Icon(Icons.refresh_rounded, size: 20, color: Color(0xFF1A1A1A)),
+                          child: Icon(Icons.refresh_rounded, size: 20, color: context.textPrimary),
                         ),
                       ),
                     ],
@@ -295,9 +296,9 @@ class _HostDashboardPageState extends ConsumerState<HostDashboardPage> {
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
                   child: Container(
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                    decoration: BoxDecoration(
+                      color: context.bgCard,
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                     ),
                     padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
                     child: Row(
@@ -306,12 +307,12 @@ class _HostDashboardPageState extends ConsumerState<HostDashboardPage> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'My Listings',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
-                                color: Color(0xFF1A1A1A),
+                                color: context.textPrimary,
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -358,7 +359,7 @@ class _HostDashboardPageState extends ConsumerState<HostDashboardPage> {
               // Listings
               SliverToBoxAdapter(
                 child: Container(
-                  color: Colors.white,
+                  color: context.bgCard,
                   child: _buildListingsSection(listingsAsync, ref, context),
                 ),
               ),
@@ -402,7 +403,7 @@ class _HostDashboardPageState extends ConsumerState<HostDashboardPage> {
                     style: GoogleFonts.roboto(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1A1A1A),
+                      color: context.textPrimary,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -449,9 +450,9 @@ class _HostDashboardPageState extends ConsumerState<HostDashboardPage> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.bgSecondary,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFFF3E0), width: 1.5),
+        border: Border.all(color: context.isDark ? context.borderColor : const Color(0xFFFFF3E0), width: 1.5),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -476,7 +477,7 @@ class _HostDashboardPageState extends ConsumerState<HostDashboardPage> {
                       style: GoogleFonts.roboto(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: const Color(0xFF1A1A1A),
+                        color: context.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -495,7 +496,7 @@ class _HostDashboardPageState extends ConsumerState<HostDashboardPage> {
                 style: GoogleFonts.roboto(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: const Color(0xFF1A1A1A),
+                  color: context.textPrimary,
                 ),
               ),
             ],
@@ -537,7 +538,7 @@ class _HostDashboardPageState extends ConsumerState<HostDashboardPage> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF5F5F5),
+                      color: context.bgTertiary,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Center(
@@ -546,7 +547,7 @@ class _HostDashboardPageState extends ConsumerState<HostDashboardPage> {
                         style: GoogleFonts.roboto(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: Colors.grey[700],
+                          color: context.textSecondary,
                         ),
                       ),
                     ),
@@ -560,7 +561,7 @@ class _HostDashboardPageState extends ConsumerState<HostDashboardPage> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1A1A1A),
+                      color: context.isDark ? context.accent : const Color(0xFF1A1A1A),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Center(
@@ -569,7 +570,7 @@ class _HostDashboardPageState extends ConsumerState<HostDashboardPage> {
                         style: GoogleFonts.roboto(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                          color: context.isDark ? Colors.black : Colors.white,
                         ),
                       ),
                     ),
@@ -611,17 +612,17 @@ class _HostDashboardPageState extends ConsumerState<HostDashboardPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.bgCard,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
           children: [
             Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF1A1A1A),
+                color: context.textPrimary,
               ),
             ),
             const SizedBox(height: 2),
@@ -669,12 +670,12 @@ class _HostDashboardPageState extends ConsumerState<HostDashboardPage> {
                   child: Icon(Icons.directions_car_rounded, size: 28, color: Colors.grey[400]),
                 ),
                 const SizedBox(height: 14),
-                const Text(
+                Text(
                   'No listings yet',
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF1A1A1A),
+                    color: context.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -766,10 +767,10 @@ class _HostDashboardPageState extends ConsumerState<HostDashboardPage> {
                     Expanded(
                       child: Text(
                         '${listing.make} ${listing.model}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF1A1A1A),
+                          color: context.textPrimary,
                           letterSpacing: -0.2,
                         ),
                         maxLines: 1,
@@ -801,11 +802,11 @@ class _HostDashboardPageState extends ConsumerState<HostDashboardPage> {
                 Row(
                   children: [
                     Text(
-                      '\₦${listing.pricePerDay.toStringAsFixed(0)}/day',
-                      style: const TextStyle(
+                      '\u20a6${listing.pricePerDay.toStringAsFixed(0)}/day',
+                      style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
-                        color: Color(0xFF1A1A1A),
+                        color: context.textPrimary,
                       ),
                     ),
                     const SizedBox(width: 12),

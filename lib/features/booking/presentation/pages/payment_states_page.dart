@@ -5,6 +5,7 @@ import 'package:qent/features/booking/domain/models/booking_confirmation.dart';
 import 'package:qent/features/chat/presentation/controllers/chat_controller.dart';
 import 'package:qent/features/chat/presentation/pages/chat_detail_page.dart';
 import 'package:qent/features/home/domain/models/car.dart';
+import 'package:qent/core/theme/app_theme.dart';
 
 class PaymentStatesPage extends ConsumerStatefulWidget {
   final Car car;
@@ -104,20 +105,20 @@ class _PaymentStatesPageState extends ConsumerState<PaymentStatesPage>
     return PopScope(
       canPop: false,
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: context.bgPrimary,
         body: SafeArea(
           bottom: false,
           child: Column(
             children: [
               // Minimal header — no back button (they should go home or message host)
-              const Padding(
-                padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                 child: Text(
                   'Booking Confirmed',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF1A1A1A),
+                    color: context.textPrimary,
                   ),
                 ),
               ),
@@ -198,12 +199,12 @@ class _PaymentStatesPageState extends ConsumerState<PaymentStatesPage>
       opacity: _fadeAnimation,
       child: Column(
         children: [
-          const Text(
+          Text(
             'You\'re all set!',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF1A1A1A),
+              color: context.textPrimary,
               letterSpacing: -0.5,
             ),
           ),
@@ -211,7 +212,7 @@ class _PaymentStatesPageState extends ConsumerState<PaymentStatesPage>
           Text(
             'Your ${widget.car.name} booking is confirmed',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: Colors.grey[500], height: 1.5),
+            style: TextStyle(fontSize: 14, color: context.textTertiary, height: 1.5),
           ),
         ],
       ),
@@ -244,12 +245,12 @@ class _PaymentStatesPageState extends ConsumerState<PaymentStatesPage>
                   child: const Icon(Icons.route_rounded, size: 18, color: Color(0xFF2E7D32)),
                 ),
                 const SizedBox(width: 10),
-                const Text(
+                Text(
                   'What\'s Next',
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF1A1A1A),
+                    color: context.textPrimary,
                   ),
                 ),
               ],
@@ -331,7 +332,7 @@ class _PaymentStatesPageState extends ConsumerState<PaymentStatesPage>
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                  style: TextStyle(fontSize: 12, color: context.textTertiary),
                 ),
               ],
             ),
@@ -345,7 +346,7 @@ class _PaymentStatesPageState extends ConsumerState<PaymentStatesPage>
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F8F8),
+        color: context.bgSecondary,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
@@ -372,7 +373,7 @@ class _PaymentStatesPageState extends ConsumerState<PaymentStatesPage>
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F8F8),
+        color: context.bgSecondary,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
@@ -399,7 +400,7 @@ class _PaymentStatesPageState extends ConsumerState<PaymentStatesPage>
             _buildInfoRow('Protection', _formatAmount(widget.confirmation.protectionFee)),
           ],
           const SizedBox(height: 10),
-          Divider(color: Colors.grey[300], height: 24),
+          Divider(color: context.borderColor, height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -422,7 +423,7 @@ class _PaymentStatesPageState extends ConsumerState<PaymentStatesPage>
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+        Text(label, style: TextStyle(fontSize: 13, color: context.textTertiary)),
         Flexible(
           child: Text(
             value,
@@ -466,17 +467,17 @@ class _PaymentStatesPageState extends ConsumerState<PaymentStatesPage>
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFFF8F8F8),
+          color: context.bgSecondary,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: Colors.grey[600], size: 18),
+            Icon(icon, color: context.textSecondary, size: 18),
             const SizedBox(width: 6),
             Text(
               label,
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey[600]),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: context.textSecondary),
             ),
           ],
         ),
@@ -493,7 +494,7 @@ class _PaymentStatesPageState extends ConsumerState<PaymentStatesPage>
         bottom: bottomPadding + 14,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.bgPrimary,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -510,8 +511,8 @@ class _PaymentStatesPageState extends ConsumerState<PaymentStatesPage>
             child: ElevatedButton(
               onPressed: _isMessageLoading ? null : _messageHost,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1A1A1A),
-                foregroundColor: Colors.white,
+                backgroundColor: context.isDark ? context.accent : const Color(0xFF1A1A1A),
+                foregroundColor: context.isDark ? Colors.black : Colors.white,
                 disabledBackgroundColor: Colors.grey[400],
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -545,10 +546,10 @@ class _PaymentStatesPageState extends ConsumerState<PaymentStatesPage>
                 Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
               },
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF1A1A1A),
+                foregroundColor: context.textPrimary,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                side: BorderSide(color: Colors.grey[300]!),
+                side: BorderSide(color: context.borderColor),
               ),
               child: const Text(
                 'Home',

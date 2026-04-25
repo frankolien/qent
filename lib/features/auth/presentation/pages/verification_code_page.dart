@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/core/services/email_verification_service.dart';
+import 'package:qent/core/theme/app_theme.dart';
 
 class VerificationCodePage extends ConsumerStatefulWidget {
   final String email;
@@ -166,12 +167,12 @@ class _VerificationCodePageState extends ConsumerState<VerificationCodePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.bgPrimary,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: context.bgPrimary,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: context.textPrimary),
           onPressed: () => Navigator.of(context).pop(false),
         ),
       ),
@@ -189,34 +190,34 @@ class _VerificationCodePageState extends ConsumerState<VerificationCodePage> {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: Colors.black,
+                      color: context.textPrimary,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.directions_car,
-                      color: Colors.white,
+                      color: context.bgPrimary,
                       size: 24,
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Text(
+                  Text(
                     'Qent',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black,
+                      color: context.textPrimary,
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 40),
               // Title
-              const Text(
+              Text(
                 'Enter verification code',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                  color: context.textPrimary,
                 ),
               ),
               const SizedBox(height: 12),
@@ -225,7 +226,7 @@ class _VerificationCodePageState extends ConsumerState<VerificationCodePage> {
                 'We have send a Code to : ${widget.maskedEmail}',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.grey[600],
+                  color: context.textSecondary,
                 ),
               ),
               const SizedBox(height: 40),
@@ -245,21 +246,21 @@ class _VerificationCodePageState extends ConsumerState<VerificationCodePage> {
                         FilteringTextInputFormatter.digitsOnly,
                         LengthLimitingTextInputFormatter(1),
                       ],
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                        color: context.textPrimary,
                       ),
                       decoration: InputDecoration(
                         filled: true,
-                        fillColor: Colors.grey[100],
+                        fillColor: context.inputBg,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.blue, width: 2),
+                          borderSide: BorderSide(color: context.accent, width: 2),
                         ),
                         contentPadding: EdgeInsets.zero,
                       ),
@@ -276,7 +277,7 @@ class _VerificationCodePageState extends ConsumerState<VerificationCodePage> {
                 child: ElevatedButton(
                   onPressed: _isVerifying ? null : _verifyCode,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey[800],
+                    backgroundColor: context.isDark ? context.accent : const Color(0xFF2C2C2C),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -291,12 +292,12 @@ class _VerificationCodePageState extends ConsumerState<VerificationCodePage> {
                             valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
-                      : const Text(
+                      : Text(
                           'Continue',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            color: context.isDark ? Colors.black : Colors.white,
                           ),
                         ),
                 ),
@@ -316,7 +317,7 @@ class _VerificationCodePageState extends ConsumerState<VerificationCodePage> {
                           "Didn't receive the OTP? Resend",
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.grey[600],
+                            color: context.textSecondary,
                             decoration: TextDecoration.underline,
                           ),
                         ),

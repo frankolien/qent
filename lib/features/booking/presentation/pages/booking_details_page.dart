@@ -4,9 +4,11 @@ import 'package:intl/intl.dart';
 import 'package:qent/core/services/api_client.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/booking/domain/models/booking_form.dart';
+import 'package:qent/features/home/presentation/pages/main_nav_page.dart';
 import 'package:qent/features/home/domain/models/car.dart';
 import 'package:qent/features/search/presentation/widgets/custom_date_range_picker.dart';
 import 'package:qent/features/search/presentation/widgets/location_picker.dart';
+import 'package:qent/core/theme/app_theme.dart';
 
 class BookingDetailsPage extends ConsumerStatefulWidget {
   final Car car;
@@ -246,7 +248,8 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
               TextButton(
                 onPressed: () {
                   Navigator.of(ctx).pop();
-                  Navigator.of(context).pop(); // Go back to car detail
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                  MainNavPage.globalKey.currentState?.switchToTab(3);
                 },
                 child: Text(
                   'View My Trips',
@@ -329,7 +332,7 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.bgPrimary,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -380,20 +383,20 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: const Color(0xFFF5F5F5),
+                color: context.bgSecondary,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(Icons.arrow_back_rounded, size: 20, color: Color(0xFF1A1A1A)),
+              child: Icon(Icons.arrow_back_rounded, size: 20, color: context.textPrimary),
             ),
           ),
-          const Expanded(
+          Expanded(
             child: Center(
               child: Text(
                 'Booking Details',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF1A1A1A),
+                  color: context.textPrimary,
                 ),
               ),
             ),
@@ -412,9 +415,9 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
           Row(
             children: [
               _buildStepCircle(0, activeStep),
-              Expanded(child: Container(height: 2, color: activeStep > 0 ? const Color(0xFF1A1A1A) : Colors.grey[300])),
+              Expanded(child: Container(height: 2, color: activeStep > 0 ? context.textPrimary : Colors.grey[300])),
               _buildStepCircle(1, activeStep),
-              Expanded(child: Container(height: 2, color: activeStep > 1 ? const Color(0xFF1A1A1A) : Colors.grey[300])),
+              Expanded(child: Container(height: 2, color: activeStep > 1 ? context.textPrimary : Colors.grey[300])),
               _buildStepCircle(2, activeStep),
             ],
           ),
@@ -422,9 +425,9 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Details', style: TextStyle(fontSize: 11, fontWeight: activeStep == 0 ? FontWeight.w600 : FontWeight.w400, color: activeStep == 0 ? const Color(0xFF1A1A1A) : Colors.grey[500])),
-              Text('Payment', style: TextStyle(fontSize: 11, fontWeight: activeStep == 1 ? FontWeight.w600 : FontWeight.w400, color: activeStep == 1 ? const Color(0xFF1A1A1A) : Colors.grey[500])),
-              Text('Confirm', style: TextStyle(fontSize: 11, fontWeight: activeStep == 2 ? FontWeight.w600 : FontWeight.w400, color: activeStep == 2 ? const Color(0xFF1A1A1A) : Colors.grey[500])),
+              Text('Details', style: TextStyle(fontSize: 11, fontWeight: activeStep == 0 ? FontWeight.w600 : FontWeight.w400, color: activeStep == 0 ? context.textPrimary : Colors.grey[500])),
+              Text('Payment', style: TextStyle(fontSize: 11, fontWeight: activeStep == 1 ? FontWeight.w600 : FontWeight.w400, color: activeStep == 1 ? context.textPrimary : Colors.grey[500])),
+              Text('Confirm', style: TextStyle(fontSize: 11, fontWeight: activeStep == 2 ? FontWeight.w600 : FontWeight.w400, color: activeStep == 2 ? context.textPrimary : Colors.grey[500])),
             ],
           ),
         ],
@@ -440,10 +443,10 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
       width: 28,
       height: 28,
       decoration: BoxDecoration(
-        color: (isActive || isCompleted) ? const Color(0xFF1A1A1A) : Colors.white,
+        color: (isActive || isCompleted) ? (context.isDark ? const Color(0xFF22C55E) : const Color(0xFF1A1A1A)) : context.bgPrimary,
         shape: BoxShape.circle,
         border: Border.all(
-          color: (isActive || isCompleted) ? const Color(0xFF1A1A1A) : Colors.grey[300]!,
+          color: (isActive || isCompleted) ? (context.isDark ? const Color(0xFF22C55E) : const Color(0xFF1A1A1A)) : Colors.grey[300]!,
           width: 2,
         ),
       ),
@@ -466,7 +469,7 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F8F8),
+        color: context.inputBg,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -475,22 +478,22 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.bgPrimary,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.person_rounded, size: 22, color: Color(0xFF1A1A1A)),
+            child: Icon(Icons.person_rounded, size: 22, color: context.textPrimary),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Book with driver',
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF1A1A1A),
+                    color: context.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -582,18 +585,18 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
         hintText: hintText,
         hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
         filled: true,
-        fillColor: const Color(0xFFF8F8F8),
+        fillColor: context.inputBg,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
+          borderSide: BorderSide(color: context.inputBorder),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
+          borderSide: BorderSide(color: context.inputBorder),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFF1A1A1A), width: 1.5),
+          borderSide: BorderSide(color: context.isDark ? const Color(0xFF22C55E) : const Color(0xFF1A1A1A), width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
@@ -614,12 +617,12 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Gender',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF1A1A1A),
+            color: context.textPrimary,
           ),
         ),
         const SizedBox(height: 12),
@@ -658,18 +661,18 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF1A1A1A) : const Color(0xFFF8F8F8),
+          color: isSelected ? (context.isDark ? const Color(0xFF22C55E) : const Color(0xFF1A1A1A)) : context.inputBg,
           borderRadius: BorderRadius.circular(14),
           border: hasError && !isSelected
               ? Border.all(color: Colors.red.withValues(alpha: 0.5), width: 1)
-              : null,
+              : (!isSelected ? Border.all(color: context.inputBorder) : null),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               icon,
-              color: isSelected ? Colors.white : Colors.grey[600],
+              color: isSelected ? (context.isDark ? Colors.black : Colors.white) : Colors.grey[600],
               size: 18,
             ),
             const SizedBox(width: 8),
@@ -678,7 +681,7 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: isSelected ? Colors.white : Colors.grey[700],
+                color: isSelected ? (context.isDark ? Colors.black : Colors.white) : Colors.grey[700],
               ),
             ),
           ],
@@ -691,12 +694,12 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Rental Date & Time',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF1A1A1A),
+            color: context.textPrimary,
           ),
         ),
         const SizedBox(height: 12),
@@ -756,8 +759,9 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF1A1A1A) : const Color(0xFFF8F8F8),
+          color: isSelected ? (context.isDark ? const Color(0xFF22C55E) : const Color(0xFF1A1A1A)) : context.inputBg,
           borderRadius: BorderRadius.circular(14),
+          border: !isSelected ? Border.all(color: context.inputBorder) : null,
         ),
         child: Text(
           label,
@@ -765,7 +769,7 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: isSelected ? Colors.white : Colors.grey[700],
+            color: isSelected ? (context.isDark ? Colors.black : Colors.white) : Colors.grey[700],
           ),
         ),
       ),
@@ -780,11 +784,11 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFFF8F8F8),
+          color: context.inputBg,
           borderRadius: BorderRadius.circular(14),
           border: hasError && dateText == null
               ? Border.all(color: Colors.red.withValues(alpha: 0.5), width: 1)
-              : null,
+              : Border.all(color: context.inputBorder),
         ),
         child: Row(
           children: [
@@ -795,7 +799,7 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
                 dateText ?? label,
                 style: TextStyle(
                   fontSize: 13,
-                  color: dateText != null ? const Color(0xFF1A1A1A) : Colors.grey[400],
+                  color: dateText != null ? context.textPrimary : Colors.grey[400],
                   fontWeight: dateText != null ? FontWeight.w500 : FontWeight.normal,
                 ),
               ),
@@ -812,12 +816,12 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Car Location',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF1A1A1A),
+            color: context.textPrimary,
           ),
         ),
         const SizedBox(height: 12),
@@ -826,11 +830,11 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8F8F8),
+              color: context.inputBg,
               borderRadius: BorderRadius.circular(14),
               border: hasError
                   ? Border.all(color: Colors.red.withValues(alpha: 0.5), width: 1)
-                  : null,
+                  : Border.all(color: context.inputBorder),
             ),
             child: Row(
               children: [
@@ -845,7 +849,7 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
                       fontSize: 13,
                       color: _locationController.text.isEmpty
                           ? Colors.grey[400]
-                          : const Color(0xFF1A1A1A),
+                          : context.textPrimary,
                       fontWeight: _locationController.text.isNotEmpty
                           ? FontWeight.w500
                           : FontWeight.normal,
@@ -878,7 +882,7 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
         bottom: MediaQuery.of(context).padding.bottom + 16,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.bgPrimary,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
@@ -890,8 +894,8 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
       child: ElevatedButton(
         onPressed: _isLoading ? null : _submitBooking,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF1A1A1A),
-          foregroundColor: Colors.white,
+          backgroundColor: context.isDark ? const Color(0xFF22C55E) : const Color(0xFF1A1A1A),
+          foregroundColor: context.isDark ? Colors.black : Colors.white,
           disabledBackgroundColor: Colors.grey[400],
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(

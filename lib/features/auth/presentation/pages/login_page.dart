@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/auth/presentation/pages/signup_page.dart' show validateEmail; // email typo validator
+import 'package:qent/core/theme/app_theme.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -74,24 +75,29 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final authState = ref.watch(authControllerProvider);
     final isLoading = authState.isLoading;
 
-    if (authState.errorMessage != null && mounted) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          showError(_getErrorMessage(authState.errorMessage!));
-        }
-      });
-    }
-
     if (authState.user != null && mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          Navigator.pushReplacementNamed(context, '/home');
-        }
+        if (mounted) Navigator.pushReplacementNamed(context, '/home');
+      });
+      // Show a loading state while redirecting to avoid blank screen
+      return Scaffold(
+        backgroundColor: context.bgPrimary,
+        body: Center(
+          child: CircularProgressIndicator(
+            color: context.isDark ? context.accent : const Color(0xFF1A1A1A),
+            strokeWidth: 2,
+          ),
+        ),
+      );
+    } else if (authState.errorMessage != null && !authState.isLoading && mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) showError(_getErrorMessage(authState.errorMessage!));
+        ref.read(authControllerProvider.notifier).clearError();
       });
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.bgPrimary,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -145,12 +151,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           ),
         ),
         const SizedBox(width: 10),
-        const Text(
+        Text(
           'Qent',
           style: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.w700,
-            color: Colors.black,
+            color: context.textPrimary,
             letterSpacing: -0.5,
           ),
         ),
@@ -161,24 +167,24 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   Widget _buildTitle() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: const [
+      children: [
         Text(
           'Welcome Back',
           style: TextStyle(
             fontSize: 30,
             fontWeight: FontWeight.w700,
-            color: Colors.black,
+            color: context.textPrimary,
             height: 1.15,
             letterSpacing: -0.8,
           ),
         ),
-        SizedBox(height: 2),
+        const SizedBox(height: 2),
         Text(
           'Ready to hit the road.',
           style: TextStyle(
             fontSize: 30,
             fontWeight: FontWeight.w700,
-            color: Colors.black,
+            color: context.textPrimary,
             height: 1.15,
             letterSpacing: -0.8,
           ),
@@ -191,7 +197,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final inputDecoration = InputDecoration(
       hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
       filled: true,
-      fillColor: const Color(0xFFF5F5F5),
+      fillColor: context.inputBg,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide.none,
@@ -202,7 +208,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Colors.black26, width: 1),
+        borderSide: BorderSide(color: context.isDark ? context.accent.withValues(alpha: 0.6) : Colors.black26, width: 1),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 17),
     );
@@ -270,7 +276,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       _rememberMe = value ?? true;
                     });
                   },
-                  activeColor: Colors.black,
+                  activeColor: context.isDark ? context.accent : Colors.black,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   visualDensity: VisualDensity.compact,
                   shape: RoundedRectangleBorder(
@@ -279,11 +285,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 ),
               ),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'Remember Me',
                 style: TextStyle(
                   fontSize: 13,
-                  color: Colors.black87,
+                  color: context.textPrimary,
                 ),
               ),
             ],
@@ -291,11 +297,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         ),
         GestureDetector(
           onTap: _handleForgotPassword,
-          child: const Text(
+          child: Text(
             'Forgot Password',
             style: TextStyle(
               fontSize: 13,
-              color: Colors.black87,
+              color: context.textPrimary,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -311,9 +317,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       child: ElevatedButton(
         onPressed: isLoading ? null : _handleLogin,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF1A1A1A),
-          disabledBackgroundColor: const Color(0xFF1A1A1A).withOpacity(0.6),
-          foregroundColor: Colors.white,
+          backgroundColor: context.isDark ? context.accent : const Color(0xFF1A1A1A),
+          disabledBackgroundColor: context.isDark ? context.accent.withValues(alpha: 0.6) : const Color(0xFF1A1A1A).withValues(alpha: 0.6),
+          foregroundColor: context.isDark ? Colors.black : Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -348,8 +354,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           Navigator.pushNamed(context, '/signup');
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFFF2F2F2),
-          foregroundColor: Colors.black,
+          backgroundColor: context.bgSecondary,
+          foregroundColor: context.textPrimary,
           elevation: 0,
           shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
@@ -370,15 +376,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   Widget _buildSeparator() {
     return Row(
       children: [
-        Expanded(child: Divider(color: Colors.grey[300], height: 1)),
+        Expanded(child: Divider(color: context.borderColor, height: 1)),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: Text(
             'Or',
-            style: TextStyle(color: Colors.grey[500], fontSize: 13),
+            style: TextStyle(color: context.textSecondary, fontSize: 13),
           ),
         ),
-        Expanded(child: Divider(color: Colors.grey[300], height: 1)),
+        Expanded(child: Divider(color: context.borderColor, height: 1)),
       ],
     );
   }
@@ -419,8 +425,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFFF2F2F2),
-          foregroundColor: Colors.black,
+          backgroundColor: context.bgSecondary,
+          foregroundColor: context.textPrimary,
           elevation: 0,
           shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
@@ -459,10 +465,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             onTap: () {
               Navigator.pushNamed(context, '/signup');
             },
-            child: const Text(
+            child: Text(
               'Sign Up.',
               style: TextStyle(
-                color: Colors.black,
+                color: context.textPrimary,
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
               ),

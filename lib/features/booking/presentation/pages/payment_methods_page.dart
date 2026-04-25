@@ -8,6 +8,7 @@ import 'package:qent/features/booking/domain/models/booking_confirmation.dart';
 import 'package:qent/features/booking/domain/models/payment_method.dart';
 import 'package:qent/features/booking/presentation/pages/confirmation_page.dart';
 import 'package:qent/features/home/domain/models/car.dart';
+import 'package:qent/core/theme/app_theme.dart';
 
 /// Formats card number input: adds space every 4 digits, max 16 digits
 class _CardNumberFormatter extends TextInputFormatter {
@@ -192,7 +193,7 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage>
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.bgPrimary,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -245,20 +246,20 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage>
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: const Color(0xFFF5F5F5),
+                color: context.bgSecondary,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(Icons.arrow_back_rounded, size: 20, color: Color(0xFF1A1A1A)),
+              child: Icon(Icons.arrow_back_rounded, size: 20, color: context.textPrimary),
             ),
           ),
-          const Expanded(
+          Expanded(
             child: Center(
               child: Text(
                 'Payment Methods',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF1A1A1A),
+                  color: context.textPrimary,
                 ),
               ),
             ),
@@ -305,10 +306,10 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage>
       width: 28,
       height: 28,
       decoration: BoxDecoration(
-        color: (isActive || isCompleted) ? const Color(0xFF1A1A1A) : Colors.white,
+        color: (isActive || isCompleted) ? context.textPrimary : context.bgPrimary,
         shape: BoxShape.circle,
         border: Border.all(
-          color: (isActive || isCompleted) ? const Color(0xFF1A1A1A) : Colors.grey[300]!,
+          color: (isActive || isCompleted) ? context.textPrimary : context.borderColor,
           width: 2,
         ),
       ),
@@ -1305,7 +1306,7 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage>
         bottom: MediaQuery.of(context).padding.bottom + 16,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.bgPrimary,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
@@ -1317,8 +1318,8 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage>
       child: ElevatedButton(
         onPressed: _isLoading ? null : _handlePayment,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF1A1A1A),
-          foregroundColor: Colors.white,
+          backgroundColor: context.isDark ? context.accent : const Color(0xFF1A1A1A),
+          foregroundColor: context.isDark ? Colors.black : Colors.white,
           disabledBackgroundColor: Colors.grey[400],
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(

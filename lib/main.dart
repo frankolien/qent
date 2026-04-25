@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:qent/core/theme/app_theme.dart';
+import 'package:qent/core/providers/theme_provider.dart';
 import 'package:qent/firebase_options.dart';
 import 'package:qent/core/services/api_client.dart';
 import 'package:qent/core/services/cloudinary_service.dart';
@@ -33,9 +36,12 @@ void main() async {
   );
 
   // Initialize API client with backend URL
+  const prodUrl = 'https://qent-backend.onrender.com/api';
   final apiClient = ApiClient();
   await apiClient.initialize(
-    baseUrl: dotenv.env['API_BASE_URL'] ?? 'https://qent-backend.onrender.com/api',
+    baseUrl: kReleaseMode
+        ? prodUrl
+        : (dotenv.env['API_BASE_URL'] ?? prodUrl),
   );
 
   runApp(const ProviderScope(child: MainApp()));
@@ -72,11 +78,9 @@ class _MainAppState extends ConsumerState<MainApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        textTheme: GoogleFonts.robotoTextTheme(
-          Theme.of(context).textTheme,
-        ),
-      ),
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ref.watch(themeModeProvider),
       // Use home instead of initialRoute to survive hot reload
       home: _showedSplash ? const _AuthGate() : _buildSplashThenGate(),
       routes: {
@@ -100,18 +104,31 @@ class _MainAppState extends ConsumerState<MainApp> {
 }
 
 /// Watches auth state and shows login or home — survives hot reload
-class _AuthGate extends ConsumerWidget {
+class _AuthGate extends ConsumerStatefulWidget {
   const _AuthGate();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends ConsumerState<_AuthGate> {
+  bool _initialCheckDone = false;
+
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
 
-    if (authState.isLoading) {
+    // Only show loading screen during initial session restore, not during login
+    if (authState.isLoading && !_initialCheckDone) {
       return const Scaffold(
         backgroundColor: Color(0xFF0A0A0A),
         body: Center(child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
       );
+    }
+
+    // After first load completes, never show the black loading screen again
+    if (!authState.isLoading && !_initialCheckDone) {
+      _initialCheckDone = true;
     }
 
     if (authState.user != null) {
