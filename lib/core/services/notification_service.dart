@@ -114,6 +114,17 @@ class NotificationService {
   }
 
   Future<void> _saveFCMToken() async {
+    try {
+      final token = await _messaging.getToken();
+      if (kDebugMode) {
+        print('FCM token (use this for testing): $token');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error fetching FCM token: $e');
+      }
+    }
+
     final user = fb.FirebaseAuth.instance.currentUser;
     if (user == null) return;
 

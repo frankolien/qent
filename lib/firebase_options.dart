@@ -60,11 +60,11 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBJskkaNi31_GAjgDmpo7O-RAuvDmuuTeM',
-    appId: '1:44415498587:ios:020864c8aef758d43f427e',
+    appId: '1:44415498587:ios:5a4c0a2f623e5d8b3f427e',
     messagingSenderId: '44415498587',
     projectId: 'nimbus-ac6de',
     storageBucket: 'nimbus-ac6de.firebasestorage.app',
-    iosBundleId: 'com.example.qent',
+    iosBundleId: 'com.qentonline.qent',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(

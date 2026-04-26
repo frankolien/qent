@@ -8,6 +8,7 @@ import 'package:qent/core/providers/theme_provider.dart';
 import 'package:qent/firebase_options.dart';
 import 'package:qent/core/services/api_client.dart';
 import 'package:qent/core/services/cloudinary_service.dart';
+import 'package:qent/core/services/notification_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:qent/features/auth/presentation/pages/login_page.dart';
@@ -65,6 +66,12 @@ void _initializeServicesAsync() async {
     );
   } catch (e) {
     debugPrint('Async service initialization error: $e');
+  }
+
+  try {
+    await NotificationService().initialize();
+  } catch (e) {
+    debugPrint('NotificationService initialization error: $e');
   }
 }
 
