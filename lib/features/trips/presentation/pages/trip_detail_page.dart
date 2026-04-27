@@ -27,8 +27,20 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
   bool _isMessaging = false;
   bool _isPerformingAction = false;
   bool _isPaying = false;
+  String? _statusOverride;
 
-  String get _status => widget.trip.status;
+  String get _status => _statusOverride ?? widget.trip.status;
+
+  Future<void> _refreshFromBackend() async {
+    final response = await ApiClient().get('/bookings/${widget.trip.id}');
+    if (!mounted) return;
+    if (response.isSuccess) {
+      final newStatus = (response.body as Map<String, dynamic>)['status'] as String?;
+      if (newStatus != null && newStatus != _status) {
+        setState(() => _statusOverride = newStatus);
+      }
+    }
+  }
 
   /// Whether the current user is the host of this booking.
   bool get _isHost {
@@ -113,8 +125,9 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
         final reference = response.body['reference'] as String?;
         if (url != null && url.isNotEmpty) {
           await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-          // After returning from Paystack, verify the payment server-side
           if (!mounted) return;
+
+          // Try server-side verify first
           if (reference != null) {
             await Future.delayed(const Duration(seconds: 2));
             if (!mounted) return;
@@ -123,6 +136,27 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
               body: {'reference': reference},
             );
             if (verifyResp.isSuccess && verifyResp.body['status'] == 'success') {
+              await _refreshFromBackend();
+              if (mounted && _status == 'confirmed') {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Payment successful!'),
+                    backgroundColor: const Color(0xFF2E7D32),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                );
+              }
+              return;
+            }
+          }
+
+          // Fallback: poll until status flips to confirmed
+          for (int i = 0; i < 5; i++) {
+            await Future.delayed(const Duration(seconds: 3));
+            if (!mounted) return;
+            await _refreshFromBackend();
+            if (_status == 'confirmed') {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -132,32 +166,8 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 );
-                Navigator.of(context).pop();
               }
               return;
-            }
-          }
-          // Fallback: poll for status change
-          for (int i = 0; i < 5; i++) {
-            await Future.delayed(const Duration(seconds: 3));
-            if (!mounted) return;
-            final check = await ApiClient().get('/bookings/${widget.trip.id}');
-            if (check.isSuccess) {
-              final status = (check.body as Map<String, dynamic>)['status'] as String?;
-              if (status == 'confirmed') {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Payment successful!'),
-                      backgroundColor: const Color(0xFF2E7D32),
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  );
-                  Navigator.of(context).pop();
-                }
-                return;
-              }
             }
           }
         }
