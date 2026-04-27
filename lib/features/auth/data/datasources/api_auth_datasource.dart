@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:qent/core/services/api_client.dart';
+import 'package:qent/core/services/notification_service.dart';
 import 'package:qent/features/auth/domain/models/auth_user.dart';
 
 /// REST API datasource replacing Firebase Auth + Firestore user profiles.
@@ -35,6 +38,7 @@ class ApiAuthDataSource {
     final data = response.body;
     await _client.setToken(data['token']);
     final user = AuthUser.fromJson(data['user']);
+    unawaited(NotificationService().registerCurrentDeviceWithBackend());
     _log('OK: Signed in as ${user.email} | uid: ${user.uid} (${sw.elapsedMilliseconds}ms)');
 
     return user;
@@ -73,6 +77,7 @@ class ApiAuthDataSource {
     final data = response.body;
     await _client.setToken(data['token']);
     final user = AuthUser.fromJson(data['user']);
+    unawaited(NotificationService().registerCurrentDeviceWithBackend());
     _log('OK: Signed in with Apple as ${user.email} | uid: ${user.uid} (${sw.elapsedMilliseconds}ms)');
 
     return user;
@@ -109,6 +114,7 @@ class ApiAuthDataSource {
     final data = response.body;
     await _client.setToken(data['token']);
     final user = AuthUser.fromJson(data['user']);
+    unawaited(NotificationService().registerCurrentDeviceWithBackend());
     _log('OK: Signed up as ${user.email} | uid: ${user.uid} (${sw.elapsedMilliseconds}ms)');
 
     return user;
@@ -185,6 +191,7 @@ class ApiAuthDataSource {
   /// Sign out (clear local token).
   Future<void> signOut() async {
     _log('> Signing out');
+    await NotificationService().unregisterCurrentDeviceFromBackend();
     await _client.clearToken();
     _log('OK: Signed out');
   }

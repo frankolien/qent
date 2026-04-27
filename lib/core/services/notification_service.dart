@@ -1,9 +1,13 @@
+import 'dart:io' show Platform;
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
+
+import 'package:qent/core/services/api_client.dart';
 
 /// Top-level function for handling background messages (must be top-level)
 @pragma('vm:entry-point')
@@ -114,45 +118,55 @@ class NotificationService {
   }
 
   Future<void> _saveFCMToken() async {
-    try {
-      final token = await _messaging.getToken();
-      if (kDebugMode) {
-        print('FCM token (use this for testing): $token');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error fetching FCM token: $e');
-      }
+    final token = await _messaging.getToken();
+    if (token != null) {
+      await _registerWithBackend(token);
+      await _saveTokenToFirestore(token);
     }
 
+    _messaging.onTokenRefresh.listen((newToken) async {
+      await _registerWithBackend(newToken);
+      await _saveTokenToFirestore(newToken);
+    });
+  }
+
+  Future<void> _registerWithBackend(String token) async {
+    final api = ApiClient();
+    if (!api.isAuthenticated) {
+      if (kDebugMode) {
+        print('Skipping backend device register — no auth token yet');
+      }
+      return;
+    }
+
+    final platform = Platform.isIOS ? 'ios' : (Platform.isAndroid ? 'android' : 'web');
+
+    final response = await api.post(
+      '/devices/register',
+      body: {'token': token, 'platform': platform},
+    );
+
+    if (kDebugMode) {
+      if (response.statusCode == 200) {
+        print('Device registered with backend (platform: $platform)');
+      } else {
+        print('Device register failed: ${response.statusCode} ${response.body}');
+      }
+    }
+  }
+
+  Future<void> _saveTokenToFirestore(String token) async {
     final user = fb.FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
     try {
-      final token = await _messaging.getToken();
-      if (token != null) {
-        await _firestore.collection('users').doc(user.uid).update({
-          'fcmToken': token,
-          'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
-        });
-        if (kDebugMode) {
-          print('FCM token saved: $token');
-        }
-      }
-
-      // Listen for token refresh
-      _messaging.onTokenRefresh.listen((newToken) async {
-        await _firestore.collection('users').doc(user.uid).update({
-          'fcmToken': newToken,
-          'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
-        });
-        if (kDebugMode) {
-          print('FCM token refreshed: $newToken');
-        }
+      await _firestore.collection('users').doc(user.uid).update({
+        'fcmToken': token,
+        'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
       if (kDebugMode) {
-        print('Error saving FCM token: $e');
+        print('Firestore token save error (non-fatal): $e');
       }
     }
   }
@@ -196,6 +210,33 @@ class NotificationService {
 
   Future<String?> getFCMToken() async {
     return await _messaging.getToken();
+  }
+
+  /// Call after a successful login/signup so the now-authenticated session can
+  /// register its FCM token with the backend. Safe to call multiple times.
+  Future<void> registerCurrentDeviceWithBackend() async {
+    final token = await _messaging.getToken();
+    if (token == null) return;
+    await _registerWithBackend(token);
+  }
+
+  /// Call BEFORE clearing the auth token on logout so this device stops
+  /// receiving pushes for the user that just signed out.
+  Future<void> unregisterCurrentDeviceFromBackend() async {
+    final api = ApiClient();
+    if (!api.isAuthenticated) return;
+
+    final token = await _messaging.getToken();
+    if (token == null) return;
+
+    final response = await api.delete('/devices/${Uri.encodeComponent(token)}');
+    if (kDebugMode) {
+      if (response.statusCode == 200) {
+        print('Device unregistered from backend');
+      } else {
+        print('Device unregister failed: ${response.statusCode}');
+      }
+    }
   }
 }
 
