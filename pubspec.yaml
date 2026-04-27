@@ -54,6 +54,7 @@ dependencies:
   url_launcher: ^6.3.1
   # Sign in with Apple (iOS)
   sign_in_with_apple: ^6.1.4
+  device_info_plus: ^13.1.0
 
 dev_dependencies:
   flutter_test:
