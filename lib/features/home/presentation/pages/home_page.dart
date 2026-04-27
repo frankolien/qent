@@ -117,7 +117,7 @@ class HomePageState extends ConsumerState<HomePage> {
 
                         return Column(
                           children: [
-                            const SizedBox(height: 24),
+                            //const SizedBox(height: 5),
                             if (recommended.isNotEmpty)
                               _buildHorizontalSection(
                                 context,
@@ -127,7 +127,7 @@ class HomePageState extends ConsumerState<HomePage> {
                                 userId: userId,
                               ),
                             if (bestCars.isNotEmpty) ...[
-                              const SizedBox(height: 28),
+                              const SizedBox(height: 20),
                               _buildHorizontalSection(
                                 context,
                                 title: 'Best Cars',
@@ -508,7 +508,7 @@ class HomePageState extends ConsumerState<HomePage> {
         ),
         const SizedBox(height: 16),
         SizedBox(
-          height: 230,
+          height: 200,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
@@ -657,7 +657,7 @@ class HomePageState extends ConsumerState<HomePage> {
         ),
         const SizedBox(height: 16),
         SizedBox(
-          height: 230,
+          height: 200,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             physics: const NeverScrollableScrollPhysics(),

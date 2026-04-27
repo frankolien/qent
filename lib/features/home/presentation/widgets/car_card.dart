@@ -32,6 +32,12 @@ class CarCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: context.isDark ? context.bgSecondary : context.bgCard,
           borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: context.isDark
+                ? Colors.white.withValues(alpha: 0.08)
+                : const Color(0xFFE5E5E5),
+            width: 1,
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
