@@ -140,18 +140,29 @@ class NotificationService {
     }
 
     final platform = Platform.isIOS ? 'ios' : (Platform.isAndroid ? 'android' : 'web');
+    final body = {'token': token, 'platform': platform};
 
-    final response = await api.post(
-      '/devices/register',
-      body: {'token': token, 'platform': platform},
-    );
+    for (var attempt = 1; attempt <= 3; attempt++) {
+      final response = await api.post('/devices/register', body: body);
+
+      if (response.statusCode == 200) {
+        if (kDebugMode) {
+          print('Device registered with backend (platform: $platform, attempt: $attempt)');
+        }
+        return;
+      }
+
+      if (kDebugMode) {
+        print('Device register attempt $attempt failed: ${response.statusCode}');
+      }
+
+      if (attempt < 3) {
+        await Future.delayed(Duration(seconds: attempt * 2));
+      }
+    }
 
     if (kDebugMode) {
-      if (response.statusCode == 200) {
-        print('Device registered with backend (platform: $platform)');
-      } else {
-        print('Device register failed: ${response.statusCode} ${response.body}');
-      }
+      print('Device register gave up after 3 attempts');
     }
   }
 
