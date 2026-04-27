@@ -58,42 +58,43 @@ class MainNavPageState extends ConsumerState<MainNavPage> {
   Widget build(BuildContext context) {
     final profilePhotoUrl = ref.watch(authControllerProvider).user?.profilePhotoUrl;
 
-    if (_useLiquidBar) {
-      // iOS 26: bar floats as an overlay; content scrolls all the way to the
-      // screen edge and dips under the translucent bar (Apple Liquid Glass behavior).
-      return Scaffold(
-        backgroundColor: context.bgPrimary,
-        body: Stack(
-          children: [
-            IndexedStack(
-              index: _currentIndex,
-              children: _pages,
-            ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: LiquidTabBar(
-                currentIndex: _currentIndex,
-                onTap: _onTap,
-                profilePhotoUrl: profilePhotoUrl,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
+    final bar = _useLiquidBar
+        ? LiquidTabBar(
+            currentIndex: _currentIndex,
+            onTap: _onTap,
+            profilePhotoUrl: profilePhotoUrl,
+          )
+        : CustomBottomNav(
+            currentIndex: _currentIndex,
+            onTap: _onTap,
+          );
+
+    // Strip system bottom safe-area inset so tab content extends under the
+    // floating bar. Pages that use SafeArea(bottom: true) will no longer push up.
+    final mq = MediaQuery.of(context);
+    final mqWithoutBottomInset = mq.copyWith(
+      padding: mq.padding.copyWith(bottom: 0),
+      viewPadding: mq.viewPadding.copyWith(bottom: 0),
+    );
 
     return Scaffold(
       backgroundColor: context.bgPrimary,
-      extendBody: true,
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
-      ),
-      bottomNavigationBar: CustomBottomNav(
-        currentIndex: _currentIndex,
-        onTap: _onTap,
+      body: Stack(
+        children: [
+          MediaQuery(
+            data: mqWithoutBottomInset,
+            child: IndexedStack(
+              index: _currentIndex,
+              children: _pages,
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: bar,
+          ),
+        ],
       ),
     );
   }

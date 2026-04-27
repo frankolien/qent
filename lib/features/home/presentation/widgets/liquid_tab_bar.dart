@@ -1,11 +1,13 @@
-import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
+import 'package:cupertino_native/cupertino_native.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
-/// iOS 26 Liquid Glass tab bar, embedded as a SwiftUI PlatformView.
-/// Mirrors the public API of CustomBottomNav so swapping is transparent.
-class LiquidTabBar extends StatefulWidget {
+/// iOS 26 Liquid Glass tab bar — wraps Serverpod's CNTabBar (native UIKit
+/// host with pixel-perfect Liquid Glass fidelity). Mirrors CustomBottomNav's
+/// public API so swapping is transparent.
+///
+/// Note: profilePhotoUrl is currently unused — CNTabBar takes SF Symbols only.
+/// We accept the prop so the call site stays identical to CustomBottomNav.
+class LiquidTabBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
   final String? profilePhotoUrl;
@@ -18,49 +20,17 @@ class LiquidTabBar extends StatefulWidget {
   });
 
   @override
-  State<LiquidTabBar> createState() => _LiquidTabBarState();
-}
-
-class _LiquidTabBarState extends State<LiquidTabBar> {
-  static const _viewType = 'qent.online/liquid_tab_bar';
-  MethodChannel? _channel;
-
-  @override
-  void didUpdateWidget(LiquidTabBar oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.currentIndex != widget.currentIndex) {
-      _channel?.invokeMethod('setSelectedIndex', widget.currentIndex);
-    }
-    if (oldWidget.profilePhotoUrl != widget.profilePhotoUrl) {
-      _channel?.invokeMethod('setProfilePhotoUrl', widget.profilePhotoUrl);
-    }
-  }
-
-  void _onPlatformViewCreated(int viewId) {
-    _channel = MethodChannel('qent.online/liquid_tab/$viewId');
-    _channel!.setMethodCallHandler((call) async {
-      if (call.method == 'tabSelected' && call.arguments is int) {
-        widget.onTap(call.arguments as int);
-      }
-      return null;
-    });
-    // Push initial state so SwiftUI matches Flutter on first paint.
-    _channel!.invokeMethod('setSelectedIndex', widget.currentIndex);
-    if (widget.profilePhotoUrl != null) {
-      _channel!.invokeMethod('setProfilePhotoUrl', widget.profilePhotoUrl);
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 90,
-      child: UiKitView(
-        viewType: _viewType,
-        onPlatformViewCreated: _onPlatformViewCreated,
-        creationParamsCodec: const StandardMessageCodec(),
-        gestureRecognizers: const <Factory<OneSequenceGestureRecognizer>>{},
-      ),
+    return CNTabBar(
+      currentIndex: currentIndex,
+      onTap: onTap,
+      items: const [
+        CNTabBarItem(label: 'Home', icon: CNSymbol('house.fill')),
+        CNTabBarItem(label: 'Search', icon: CNSymbol('magnifyingglass')),
+        CNTabBarItem(label: 'Messages', icon: CNSymbol('bubble.left.and.bubble.right.fill')),
+        CNTabBarItem(label: 'Trips', icon: CNSymbol('suitcase.fill')),
+        CNTabBarItem(label: 'Profile', icon: CNSymbol('person.crop.circle.fill')),
+      ],
     );
   }
 }

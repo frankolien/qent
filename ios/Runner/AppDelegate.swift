@@ -15,9 +15,5 @@ import UserNotifications
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
-
-    let registrar = engineBridge.applicationRegistrar
-    let factory = LiquidTabBarFactory(messenger: registrar.messenger())
-    registrar.register(factory, withId: "qent.online/liquid_tab_bar")
   }
 }

@@ -27,7 +27,7 @@ class CustomBottomNav extends ConsumerWidget {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(16, 0, 16, bottomPadding + 8),
+      padding: EdgeInsets.fromLTRB(16, 0, 16, bottomPadding + 16),
       child: Container(
       height: 70,
       decoration: BoxDecoration(

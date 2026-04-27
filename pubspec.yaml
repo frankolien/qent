@@ -55,6 +55,7 @@ dependencies:
   # Sign in with Apple (iOS)
   sign_in_with_apple: ^6.1.4
   device_info_plus: ^13.1.0
+  cupertino_native: ^0.1.1
 
 dev_dependencies:
   flutter_test:
