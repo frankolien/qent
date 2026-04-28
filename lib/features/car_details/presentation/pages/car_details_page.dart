@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/core/services/api_client.dart';
 import 'package:qent/features/booking/presentation/pages/booking_details_page.dart';
 import 'package:qent/features/car_details/domain/models/car_detail.dart';
+import 'package:qent/features/car_details/presentation/pages/reviews_page.dart';
+import 'package:qent/features/car_details/presentation/providers/car_reviews_provider.dart';
 import 'package:qent/features/chat/presentation/controllers/chat_controller.dart';
 import 'package:qent/features/chat/presentation/pages/chat_detail_page.dart';
 import 'package:qent/features/home/domain/models/car.dart';
@@ -551,7 +553,7 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
   }
 
   Widget _buildReviewsSection(BuildContext context) {
-    final reviewCount = _carDetail.totalReviews;
+    final reviewsAsync = ref.watch(carReviewsProvider(widget.car.id));
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -562,7 +564,7 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Review ($reviewCount)',
+                'Review (${reviewsAsync.maybeWhen(data: (r) => r.length, orElse: () => _carDetail.totalReviews)})',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
@@ -570,109 +572,160 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
                 ),
               ),
               GestureDetector(
-                onTap: () {},
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ReviewsPage(carId: widget.car.id),
+                    ),
+                  );
+                },
                 child: Text(
                   'See All',
                   style: TextStyle(
                     fontSize: 13,
-                    color: Colors.grey[400],
+                    color: Colors.grey[500],
                     fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          if (_carDetail.reviews.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Text(
-                'No reviews yet',
-                style: TextStyle(fontSize: 14, color: Colors.grey[400]),
-              ),
-            )
-          else
-            SizedBox(
-              height: 140,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                itemCount: _carDetail.reviews.length,
-                itemBuilder: (context, index) {
-                  final review = _carDetail.reviews[index];
-                  return Padding(
-                    padding: EdgeInsets.only(
-                      right: index < _carDetail.reviews.length - 1 ? 12 : 0,
-                    ),
-                    child: _buildReviewCard(review),
-                  );
-                },
+          const SizedBox(height: 12),
+          reviewsAsync.when(
+            data: (reviews) {
+              if (reviews.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Text(
+                    'No reviews yet',
+                    style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+                  ),
+                );
+              }
+              final preview = reviews.take(5).toList();
+              return SizedBox(
+                height: 120,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: preview.length,
+                  itemBuilder: (context, index) {
+                    final review = preview[index];
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        right: index < preview.length - 1 ? 10 : 0,
+                      ),
+                      child: _buildReviewCard(review),
+                    );
+                  },
+                ),
+              );
+            },
+            loading: () => SizedBox(
+              height: 120,
+              child: Row(
+                children: List.generate(2, (i) => Padding(
+                      padding: EdgeInsets.only(right: i == 0 ? 10 : 0),
+                      child: _buildReviewSkeleton(context),
+                    )),
               ),
             ),
+            error: (_, __) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Text(
+                'Couldn\'t load reviews',
+                style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+              ),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildReviewSkeleton(BuildContext context) {
+    final color = context.isDark
+        ? Colors.white.withValues(alpha: 0.05)
+        : const Color(0xFFF2F2F2);
+    return Container(
+      width: 200,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: context.isDark
+              ? Colors.white.withValues(alpha: 0.08)
+              : const Color(0xFFE8E8E8),
+        ),
       ),
     );
   }
 
   Widget _buildReviewCard(Review review) {
     return Container(
-      width: 240,
-      padding: const EdgeInsets.all(16),
+      width: 200,
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: context.isDark ? context.bgSecondary : const Color(0xFFF8F8F8),
-        borderRadius: BorderRadius.circular(16),
+        color: context.bgPrimary,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: context.isDark
+              ? Colors.white.withValues(alpha: 0.08)
+              : const Color(0xFFE8E8E8),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header row: avatar, name, rating
           Row(
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 28,
+                height: 28,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.grey[300],
                 ),
                 child: ClipOval(
                   child: review.userImageUrl.isNotEmpty
-                      ? Image.network(review.userImageUrl, fit: BoxFit.cover)
-                      : Icon(Icons.person, size: 20, color: Colors.grey[400]),
+                      ? Image.network(review.userImageUrl, fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              Icon(Icons.person, size: 16, color: Colors.grey[500]))
+                      : Icon(Icons.person, size: 16, color: Colors.grey[500]),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   review.userName,
                   style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
                     color: context.textPrimary,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               Text(
                 review.rating.toStringAsFixed(1),
                 style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
                   color: context.textPrimary,
                 ),
               ),
-              const SizedBox(width: 3),
-              const Icon(Icons.star_rounded, size: 16, color: Color(0xFFFFB800)),
+              const SizedBox(width: 2),
+              const Icon(Icons.star_rounded, size: 14, color: Color(0xFFFFB800)),
             ],
           ),
-          const SizedBox(height: 12),
-          // Review text
+          const SizedBox(height: 8),
           Expanded(
             child: Text(
-              review.comment,
+              review.comment.isEmpty ? '—' : review.comment,
               style: TextStyle(
-                fontSize: 13,
+                fontSize: 11,
                 color: Colors.grey[500],
-                height: 1.5,
+                height: 1.45,
               ),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,

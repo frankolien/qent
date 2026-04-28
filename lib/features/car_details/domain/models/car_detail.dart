@@ -109,4 +109,16 @@ class Review {
     required this.comment,
     required this.date,
   });
+
+  factory Review.fromBackendJson(Map<String, dynamic> json) {
+    return Review(
+      id: json['id'].toString(),
+      userName: (json['reviewer_name'] ?? 'User').toString(),
+      userImageUrl: (json['reviewer_photo_url'] ?? '').toString(),
+      rating: (json['rating'] is num) ? (json['rating'] as num).toDouble() : 0.0,
+      comment: (json['comment'] ?? '').toString(),
+      date: DateTime.tryParse((json['created_at'] ?? '').toString()) ??
+          DateTime.now(),
+    );
+  }
 }
