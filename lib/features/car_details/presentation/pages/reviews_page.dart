@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/core/theme/app_theme.dart';
@@ -188,16 +189,19 @@ class _ReviewsPageState extends ConsumerState<ReviewsPage> {
           Icon(Icons.search, size: 20, color: Colors.grey[500]),
           const SizedBox(width: 10),
           Expanded(
-            child: TextField(
+            child: CupertinoTextField(
               onChanged: (v) => setState(() => _query = v),
+              autocorrect: false,
+              enableSuggestions: false,
+              autofillHints: const [],
+              keyboardType: TextInputType.text,
+              textInputAction: TextInputAction.search,
+              placeholder: 'Find reviews...',
+              placeholderStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
               style: TextStyle(fontSize: 14, color: context.textPrimary),
-              decoration: InputDecoration(
-                hintText: 'Find reviews...',
-                hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-              ),
+              decoration: const BoxDecoration(),
+              padding: EdgeInsets.zero,
+              cursorColor: context.textPrimary,
             ),
           ),
         ],

@@ -359,8 +359,8 @@ class HomePageState extends ConsumerState<HomePage> {
         Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfilePage()));
       },
       child: Container(
-        width: 42,
-        height: 42,
+        width: 30,
+        height: 30,
         decoration: BoxDecoration(
           color: context.bgSecondary,
           shape: BoxShape.circle,

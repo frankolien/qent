@@ -613,7 +613,7 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
                     final review = preview[index];
                     return Padding(
                       padding: EdgeInsets.only(
-                        right: index < preview.length - 1 ? 10 : 0,
+                        right: index < preview.length - 1 ? 12 : 0,
                       ),
                       child: _buildReviewCard(review),
                     );
@@ -625,7 +625,7 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
               height: 120,
               child: Row(
                 children: List.generate(2, (i) => Padding(
-                      padding: EdgeInsets.only(right: i == 0 ? 10 : 0),
+                      padding: EdgeInsets.only(right: i == 0 ? 12 : 0),
                       child: _buildReviewSkeleton(context),
                     )),
               ),
@@ -648,7 +648,7 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
         ? Colors.white.withValues(alpha: 0.05)
         : const Color(0xFFF2F2F2);
     return Container(
-      width: 200,
+      width: 320,
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(14),
@@ -663,11 +663,11 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
 
   Widget _buildReviewCard(Review review) {
     return Container(
-      width: 200,
-      padding: const EdgeInsets.all(12),
+      width: 250,
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: context.bgPrimary,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: context.isDark
               ? Colors.white.withValues(alpha: 0.08)
@@ -680,8 +680,8 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
           Row(
             children: [
               Container(
-                width: 28,
-                height: 28,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.grey[300],
@@ -690,16 +690,16 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
                   child: review.userImageUrl.isNotEmpty
                       ? Image.network(review.userImageUrl, fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) =>
-                              Icon(Icons.person, size: 16, color: Colors.grey[500]))
-                      : Icon(Icons.person, size: 16, color: Colors.grey[500]),
+                              Icon(Icons.person, size: 22, color: Colors.grey[500]))
+                      : Icon(Icons.person, size: 22, color: Colors.grey[500]),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   review.userName,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color: context.textPrimary,
                   ),
@@ -709,13 +709,13 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
               Text(
                 review.rating.toStringAsFixed(1),
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: context.textPrimary,
                 ),
               ),
-              const SizedBox(width: 2),
-              const Icon(Icons.star_rounded, size: 14, color: Color(0xFFFFB800)),
+              const SizedBox(width: 4),
+              const Icon(Icons.star_rounded, size: 18, color: Color(0xFFFFB800)),
             ],
           ),
           const SizedBox(height: 8),
@@ -723,11 +723,11 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
             child: Text(
               review.comment.isEmpty ? '—' : review.comment,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 13,
                 color: Colors.grey[500],
-                height: 1.45,
+                height: 1.4,
               ),
-              maxLines: 3,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
           ),
