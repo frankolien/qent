@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/core/services/email_verification_service.dart';
@@ -578,28 +580,21 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
   }
 
   Widget _buildSocialButtons() {
+    final showApple = !kIsWeb && Platform.isIOS;
+    if (!showApple) return const SizedBox.shrink();
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Column(
-        children: [
-          _buildSocialButton(
-            icon: Icons.apple,
-            label: 'Sign in with apple',
-            onPressed: () {
-              // TODO: Implement Apple Sign In
-            },
-          ),
-          const SizedBox(height: 12),
-          _buildSocialButton(
-            icon: Icons.g_mobiledata,
-            label: 'Sign in with google ',
-            onPressed: () {
-              // TODO: Implement Google Sign In
-            },
-          ),
-        ],
+      child: _buildSocialButton(
+        icon: Icons.apple,
+        label: 'Continue with Apple',
+        onPressed: _handleAppleSignIn,
       ),
     );
+  }
+
+  Future<void> _handleAppleSignIn() async {
+    await ref.read(authControllerProvider.notifier).signInWithApple();
   }
 
   Widget _buildSocialButton({
