@@ -314,8 +314,8 @@ class HomePageState extends ConsumerState<HomePage> {
           children: [
             Image.asset(
               'assets/images/Notifications.png',
-              width: 42,
-              height: 42,
+              width: 20,
+              height: 20,
               fit: BoxFit.contain,
               color: context.isDark ? Colors.white : null,
             ),
@@ -371,7 +371,7 @@ class HomePageState extends ConsumerState<HomePage> {
                   photoUrl,
                   fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) =>
-                      Icon(Icons.person_outline_rounded, size: 22, color: context.textPrimary),
+                      Icon(Icons.person_outline_rounded, size: 18, color: context.textPrimary),
                 )
               : Icon(Icons.person_outline_rounded, size: 22, color: context.textPrimary),
         ),

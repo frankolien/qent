@@ -113,18 +113,18 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildImageCarousel(context, topPadding),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
                   _buildCarInfo(context),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Divider(color: context.dividerColor, height: 1),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
                   _buildHostSection(context),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 18),
                   _buildFeaturesSection(context),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 18),
                   _buildReviewsSection(context),
                   const SizedBox(height: 120),
                 ],
@@ -231,7 +231,7 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
           // Photo counter — bottom right "1 / 30" style
           if (_carDetail.imageUrls.length > 1)
             Positioned(
-              bottom: 16,
+              bottom: 27,
               right: 16,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -452,7 +452,7 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
 
   Widget _buildFeaturesSection(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20,),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -464,15 +464,16 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
               color: context.textPrimary,
             ),
           ),
-          //const SizedBox(height: 16),
+          const SizedBox(height: 8),
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
+            padding: EdgeInsets.zero,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 3,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 0.95,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: 1.15,
             ),
             itemCount: _carDetail.carFeatures.length,
             itemBuilder: (context, index) => _buildFeatureCard(_carDetail.carFeatures[index]),
@@ -484,62 +485,61 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
 
   Widget _buildFeatureCard(CarFeature feature) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
       decoration: BoxDecoration(
         color: context.isDark ? context.bgSecondary : const Color(0xFFF8F8F8),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Icon container
           Container(
-            width: 40,
-            height: 40,
+            width: 30,
+            height: 30,
             decoration: BoxDecoration(
               color: context.isDark ? context.bgTertiary : Colors.white,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(9),
             ),
             child: Center(
               child: feature.assetImage != null
                   ? Image.asset(
                       feature.assetImage!,
-                      width: 22,
-                      height: 22,
+                      width: 16,
+                      height: 16,
                       errorBuilder: (_, __, ___) => Icon(
                         feature.icon ?? Icons.check_circle_outline,
-                        size: 20,
+                        size: 16,
                         color: context.textPrimary,
                       ),
                     )
                   : Icon(
                       feature.icon ?? Icons.check_circle_outline,
-                      size: 20,
+                      size: 16,
                       color: context.textPrimary,
                     ),
             ),
           ),
-          const SizedBox(height: 10),
-          // Label
+          const SizedBox(height: 6),
           Text(
             feature.label,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 9,
               color: Colors.grey[500],
               fontWeight: FontWeight.w400,
+              height: 1.1,
             ),
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 2),
-          // Value
+          const SizedBox(height: 1),
           Text(
             feature.value,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
               color: context.textPrimary,
+              height: 1.1,
             ),
             textAlign: TextAlign.center,
             maxLines: 1,
