@@ -14,6 +14,7 @@ import 'package:qent/features/home/presentation/pages/view_all_cars_page.dart';
 import 'package:qent/features/home/presentation/providers/location_provider.dart';
 import 'package:qent/features/home/presentation/widgets/location_picker_sheet.dart';
 import 'package:qent/features/profile/presentation/pages/profile_page.dart';
+import 'package:qent/features/notifications/presentation/pages/notifications_page.dart';
 import 'package:qent/core/theme/app_theme.dart';
 
 class HomePage extends ConsumerStatefulWidget {
@@ -274,7 +275,13 @@ class HomePageState extends ConsumerState<HomePage> {
               _buildIconButton(
                 icon: Icons.notifications_none_rounded,
                 badgeCount: 2,
-                onTap: () {},
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const NotificationsPage(),
+                    ),
+                  );
+                },
               ),
               const SizedBox(width: 8),
               _buildProfileAvatar(context, ref),

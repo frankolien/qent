@@ -37,22 +37,31 @@ class NotificationController extends Notifier<NotificationState> {
 
   Future<void> markAsRead(String notificationId) async {
     await _repository.markAsRead(notificationId);
+    ref.invalidate(notificationsProvider);
   }
 
   Future<void> markSelectedAsRead() async {
     if (state.selectedIds.isEmpty) return;
     await _repository.markMultipleAsRead(state.selectedIds);
     clearSelection();
+    ref.invalidate(notificationsProvider);
+  }
+
+  Future<void> markAllAsRead() async {
+    await _repository.markAllAsRead();
+    ref.invalidate(notificationsProvider);
   }
 
   Future<void> deleteNotification(String notificationId) async {
     await _repository.deleteNotification(notificationId);
+    ref.invalidate(notificationsProvider);
   }
 
   Future<void> deleteSelected() async {
     if (state.selectedIds.isEmpty) return;
     await _repository.deleteMultipleNotifications(state.selectedIds);
     clearSelection();
+    ref.invalidate(notificationsProvider);
   }
 }
 
@@ -75,4 +84,3 @@ class NotificationState {
     );
   }
 }
-

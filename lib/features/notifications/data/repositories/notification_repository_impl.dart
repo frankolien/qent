@@ -1,15 +1,15 @@
-import 'package:qent/features/notifications/data/datasources/firestore_notification_datasource.dart';
+import 'package:qent/features/notifications/data/datasources/api_notification_datasource.dart';
 import 'package:qent/features/notifications/domain/models/notification.dart';
 import 'package:qent/features/notifications/domain/repositories/notification_repository.dart';
 
 class NotificationRepositoryImpl implements NotificationRepository {
-  final FirestoreNotificationDataSource _dataSource;
+  final ApiNotificationDataSource _dataSource;
 
   NotificationRepositoryImpl(this._dataSource);
 
   @override
-  Stream<List<NotificationModel>> getNotifications(String userId) {
-    return _dataSource.getNotificationsStream(userId);
+  Future<List<NotificationModel>> getNotifications() {
+    return _dataSource.getNotifications();
   }
 
   @override
@@ -23,18 +23,17 @@ class NotificationRepositoryImpl implements NotificationRepository {
   }
 
   @override
+  Future<void> markAllAsRead() {
+    return _dataSource.markAllAsRead();
+  }
+
+  @override
   Future<void> deleteNotification(String notificationId) {
     return _dataSource.deleteNotification(notificationId);
   }
 
   @override
   Future<void> deleteMultipleNotifications(List<String> notificationIds) {
-    return _dataSource.deleteMultipleNotifications(notificationIds);
-  }
-
-  @override
-  Future<void> createNotification(NotificationModel notification) {
-    return _dataSource.createNotification(notification);
+    return _dataSource.deleteMultiple(notificationIds);
   }
 }
-

@@ -1,13 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:qent/features/auth/presentation/providers/auth_providers.dart' as auth_providers;
-import 'package:qent/features/notifications/data/datasources/firestore_notification_datasource.dart';
+import 'package:qent/features/notifications/data/datasources/api_notification_datasource.dart';
 import 'package:qent/features/notifications/data/repositories/notification_repository_impl.dart';
 import 'package:qent/features/notifications/domain/models/notification.dart';
 import 'package:qent/features/notifications/domain/repositories/notification_repository.dart';
 import 'package:qent/features/notifications/presentation/controllers/notification_controller.dart';
 
-final notificationDataSourceProvider = Provider<FirestoreNotificationDataSource>((ref) {
-  return FirestoreNotificationDataSource();
+final notificationDataSourceProvider = Provider<ApiNotificationDataSource>((ref) {
+  return ApiNotificationDataSource();
 });
 
 final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {
@@ -20,17 +19,9 @@ final notificationControllerProvider =
   return NotificationController();
 });
 
-final notificationsStreamProvider = StreamProvider.family<List<NotificationModel>, String>((ref, userId) {
+/// Fetches the current user's notifications from the backend. Refresh by
+/// invalidating this provider (`ref.invalidate(notificationsProvider)`).
+final notificationsProvider = FutureProvider<List<NotificationModel>>((ref) async {
   final repository = ref.watch(notificationRepositoryProvider);
-  return repository.getNotifications(userId);
+  return repository.getNotifications();
 });
-
-final currentUserNotificationsProvider = StreamProvider<List<NotificationModel>>((ref) {
-  final userId = ref.watch(auth_providers.authControllerProvider).user?.uid;
-  if (userId == null) {
-    return Stream.value([]);
-  }
-  final repository = ref.watch(notificationRepositoryProvider);
-  return repository.getNotifications(userId);
-});
-

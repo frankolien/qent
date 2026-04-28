@@ -92,6 +92,49 @@ class NotificationModel {
         timestamp.day == now.day;
   }
 
+  /// Parse backend (Rust) JSON shape — snake_case fields, ISO-8601 timestamps.
+  factory NotificationModel.fromBackendJson(Map<String, dynamic> json) {
+    return NotificationModel(
+      id: json['id'].toString(),
+      userId: json['user_id'].toString(),
+      title: (json['title'] ?? '').toString(),
+      message: (json['message'] ?? '').toString(),
+      type: _typeFromString((json['notification_type'] ?? 'bookingSuccess').toString()),
+      timestamp: _parseTimestamp(json['created_at']),
+      isRead: json['is_read'] == true,
+      imageUrl: json['image_url']?.toString(),
+      data: json['data'] is Map<String, dynamic> ? json['data'] as Map<String, dynamic> : null,
+    );
+  }
+
+  static DateTime _parseTimestamp(dynamic raw) {
+    if (raw == null) return DateTime.now();
+    final s = raw.toString();
+    return DateTime.tryParse(s) ?? DateTime.now();
+  }
+
+  static NotificationType _typeFromString(String s) {
+    switch (s) {
+      case 'bookingSuccess':
+      case 'booking_success':
+        return NotificationType.bookingSuccess;
+      case 'payment':
+        return NotificationType.payment;
+      case 'pickupDropoff':
+      case 'pickup_dropoff':
+        return NotificationType.pickupDropoff;
+      case 'lateReturn':
+      case 'late_return':
+        return NotificationType.lateReturn;
+      case 'cancellation':
+        return NotificationType.cancellation;
+      case 'discount':
+        return NotificationType.discount;
+      default:
+        return NotificationType.bookingSuccess;
+    }
+  }
+
   NotificationModel copyWith({
     String? id,
     String? userId,
