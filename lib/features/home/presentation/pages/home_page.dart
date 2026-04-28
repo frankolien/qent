@@ -15,6 +15,7 @@ import 'package:qent/features/home/presentation/providers/location_provider.dart
 import 'package:qent/features/home/presentation/widgets/location_picker_sheet.dart';
 import 'package:qent/features/profile/presentation/pages/profile_page.dart';
 import 'package:qent/features/notifications/presentation/pages/notifications_page.dart';
+import 'package:qent/features/notifications/presentation/providers/notification_providers.dart';
 import 'package:qent/core/theme/app_theme.dart';
 
 class HomePage extends ConsumerStatefulWidget {
@@ -203,6 +204,11 @@ class HomePageState extends ConsumerState<HomePage> {
 
   Widget _buildAppBar(BuildContext context) {
     final locationAsync = ref.watch(userLocationProvider);
+    final notificationsAsync = ref.watch(notificationsProvider);
+    final unreadCount = notificationsAsync.maybeWhen(
+      data: (list) => list.where((n) => !n.isRead).length,
+      orElse: () => 0,
+    );
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
@@ -272,9 +278,9 @@ class HomePageState extends ConsumerState<HomePage> {
           ),
           Row(
             children: [
-              _buildIconButton(
-                icon: Icons.notifications_none_rounded,
-                badgeCount: 2,
+              _buildNotificationButton(
+                context: context,
+                badgeCount: unreadCount,
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
@@ -292,42 +298,47 @@ class HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  Widget _buildIconButton({
-    required IconData icon,
+  Widget _buildNotificationButton({
+    required BuildContext context,
     int badgeCount = 0,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: SizedBox(
         width: 42,
         height: 42,
-        decoration: BoxDecoration(
-          color: context.bgSecondary,
-          borderRadius: BorderRadius.circular(14),
-        ),
         child: Stack(
+          clipBehavior: Clip.none,
           alignment: Alignment.center,
           children: [
-            Icon(icon, size: 22, color: context.textPrimary),
+            Image.asset(
+              'assets/images/Notifications.png',
+              width: 42,
+              height: 42,
+              fit: BoxFit.contain,
+              color: context.isDark ? Colors.white : null,
+            ),
             if (badgeCount > 0)
               Positioned(
-                top: 8,
-                right: 8,
+                top: 4,
+                right: 4,
                 child: Container(
-                  width: 16,
-                  height: 16,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFFF3B30),
-                    shape: BoxShape.circle,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF3B30),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: context.bgPrimary, width: 1.5),
                   ),
                   child: Center(
                     child: Text(
-                      '$badgeCount',
+                      badgeCount > 99 ? '99+' : '$badgeCount',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 9,
                         fontWeight: FontWeight.w700,
+                        height: 1.0,
                       ),
                     ),
                   ),
@@ -352,10 +363,9 @@ class HomePageState extends ConsumerState<HomePage> {
         height: 42,
         decoration: BoxDecoration(
           color: context.bgSecondary,
-          borderRadius: BorderRadius.circular(14),
+          shape: BoxShape.circle,
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(14),
+        child: ClipOval(
           child: photoUrl != null && photoUrl.isNotEmpty
               ? Image.network(
                   photoUrl,
