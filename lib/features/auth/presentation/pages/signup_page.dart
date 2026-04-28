@@ -581,20 +581,35 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
 
   Widget _buildSocialButtons() {
     final showApple = !kIsWeb && Platform.isIOS;
-    if (!showApple) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: _buildSocialButton(
-        icon: Icons.apple,
-        label: 'Continue with Apple',
-        onPressed: _handleAppleSignIn,
+      child: Column(
+        children: [
+          if (showApple) ...[
+            _buildSocialButton(
+              icon: Icons.apple,
+              label: 'Continue with Apple',
+              onPressed: _handleAppleSignIn,
+            ),
+            const SizedBox(height: 12),
+          ],
+          _buildSocialButton(
+            icon: Icons.g_mobiledata,
+            label: 'Continue with Google',
+            onPressed: _handleGoogleSignIn,
+          ),
+        ],
       ),
     );
   }
 
   Future<void> _handleAppleSignIn() async {
     await ref.read(authControllerProvider.notifier).signInWithApple();
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    await ref.read(authControllerProvider.notifier).signInWithGoogle();
   }
 
   Widget _buildSocialButton({

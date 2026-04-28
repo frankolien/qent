@@ -44,6 +44,45 @@ class ApiAuthDataSource {
     return user;
   }
 
+  /// Sign in with Google. The [idToken] is the OIDC ID token returned by the
+  /// Google Sign-In SDK; the backend verifies it against Google's JWKS using
+  /// the configured GOOGLE_CLIENT_IDS allowlist.
+  ///
+  /// [fullName] and [email] come from the Google account profile and are only
+  /// used when a brand-new account is being created on the backend.
+  Future<AuthUser> signInWithGoogle({
+    required String idToken,
+    String? fullName,
+    String? email,
+  }) async {
+    _log('> Sign in with Google');
+    final sw = Stopwatch()..start();
+
+    final response = await _client.post(
+      '/auth/signin/google',
+      body: {
+        'id_token': idToken,
+        if (fullName != null && fullName.isNotEmpty) 'full_name': fullName,
+        if (email != null && email.isNotEmpty) 'email': email,
+      },
+      auth: false,
+    );
+    sw.stop();
+
+    if (!response.isSuccess) {
+      _log('FAIL: Google sign in failed (${sw.elapsedMilliseconds}ms): ${response.errorMessage}');
+      throw Exception(response.errorMessage);
+    }
+
+    final data = response.body;
+    await _client.setToken(data['token']);
+    final user = AuthUser.fromJson(data['user']);
+    unawaited(NotificationService().registerCurrentDeviceWithBackend());
+    _log('OK: Signed in with Google as ${user.email} | uid: ${user.uid} (${sw.elapsedMilliseconds}ms)');
+
+    return user;
+  }
+
   /// Sign in with Apple. The [identityToken] is the JWT Apple returns after
   /// a successful authorization; the backend verifies it against Apple's JWKS.
   ///

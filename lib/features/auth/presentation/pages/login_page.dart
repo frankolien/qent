@@ -394,18 +394,34 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   Widget _buildSocialButtons() {
     final showApple = !kIsWeb && Platform.isIOS;
-    if (!showApple) return const SizedBox.shrink();
 
-    return _buildSocialButton(
-      icon: Icons.apple,
-      label: 'Continue with Apple',
-      iconSize: 22,
-      onPressed: _handleAppleSignIn,
+    return Column(
+      children: [
+        if (showApple) ...[
+          _buildSocialButton(
+            icon: Icons.apple,
+            label: 'Continue with Apple',
+            iconSize: 22,
+            onPressed: _handleAppleSignIn,
+          ),
+          const SizedBox(height: 12),
+        ],
+        _buildSocialButton(
+          icon: Icons.g_mobiledata,
+          label: 'Continue with Google',
+          iconSize: 28,
+          onPressed: _handleGoogleSignIn,
+        ),
+      ],
     );
   }
 
   Future<void> _handleAppleSignIn() async {
     await ref.read(authControllerProvider.notifier).signInWithApple();
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    await ref.read(authControllerProvider.notifier).signInWithGoogle();
   }
 
   Widget _buildSocialButton({

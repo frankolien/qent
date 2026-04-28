@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "44415498587",
+    "project_id": "nimbus-ac6de",
+    "storage_bucket": "nimbus-ac6de.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:44415498587:android:3f7c3194d8099d8c3f427e",
+        "android_client_info": {
+          "package_name": "com.qentonline.qent"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAkHo6jbufSkMVA6gSRHh6UjPN9-0LV-kQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

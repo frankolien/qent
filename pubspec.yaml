@@ -54,6 +54,10 @@ dependencies:
   url_launcher: ^6.3.1
   # Sign in with Apple (iOS)
   sign_in_with_apple: ^6.1.4
+  # Pinned: 6.3.0 pulls google_sign_in_ios 5.9.0 → GoogleSignIn ~> 8.0
+  # which conflicts with Firebase pods on GTMSessionFetcher.
+  # 6.2.1 uses GoogleSignIn 7.x which is compatible.
+  google_sign_in: 6.2.1
   device_info_plus: ^13.1.0
   cupertino_native: ^0.1.1
 
