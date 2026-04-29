@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -25,7 +27,13 @@ class AuthController extends Notifier<AuthState> {
     final dataSource = ref.read(apiAuthDataSourceProvider);
     if (dataSource.isAuthenticated) {
       try {
-        final user = await dataSource.getProfile();
+        // Hard timeout so a cold/flaky backend (Render free tier sometimes
+        // spins up for 30-60s) never leaves the user stuck on a black
+        // spinner forever. If the profile fetch can't complete in 10s, we
+        // fall through to login — the user can always re-auth.
+        final user = await dataSource.getProfile().timeout(
+          const Duration(seconds: 10),
+        );
         if (user != null) {
           state = state.copyWith(isLoading: false, user: user);
           ref.read(wsServiceProvider).connect();
@@ -33,6 +41,11 @@ class AuthController extends Notifier<AuthState> {
         } else {
           await dataSource.signOut();
         }
+      } on TimeoutException {
+        debugPrint('[Qent Auth] getProfile timed out — falling through');
+        // Don't sign out: token is probably still valid, the network was
+        // just slow. User lands on login but the saved token is preserved
+        // for the next launch.
       } catch (e) {
         // Token might be expired, clear it
         await dataSource.signOut();
