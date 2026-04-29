@@ -48,7 +48,6 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
   StreamSubscription<WsEvent>? _wsSub;
   bool _otherUserTyping = false;
   bool _isRecording = false;
-  bool _isUploading = false;
   final Record _recorder = Record();
 
   @override
@@ -114,19 +113,20 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
         : await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
     if (picked == null) return;
 
-    setState(() => _isUploading = true);
-    final url = await FileUploadService.upload(File(picked.path));
-    setState(() => _isUploading = false);
+    final file = File(picked.path);
+    if (!mounted) return;
 
-    if (url != null && mounted) {
-      final chatController = ref.read(chatControllerProvider);
-      await chatController.sendMessage(
+    final chatController = ref.read(chatControllerProvider);
+    _scrollToBottom();
+    try {
+      await chatController.sendMediaMessage(
         chatId: widget.chat.id,
-        message: url,
+        localPath: picked.path,
         type: MessageType.image,
+        uploadFn: () => FileUploadService.upload(file),
       );
-      ref.invalidate(messagesStreamProvider(widget.chat.id));
-      _scrollToBottom();
+    } catch (_) {
+      // Failure surfaces in the bubble's status icon.
     }
   }
 
@@ -147,10 +147,23 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
       }
 
       final dir = await getTemporaryDirectory();
-      final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      // Opus in OGG container — what Android writes natively and what iOS
+      // accepts via kAudioFormatOpus. AAC in `.m4a` was a holdover from when
+      // we recorded AAC-LC.
+      final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.ogg';
       print('[Voice] Starting recording at: $path');
 
-      await _recorder.start(path: path, encoder: AudioEncoder.aacLc);
+      // Opus mono at 24 kbps — voice-message sweet spot. A 30-second clip
+      // is ~90 KB instead of ~480 KB at the AAC-LC default (128 kbps stereo),
+      // so uploads finish in ~1–2s on slow Lagos cellular instead of 5–10s.
+      // Both iOS and Android support Opus in `record` 4.4.x.
+      await _recorder.start(
+        path: path,
+        encoder: AudioEncoder.opus,
+        bitRate: 24000,
+        numChannels: 1,
+        samplingRate: 16000,
+      );
       print('[Voice] Recording started!');
       setState(() => _isRecording = true);
       HapticFeedback.heavyImpact();
@@ -173,21 +186,28 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
     final file = File(path);
     if (!await file.exists()) return;
 
-    setState(() => _isUploading = true);
-    final url = await FileUploadService.upload(file);
-    setState(() => _isUploading = false);
-
-    if (url != null && mounted) {
-      final chatController = ref.read(chatControllerProvider);
-      await chatController.sendMessage(
+    // Optimistic flow: bubble appears *immediately* with status=uploading
+    // and plays from the local file. Upload runs in the background; once
+    // done, the bubble's URL flips to the CDN URL and we POST to the API.
+    // The user no longer waits on Lagos cellular before seeing anything.
+    final chatController = ref.read(chatControllerProvider);
+    _scrollToBottom();
+    try {
+      await chatController.sendMediaMessage(
         chatId: widget.chat.id,
-        message: url,
+        localPath: path,
         type: MessageType.voice,
+        uploadFn: () => FileUploadService.upload(file),
       );
-      ref.invalidate(messagesStreamProvider(widget.chat.id));
-      _scrollToBottom();
+    } catch (_) {
+      // Failure surfaces in the bubble's status icon (red error) — the
+      // controller already marked the pending entry as failed, so we
+      // don't need to show a SnackBar here.
     }
-    // Clean up temp file
+
+    // Best-effort cleanup. We could keep the file longer to support
+    // playback after retry, but Cloudinary will hold the canonical copy
+    // once upload succeeds, and a failed retry re-records anyway.
     try { await file.delete(); } catch (_) {}
   }
 
@@ -684,6 +704,14 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
   }
 
   Widget _buildMessageContent(ChatMessage message, bool isMe) {
+    // While an outgoing media message is uploading, prefer the local file
+    // path so the sender sees their own image/voice instantly. Once the
+    // upload finishes the controller swaps `message.message` for the CDN
+    // URL and the network path takes over.
+    final isLocalMedia = message.localPath != null &&
+        (message.status == MessageStatus.uploading ||
+            message.status == MessageStatus.failed);
+
     switch (message.type) {
       case MessageType.image:
         return GestureDetector(
@@ -712,39 +740,56 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                 bottomLeft: Radius.circular(isMe ? 20 : 6),
                 bottomRight: Radius.circular(isMe ? 6 : 20),
               ),
-              child: CachedNetworkImage(
-                imageUrl: message.message,
-                fit: BoxFit.cover,
-                placeholder: (_, __) => Container(
-                  width: 220, height: 180,
-                  color: context.isDark
-                      ? Colors.white.withValues(alpha: 0.05)
-                      : const Color(0xFFF1F1F2),
-                  child: Center(
-                    child: SizedBox(
-                      width: 24, height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: context.textTertiary,
+              child: isLocalMedia
+                  ? Image.file(
+                      File(message.localPath!),
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: 220, height: 120,
+                        color: context.isDark
+                            ? Colors.white.withValues(alpha: 0.05)
+                            : const Color(0xFFF1F1F2),
+                        child: Icon(Icons.broken_image_rounded,
+                            color: context.textTertiary, size: 32),
+                      ),
+                    )
+                  : CachedNetworkImage(
+                      imageUrl: message.message,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) => Container(
+                        width: 220, height: 180,
+                        color: context.isDark
+                            ? Colors.white.withValues(alpha: 0.05)
+                            : const Color(0xFFF1F1F2),
+                        child: Center(
+                          child: SizedBox(
+                            width: 24, height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: context.textTertiary,
+                            ),
+                          ),
+                        ),
+                      ),
+                      errorWidget: (_, __, ___) => Container(
+                        width: 220, height: 120,
+                        color: context.isDark
+                            ? Colors.white.withValues(alpha: 0.05)
+                            : const Color(0xFFF1F1F2),
+                        child: Icon(Icons.broken_image_rounded,
+                            color: context.textTertiary, size: 32),
                       ),
                     ),
-                  ),
-                ),
-                errorWidget: (_, __, ___) => Container(
-                  width: 220, height: 120,
-                  color: context.isDark
-                      ? Colors.white.withValues(alpha: 0.05)
-                      : const Color(0xFFF1F1F2),
-                  child: Icon(Icons.broken_image_rounded,
-                      color: context.textTertiary, size: 32),
-                ),
-              ),
             ),
           ),
         );
 
       case MessageType.voice:
-        return _VoiceMessageBubble(url: message.message, isMe: isMe);
+        return _VoiceMessageBubble(
+          url: isLocalMedia ? message.localPath! : message.message,
+          isLocal: isLocalMedia,
+          isMe: isMe,
+        );
 
       case MessageType.text:
         final myTextColor = context.isDark ? Colors.black : Colors.white;
@@ -1090,6 +1135,15 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
 
   Widget _buildStatusIcon(ChatMessage message) {
     switch (message.status) {
+      case MessageStatus.uploading:
+        // Tiny inline spinner while bytes are still going up to the CDN.
+        return SizedBox(
+          width: 12, height: 12,
+          child: CircularProgressIndicator(
+            strokeWidth: 1.5,
+            color: context.textTertiary,
+          ),
+        );
       case MessageStatus.sending:
         return Icon(Icons.access_time_rounded,
             size: 13, color: context.textTertiary);
@@ -1316,7 +1370,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                         // Inline voice icon — only visible when the field is empty,
                         // tap-to-record. Disappears when the user starts typing
                         // (the send button to the right takes over).
-                        if (!hasText && !_isUploading)
+                        if (!hasText)
                           GestureDetector(
                             onTap: () {
                               HapticFeedback.lightImpact();
@@ -1336,21 +1390,12 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                     ),
                   ),
                 ),
-                // Send button — only when there's text or an upload is in progress.
-                if (hasText || _isUploading) ...[
+                // Send button — only when there's text. Image/voice uploads
+                // run in the background and show their own status inside
+                // the message bubble, so we don't block the input here.
+                if (hasText) ...[
                   const SizedBox(width: 8),
-                  _isUploading
-                      ? Padding(
-                          padding: const EdgeInsets.all(6),
-                          child: SizedBox(
-                            width: 22, height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: context.textPrimary,
-                            ),
-                          ),
-                        )
-                      : GestureDetector(
+                  GestureDetector(
                           onTap: _sendMessage,
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 180),
@@ -1495,11 +1540,19 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
 
 }
 
-/// Playable voice message bubble with play/pause and progress
+/// Playable voice message bubble with play/pause and progress.
+///
+/// [isLocal] = true means [url] is a local filesystem path (the recording
+/// just made by the user, still uploading). false means it's a CDN URL.
 class _VoiceMessageBubble extends StatefulWidget {
   final String url;
   final bool isMe;
-  const _VoiceMessageBubble({required this.url, required this.isMe});
+  final bool isLocal;
+  const _VoiceMessageBubble({
+    required this.url,
+    required this.isMe,
+    this.isLocal = false,
+  });
 
   @override
   State<_VoiceMessageBubble> createState() => _VoiceMessageBubbleState();
@@ -1544,7 +1597,11 @@ class _VoiceMessageBubbleState extends State<_VoiceMessageBubble> {
       await _player.pause();
       setState(() => _isPlaying = false);
     } else {
-      await _player.play(UrlSource(widget.url));
+      // Local file path while still uploading; CDN URL once confirmed.
+      final source = widget.isLocal
+          ? DeviceFileSource(widget.url)
+          : UrlSource(widget.url);
+      await _player.play(source);
       setState(() => _isPlaying = true);
     }
   }

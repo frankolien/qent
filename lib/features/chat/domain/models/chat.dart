@@ -32,12 +32,24 @@ class ChatMessage {
   final String senderId;
   final String senderName;
   final String senderImageUrl;
+  /// For text messages this is the body. For voice/image, the CDN URL once
+  /// uploaded. While an upload is in flight (status == sending and a
+  /// `localPath` is set) UI should prefer playing/rendering [localPath].
   final String message;
   final DateTime timestamp;
   final MessageType type;
   final bool isRead;
   final ReplyInfo? replyTo;
   final MessageStatus status;
+  /// Client-generated UUID for idempotency / optimistic dedupe. The server
+  /// echoes it back on the confirmed message so we can match the optimistic
+  /// row to the server row exactly, instead of relying on a content+time
+  /// heuristic. Null on legacy/server-loaded messages.
+  final String? clientId;
+  /// Local file path for media still uploading. Lets the sender play their
+  /// own voice note / view their image immediately, before the upload
+  /// finishes. Cleared once the server URL is in [message].
+  final String? localPath;
 
   ChatMessage({
     required this.id,
@@ -51,6 +63,8 @@ class ChatMessage {
     this.isRead = false,
     this.replyTo,
     this.status = MessageStatus.sent,
+    this.clientId,
+    this.localPath,
   });
 
   ChatMessage copyWith({
@@ -65,6 +79,8 @@ class ChatMessage {
     bool? isRead,
     ReplyInfo? replyTo,
     MessageStatus? status,
+    String? clientId,
+    String? localPath,
   }) {
     return ChatMessage(
       id: id ?? this.id,
@@ -78,14 +94,22 @@ class ChatMessage {
       isRead: isRead ?? this.isRead,
       replyTo: replyTo ?? this.replyTo,
       status: status ?? this.status,
+      clientId: clientId ?? this.clientId,
+      localPath: localPath ?? this.localPath,
     );
   }
 }
 
+
 /// Local-only delivery state for an outgoing message, used to drive the
 /// pending/sent/failed indicator in the chat UI. The server has no notion
 /// of these — they exist only on the sender's device.
+///
+/// `uploading` is for media (voice, image): the file is being uploaded to
+/// CDN. `sending` is the brief window after upload completes and we hit
+/// the `/messages` API. UI typically renders both as a clock icon.
 enum MessageStatus {
+  uploading,
   sending,
   sent,
   failed,

@@ -84,11 +84,18 @@ class ApiChatDataSource {
   }
 
   /// Send a message in a conversation.
+  ///
+  /// [clientId] is a client-generated UUID used by the server as an
+  /// idempotency key. Re-posting with the same `clientId` (e.g. on retry
+  /// after a network blip) will not create a duplicate message — the
+  /// server returns the original record. The same value is echoed back in
+  /// WS broadcasts so the sender's optimistic row can be matched exactly.
   Future<ChatMessage> sendMessage(
     String conversationId,
     String content, {
     MessageType type = MessageType.text,
     String? replyToId,
+    String? clientId,
   }) async {
     _log('sendMessage conversationId=$conversationId type=${type.name}');
 
@@ -98,6 +105,9 @@ class ApiChatDataSource {
     };
     if (replyToId != null) {
       body['reply_to_id'] = replyToId;
+    }
+    if (clientId != null) {
+      body['client_id'] = clientId;
     }
 
     final response = await _api.post(
@@ -194,6 +204,7 @@ class ApiChatDataSource {
       type: _messageTypeFromJson(data['message_type']),
       isRead: data['is_read'] == true,
       replyTo: null, // Reply info resolved separately if needed
+      clientId: data['client_id']?.toString(),
     );
   }
 

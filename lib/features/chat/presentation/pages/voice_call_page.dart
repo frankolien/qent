@@ -50,10 +50,35 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
   final List<RTCIceCandidate> _pendingCandidates = [];
   bool _remoteDescriptionSet = false;
 
+  // STUN handles the easy NATs (~70-80% of cases). On symmetric NATs —
+  // every Nigerian carrier (MTN, Glo, Airtel) uses these — STUN alone fails
+  // and the peers can't see each other directly. TURN relays media through
+  // a public server and is the universal fix.
+  //
+  // openrelay.metered.ca is a free public TURN server. Rate-limited and
+  // depends on someone else's goodwill, so it's a stopgap; long-term we
+  // should self-host coturn on Oracle Cloud free tier.
   final _config = {
     'iceServers': [
       {'urls': 'stun:stun.l.google.com:19302'},
       {'urls': 'stun:stun1.l.google.com:19302'},
+      {
+        'urls': 'turn:openrelay.metered.ca:80',
+        'username': 'openrelayproject',
+        'credential': 'openrelayproject',
+      },
+      {
+        'urls': 'turn:openrelay.metered.ca:443',
+        'username': 'openrelayproject',
+        'credential': 'openrelayproject',
+      },
+      {
+        // TLS on 443 — survives corporate firewalls and aggressive carrier
+        // filtering that block non-HTTPS UDP.
+        'urls': 'turns:openrelay.metered.ca:443?transport=tcp',
+        'username': 'openrelayproject',
+        'credential': 'openrelayproject',
+      },
     ]
   };
 
