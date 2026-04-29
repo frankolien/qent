@@ -19,15 +19,11 @@ class LiquidTabBar extends StatelessWidget {
     this.profilePhotoUrl,
   });
 
-  // Visual order in the bar (Search pinned right as a separate capsule):
-  //   [Home, Messages, Trips, Profile,  |  Search]
-  // The MainNavPage page indexes are:
+  // Visual order in the bar matches the page order in MainNavPage:
+  //   [Home, Search, Messages, Trips, Profile]
+  // Page indexes are:
   //   0 Home, 1 Search, 2 Messages, 3 Trips, 4 Profile
-  // So we need to remap visual position -> page index:
-  static const _pageIndexForVisualPosition = [0, 2, 3, 4, 1];
-
-  int _visualForPage(int pageIndex) =>
-      _pageIndexForVisualPosition.indexOf(pageIndex);
+  // Visual == page index, so no remap needed.
 
   @override
   Widget build(BuildContext context) {
@@ -39,15 +35,15 @@ class LiquidTabBar extends StatelessWidget {
       shrinkCentered: false,
       backgroundColor: Colors.black.withValues(alpha: 0.15),
       tint: const Color(0xFF007AFF),
-      
-      currentIndex: _visualForPage(currentIndex),
-      onTap: (visualIndex) => onTap(_pageIndexForVisualPosition[visualIndex]),
+
+      currentIndex: currentIndex,
+      onTap: onTap,
       items: const [
         CNTabBarItem(label: 'Home', icon: CNSymbol('house.fill')),
+        CNTabBarItem(label: 'Search', icon: CNSymbol('magnifyingglass')),
         CNTabBarItem(label: 'Messages', icon: CNSymbol('tray.fill')),
         CNTabBarItem(label: 'Trips', icon: CNSymbol('suitcase.fill')),
         CNTabBarItem(label: 'Profile', icon: CNSymbol('person.crop.circle.fill')),
-        CNTabBarItem(label:"Search",icon: CNSymbol('magnifyingglass')),
       ],
     );
   }
