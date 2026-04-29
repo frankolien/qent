@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -311,9 +312,12 @@ class _ReviewCard extends StatelessWidget {
                 ),
                 child: ClipOval(
                   child: review.userImageUrl.isNotEmpty
-                      ? Image.network(review.userImageUrl, fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              Icon(Icons.person, size: 20, color: Colors.grey[500]))
+                      ? CachedNetworkImage(
+                          imageUrl: review.userImageUrl,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, __, ___) =>
+                              Icon(Icons.person, size: 20, color: Colors.grey[500]),
+                        )
                       : Icon(Icons.person, size: 20, color: Colors.grey[500]),
                 ),
               ),

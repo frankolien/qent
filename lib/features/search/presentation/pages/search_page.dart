@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/core/widgets/animated_loading.dart';
@@ -216,12 +217,12 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                           isSelected ? (context.isDark ? Colors.black : Colors.white) : context.textPrimary,
                           BlendMode.srcIn,
                         ),
-                        child: Image.network(
-                          filter.logoUrl!,
+                        child: CachedNetworkImage(
+                          imageUrl: filter.logoUrl!,
                           width: 18,
                           height: 18,
                           fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => Icon(
+                          errorWidget: (_, __, ___) => Icon(
                             Icons.directions_car,
                             color: isSelected ? (context.isDark ? Colors.black : Colors.white) : context.textPrimary,
                             size: 18,

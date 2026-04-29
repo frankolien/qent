@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:qent/core/services/api_client.dart';
@@ -252,26 +253,23 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(20),
             child: widget.car.imageUrl.isNotEmpty
-                ? Image.network(
-                    widget.car.imageUrl,
+                ? CachedNetworkImage(
+                    imageUrl: widget.car.imageUrl,
                     fit: BoxFit.cover,
-                    frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-                      if (wasSynchronouslyLoaded) return child;
-                      return AnimatedOpacity(
-                        opacity: frame == null ? 0 : 1,
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeOut,
-                        child: child,
-                      );
-                    },
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: context.bgSecondary,
-                        child: const Center(
-                          child: Icon(Icons.directions_car_rounded, size: 64, color: Colors.grey),
-                        ),
-                      );
-                    },
+                    fadeInDuration: const Duration(milliseconds: 300),
+                    fadeInCurve: Curves.easeOut,
+                    placeholder: (_, __) => Container(
+                      color: context.bgSecondary,
+                      child: const Center(
+                        child: Icon(Icons.directions_car_rounded, size: 64, color: Colors.grey),
+                      ),
+                    ),
+                    errorWidget: (_, __, ___) => Container(
+                      color: context.bgSecondary,
+                      child: const Center(
+                        child: Icon(Icons.directions_car_rounded, size: 64, color: Colors.grey),
+                      ),
+                    ),
                   )
                 : const Center(
                     child: Icon(Icons.directions_car_rounded, size: 64, color: Colors.grey),

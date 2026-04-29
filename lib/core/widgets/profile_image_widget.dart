@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/core/providers/user_cache_provider.dart';
@@ -60,18 +61,19 @@ class ProfileImageWidget extends ConsumerWidget {
             color: Colors.grey[300],
           ),
           child: ClipOval(
-            child: Image.network(
-              url,
+            // CachedNetworkImage persists to disk, so the image survives
+            // hot restarts and process kills. memCacheWidth caps decoded
+            // bitmap size to avoid wasting RAM on small avatars rendered
+            // from large source images.
+            child: CachedNetworkImage(
+              imageUrl: url,
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return _buildPlaceholderIcon();
-              },
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return const Center(
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                );
-              },
+              memCacheWidth: (size * 3).round(),
+              memCacheHeight: (size * 3).round(),
+              fadeInDuration: const Duration(milliseconds: 120),
+              placeholderFadeInDuration: Duration.zero,
+              placeholder: (_, __) => _buildPlaceholderIcon(),
+              errorWidget: (_, __, ___) => _buildPlaceholderIcon(),
             ),
           ),
         ),

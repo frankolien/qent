@@ -37,6 +37,7 @@ class ChatMessage {
   final MessageType type;
   final bool isRead;
   final ReplyInfo? replyTo;
+  final MessageStatus status;
 
   ChatMessage({
     required this.id,
@@ -49,7 +50,45 @@ class ChatMessage {
     this.type = MessageType.text,
     this.isRead = false,
     this.replyTo,
+    this.status = MessageStatus.sent,
   });
+
+  ChatMessage copyWith({
+    String? id,
+    String? chatId,
+    String? senderId,
+    String? senderName,
+    String? senderImageUrl,
+    String? message,
+    DateTime? timestamp,
+    MessageType? type,
+    bool? isRead,
+    ReplyInfo? replyTo,
+    MessageStatus? status,
+  }) {
+    return ChatMessage(
+      id: id ?? this.id,
+      chatId: chatId ?? this.chatId,
+      senderId: senderId ?? this.senderId,
+      senderName: senderName ?? this.senderName,
+      senderImageUrl: senderImageUrl ?? this.senderImageUrl,
+      message: message ?? this.message,
+      timestamp: timestamp ?? this.timestamp,
+      type: type ?? this.type,
+      isRead: isRead ?? this.isRead,
+      replyTo: replyTo ?? this.replyTo,
+      status: status ?? this.status,
+    );
+  }
+}
+
+/// Local-only delivery state for an outgoing message, used to drive the
+/// pending/sent/failed indicator in the chat UI. The server has no notion
+/// of these — they exist only on the sender's device.
+enum MessageStatus {
+  sending,
+  sent,
+  failed,
 }
 
 class ReplyInfo {

@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qent/features/chat/presentation/providers/stories_providers.dart';
@@ -85,27 +86,24 @@ class _StoryViewerPageState extends State<StoryViewerPage>
           fit: StackFit.expand,
           children: [
             // Story image
-            Image.network(
-              story.imageUrl,
+            CachedNetworkImage(
+              imageUrl: story.imageUrl,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
+              errorWidget: (_, __, ___) => Container(
                 color: const Color(0xFF1A1A1A),
                 child: const Center(
                   child: Icon(Icons.broken_image, color: Colors.white54, size: 64),
                 ),
               ),
-              loadingBuilder: (_, child, progress) {
-                if (progress == null) return child;
-                return Container(
-                  color: const Color(0xFF1A1A1A),
-                  child: const Center(
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
+              placeholder: (_, __) => Container(
+                color: const Color(0xFF1A1A1A),
+                child: const Center(
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
                   ),
-                );
-              },
+                ),
+              ),
             ),
 
             // Gradient overlays
@@ -206,10 +204,10 @@ class _StoryViewerPageState extends State<StoryViewerPage>
                           ),
                           child: ClipOval(
                             child: widget.hostGroup.hostPhoto.isNotEmpty
-                                ? Image.network(
-                                    widget.hostGroup.hostPhoto,
+                                ? CachedNetworkImage(
+                                    imageUrl: widget.hostGroup.hostPhoto,
                                     fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => Container(
+                                    errorWidget: (_, __, ___) => Container(
                                       color: Colors.grey[700],
                                       child: const Icon(Icons.person, color: Colors.white54, size: 20),
                                     ),

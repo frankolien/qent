@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:qent/features/car_details/presentation/pages/car_details_page.dart';
 import 'package:qent/features/home/domain/models/car.dart';
@@ -59,21 +60,13 @@ class CarCard extends StatelessWidget {
                       width: double.infinity,
                       color: context.isDark ? context.bgTertiary : const Color(0xFFF0F0F0),
                       child: car.imageUrl.isNotEmpty
-                          ? Image.network(
-                              car.imageUrl,
+                          ? CachedNetworkImage(
+                              imageUrl: car.imageUrl,
                               fit: BoxFit.cover,
-                              frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-                                if (wasSynchronouslyLoaded) return child;
-                                return AnimatedOpacity(
-                                  opacity: frame == null ? 0 : 1,
-                                  duration: const Duration(milliseconds: 300),
-                                  curve: Curves.easeOut,
-                                  child: child,
-                                );
-                              },
-                              errorBuilder: (context, error, stackTrace) {
-                                return _buildPlaceholder();
-                              },
+                              fadeInDuration: const Duration(milliseconds: 300),
+                              fadeInCurve: Curves.easeOut,
+                              placeholder: (_, __) => _buildPlaceholder(),
+                              errorWidget: (_, __, ___) => _buildPlaceholder(),
                             )
                           : _buildPlaceholder(),
                     ),

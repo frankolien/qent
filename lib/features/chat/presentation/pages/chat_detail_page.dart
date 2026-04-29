@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,7 +17,6 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
@@ -712,28 +712,25 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                 bottomLeft: Radius.circular(isMe ? 20 : 6),
                 bottomRight: Radius.circular(isMe ? 6 : 20),
               ),
-              child: Image.network(
-                message.message,
+              child: CachedNetworkImage(
+                imageUrl: message.message,
                 fit: BoxFit.cover,
-                loadingBuilder: (_, child, progress) {
-                  if (progress == null) return child;
-                  return Container(
-                    width: 220, height: 180,
-                    color: context.isDark
-                        ? Colors.white.withValues(alpha: 0.05)
-                        : const Color(0xFFF1F1F2),
-                    child: Center(
-                      child: SizedBox(
-                        width: 24, height: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: context.textTertiary,
-                        ),
+                placeholder: (_, __) => Container(
+                  width: 220, height: 180,
+                  color: context.isDark
+                      ? Colors.white.withValues(alpha: 0.05)
+                      : const Color(0xFFF1F1F2),
+                  child: Center(
+                    child: SizedBox(
+                      width: 24, height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: context.textTertiary,
                       ),
                     ),
-                  );
-                },
-                errorBuilder: (_, __, ___) => Container(
+                  ),
+                ),
+                errorWidget: (_, __, ___) => Container(
                   width: 220, height: 120,
                   color: context.isDark
                       ? Colors.white.withValues(alpha: 0.05)
@@ -776,7 +773,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
           child: InteractiveViewer(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: Image.network(url, fit: BoxFit.contain),
+              child: CachedNetworkImage(imageUrl: url, fit: BoxFit.contain),
             ),
           ),
         ),
@@ -859,7 +856,10 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
   }
 
   Widget _buildMessagesList() {
-    final messagesAsync = ref.watch(messagesStreamProvider(widget.chat.id));
+    // Watch the merged provider (server messages + local optimistic pending
+    // sends) so a freshly-sent message appears in the list immediately, with
+    // a clock icon, before the API call returns.
+    final messagesAsync = ref.watch(chatMessagesProvider(widget.chat.id));
 
     return messagesAsync.when(
       data: (messages) {
@@ -1073,10 +1073,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                           fontFeatures: const [FontFeature.tabularFigures()],
                         ),
                       ),
-                      if (isMe && message.isRead) ...[
+                      if (isMe) ...[
                         const SizedBox(width: 4),
-                        Icon(Icons.done_all_rounded,
-                            size: 14, color: context.textPrimary.withValues(alpha: 0.7)),
+                        _buildStatusIcon(message),
                       ],
                     ],
                   ),
@@ -1085,6 +1084,62 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildStatusIcon(ChatMessage message) {
+    switch (message.status) {
+      case MessageStatus.sending:
+        return Icon(Icons.access_time_rounded,
+            size: 13, color: context.textTertiary);
+      case MessageStatus.failed:
+        return GestureDetector(
+          onTap: () => _showFailedMessageOptions(message),
+          child: Icon(Icons.error_outline_rounded,
+              size: 14, color: Colors.red.shade400),
+        );
+      case MessageStatus.sent:
+        return Icon(
+          message.isRead ? Icons.done_all_rounded : Icons.done_rounded,
+          size: 14,
+          color: context.textPrimary.withValues(alpha: 0.7),
+        );
+    }
+  }
+
+  void _showFailedMessageOptions(ChatMessage message) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: context.bgPrimary,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.refresh_rounded, color: context.textPrimary),
+              title: Text('Retry send', style: TextStyle(color: context.textPrimary)),
+              onTap: () {
+                Navigator.pop(ctx);
+                ref.read(chatControllerProvider).retrySend(
+                      chatId: widget.chat.id,
+                      failed: message,
+                    );
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.delete_outline_rounded, color: Colors.red.shade400),
+              title: Text('Delete', style: TextStyle(color: Colors.red.shade400)),
+              onTap: () {
+                Navigator.pop(ctx);
+                ref.read(chatControllerProvider).dismissFailed(
+                      chatId: widget.chat.id,
+                      tempId: message.id,
+                    );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1193,126 +1248,129 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
           Container(
             padding: EdgeInsets.only(
               bottom: MediaQuery.of(context).padding.bottom + 6,
-              top: 10, left: 12, right: 12,
+              top: 8, left: 10, right: 10,
             ),
             decoration: BoxDecoration(
               color: context.bgPrimary,
               border: Border(top: BorderSide(color: context.borderColor, width: 0.5)),
             ),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 // Attachment button — plus icon, filled circle
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: GestureDetector(
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      _showAttachmentSheet();
-                    },
-                    child: Container(
-                      width: 38, height: 38,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: context.isDark
-                            ? Colors.white.withValues(alpha: 0.08)
-                            : const Color(0xFFF1F1F2),
-                      ),
-                      child: Icon(Icons.add_rounded,
-                          color: context.textPrimary, size: 22),
+                GestureDetector(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    _showAttachmentSheet();
+                  },
+                  child: Container(
+                    width: 36, height: 36,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: context.isDark
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : const Color(0xFFF1F1F2),
                     ),
+                    child: Icon(Icons.add_rounded,
+                        color: context.textPrimary, size: 20),
                   ),
                 ),
-                const SizedBox(width: 10),
-                // Text field with emoji
+                const SizedBox(width: 8),
+                // Text field — slim pill, voice waveform inline at the right
                 Expanded(
                   child: Container(
-                    constraints: const BoxConstraints(maxHeight: 120),
+                    constraints: const BoxConstraints(maxHeight: 110, minHeight: 36),
                     decoration: BoxDecoration(
                       color: context.inputBg,
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Expanded(
                           child: TextField(
                             controller: _messageController,
                             focusNode: _focusNode,
+                            // Override every border slot to InputBorder.none
+                            // because the global theme paints a green
+                            // focusedBorder that otherwise bleeds through.
                             decoration: InputDecoration(
-                              hintText: 'Message...',
+                              hintText: 'Message',
                               hintStyle: TextStyle(color: context.textTertiary, fontSize: 15),
+                              isDense: true,
                               border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              disabledBorder: InputBorder.none,
+                              errorBorder: InputBorder.none,
+                              focusedErrorBorder: InputBorder.none,
+                              filled: false,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                             ),
+                            cursorColor: context.textPrimary,
                             maxLines: 5,
                             minLines: 1,
-                            style: TextStyle(fontSize: 15, color: context.textPrimary),
+                            style: TextStyle(fontSize: 15, color: context.textPrimary, height: 1.2),
                           ),
                         ),
-                        // Emoji button
-                        Padding(
-                          padding: const EdgeInsets.only(right: 8, bottom: 6),
-                          child: GestureDetector(
-                            onTap: () {},
-                            child: Icon(Icons.emoji_emotions_outlined, color: Colors.grey[400], size: 24),
+                        // Inline voice icon — only visible when the field is empty,
+                        // tap-to-record. Disappears when the user starts typing
+                        // (the send button to the right takes over).
+                        if (!hasText && !_isUploading)
+                          GestureDetector(
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              _startVoiceRecording();
+                            },
+                            behavior: HitTestBehavior.opaque,
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 12, left: 4),
+                              child: Icon(
+                                Icons.graphic_eq_rounded,
+                                color: context.textTertiary,
+                                size: 20,
+                              ),
+                            ),
                           ),
-                        ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
-                // Send / Mic / Upload
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: _isUploading
+                // Send button — only when there's text or an upload is in progress.
+                if (hasText || _isUploading) ...[
+                  const SizedBox(width: 8),
+                  _isUploading
                       ? Padding(
-                          padding: const EdgeInsets.all(7),
+                          padding: const EdgeInsets.all(6),
                           child: SizedBox(
-                            width: 24, height: 24,
+                            width: 22, height: 22,
                             child: CircularProgressIndicator(
                               strokeWidth: 2.5,
                               color: context.textPrimary,
                             ),
                           ),
                         )
-                      : hasText
-                          ? GestureDetector(
-                              onTap: _sendMessage,
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 180),
-                                width: 38, height: 38,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: context.isDark
-                                      ? Colors.white
-                                      : const Color(0xFF1A1A1A),
-                                ),
-                                child: Icon(
-                                  Icons.arrow_upward_rounded,
-                                  color: context.isDark
-                                      ? Colors.black
-                                      : Colors.white,
-                                  size: 20,
-                                ),
-                              ),
-                            )
-                          : GestureDetector(
-                              onTap: _startVoiceRecording,
-                              child: Container(
-                                width: 38, height: 38,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: context.isDark
-                                      ? Colors.white.withValues(alpha: 0.08)
-                                      : const Color(0xFFF1F1F2),
-                                ),
-                                child: Icon(Icons.mic_none_rounded,
-                                    color: context.textPrimary, size: 22),
-                              ),
+                      : GestureDetector(
+                          onTap: _sendMessage,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            width: 36, height: 36,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: context.isDark
+                                  ? Colors.white
+                                  : const Color(0xFF1A1A1A),
                             ),
-                ),
+                            child: Icon(
+                              Icons.arrow_upward_rounded,
+                              color: context.isDark
+                                  ? Colors.black
+                                  : Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                ],
               ],
             ),
           ),

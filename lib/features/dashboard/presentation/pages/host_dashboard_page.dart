@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -748,12 +749,13 @@ class _HostDashboardPageState extends ConsumerState<HostDashboardPage> {
           ClipRRect(
             borderRadius: BorderRadius.circular(14),
             child: listing.photo.isNotEmpty
-                ? Image.network(
-                    listing.photo,
+                ? CachedNetworkImage(
+                    imageUrl: listing.photo,
                     width: 72,
                     height: 56,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _buildPhotoPlaceholder(),
+                    placeholder: (_, __) => _buildPhotoPlaceholder(),
+                    errorWidget: (_, __, ___) => _buildPhotoPlaceholder(),
                   )
                 : _buildPhotoPlaceholder(),
           ),

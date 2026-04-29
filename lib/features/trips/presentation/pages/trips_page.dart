@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -290,12 +291,13 @@ class _TripsPageState extends State<TripsPage>
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
               child: trip.carPhoto != null
-                  ? Image.network(
-                      trip.carPhoto!,
+                  ? CachedNetworkImage(
+                      imageUrl: trip.carPhoto!,
                       height: 160,
                       width: double.infinity,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _buildImgPlaceholder(),
+                      placeholder: (_, __) => _buildImgPlaceholder(),
+                      errorWidget: (_, __, ___) => _buildImgPlaceholder(),
                     )
                   : _buildImgPlaceholder(),
             ),

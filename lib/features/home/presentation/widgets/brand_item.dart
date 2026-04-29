@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:qent/core/theme/app_theme.dart';
 
@@ -95,18 +96,15 @@ class BrandItem extends StatelessWidget {
         isSelected ? selectedColor : unselectedColor,
         BlendMode.srcIn,
       ),
-      child: Image.network(
-        logoUrl,
+      child: CachedNetworkImage(
+        imageUrl: logoUrl,
         width: 28,
         height: 28,
         fit: BoxFit.contain,
         // Show nothing while loading instead of flashing the fallback letter.
-        loadingBuilder: (_, child, progress) {
-          if (progress == null) return child;
-          return const SizedBox(width: 28, height: 28);
-        },
+        placeholder: (_, __) => const SizedBox(width: 28, height: 28),
         // Real failure (404 / no network) — fall back to the brand initial.
-        errorBuilder: (_, __, ___) => Text(
+        errorWidget: (_, __, ___) => Text(
           brand.substring(0, 1),
           style: TextStyle(
             fontSize: 18,

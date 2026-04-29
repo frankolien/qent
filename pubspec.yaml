@@ -1,7 +1,7 @@
 name: qent
 description: "Qent - P2P Car Rental Platform"
 publish_to: 'none'
-version: 1.0.0+5
+version: 1.0.0+6
 
 environment:
   sdk: ^3.9.2
@@ -37,6 +37,8 @@ dependencies:
   path_provider: ^2.1.5
   # File upload
   http_parser: ^4.1.1
+  # Persistent image cache — survives hot restart, no flash on reopen
+  cached_network_image: ^3.4.1
   # Storage
   shared_preferences: ^2.3.4
   # Location

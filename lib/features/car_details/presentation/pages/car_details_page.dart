@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/core/services/api_client.dart';
@@ -156,19 +157,13 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
             itemBuilder: (context, index) {
               final url = _carDetail.imageUrls[index];
               return url.startsWith('http')
-                  ? Image.network(
-                      url,
+                  ? CachedNetworkImage(
+                      imageUrl: url,
                       fit: BoxFit.cover,
-                      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-                        if (wasSynchronouslyLoaded) return child;
-                        return AnimatedOpacity(
-                          opacity: frame != null ? 1.0 : 0.0,
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeOut,
-                          child: child,
-                        );
-                      },
-                      errorBuilder: (_, __, ___) => _buildImagePlaceholder(),
+                      fadeInDuration: const Duration(milliseconds: 300),
+                      fadeInCurve: Curves.easeOut,
+                      placeholder: (_, __) => _buildImagePlaceholder(),
+                      errorWidget: (_, __, ___) => _buildImagePlaceholder(),
                     )
                   : _buildImagePlaceholder();
             },
@@ -360,7 +355,12 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
             ),
             child: ClipOval(
               child: _carDetail.host.profileImageUrl.isNotEmpty
-                  ? Image.network(_carDetail.host.profileImageUrl, fit: BoxFit.cover)
+                  ? CachedNetworkImage(
+                      imageUrl: _carDetail.host.profileImageUrl,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) =>
+                          Icon(Icons.person, size: 28, color: context.textTertiary),
+                    )
                   : Icon(Icons.person, size: 28, color: context.textTertiary),
             ),
           ),
@@ -688,9 +688,12 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
                 ),
                 child: ClipOval(
                   child: review.userImageUrl.isNotEmpty
-                      ? Image.network(review.userImageUrl, fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              Icon(Icons.person, size: 22, color: context.textTertiary))
+                      ? CachedNetworkImage(
+                          imageUrl: review.userImageUrl,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, __, ___) =>
+                              Icon(Icons.person, size: 22, color: context.textTertiary),
+                        )
                       : Icon(Icons.person, size: 22, color: context.textTertiary),
                 ),
               ),

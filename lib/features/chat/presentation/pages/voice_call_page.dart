@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -350,10 +351,10 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
                 return SizedBox.expand(
                   child: ImageFiltered(
                     imageFilter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
-                    child: Image.network(
-                      photoUrl,
+                    child: CachedNetworkImage(
+                      imageUrl: photoUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(color: const Color(0xFF1a1a2e)),
+                      errorWidget: (_, __, ___) => Container(color: const Color(0xFF1a1a2e)),
                     ),
                   ),
                 );

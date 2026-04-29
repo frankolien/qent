@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/core/widgets/animated_loading.dart';
@@ -367,10 +368,10 @@ class HomePageState extends ConsumerState<HomePage> {
         ),
         child: ClipOval(
           child: photoUrl != null && photoUrl.isNotEmpty
-              ? Image.network(
-                  photoUrl,
+              ? CachedNetworkImage(
+                  imageUrl: photoUrl,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) =>
+                  errorWidget: (_, __, ___) =>
                       Icon(Icons.person_outline_rounded, size: 18, color: context.textPrimary),
                 )
               : Icon(Icons.person_outline_rounded, size: 22, color: context.textPrimary),

@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -562,7 +563,13 @@ class _WithdrawSheetState extends ConsumerState<_WithdrawSheet> {
                           _selectedBankLogo != null && _selectedBankLogo!.isNotEmpty && !_selectedBankLogo!.contains('default-image')
                               ? ClipRRect(
                                   borderRadius: BorderRadius.circular(10),
-                                  child: Image.network(_selectedBankLogo!, width: 36, height: 36, fit: BoxFit.contain, errorBuilder: (_, __, ___) => _bankIcon(_selectedBankName!)),
+                                  child: CachedNetworkImage(
+                                    imageUrl: _selectedBankLogo!,
+                                    width: 36,
+                                    height: 36,
+                                    fit: BoxFit.contain,
+                                    errorWidget: (_, __, ___) => _bankIcon(_selectedBankName!),
+                                  ),
                                 )
                               : _bankIcon(_selectedBankName!),
                           const SizedBox(width: 12),
@@ -775,11 +782,11 @@ class _BankPickerSheetState extends State<_BankPickerSheet> {
     if (logo != null && logo.isNotEmpty && !logo.contains('default-image')) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: Image.network(
-          logo,
+        child: CachedNetworkImage(
+          imageUrl: logo,
           width: 40, height: 40,
           fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => _fallbackIcon(name),
+          errorWidget: (_, __, ___) => _fallbackIcon(name),
         ),
       );
     }

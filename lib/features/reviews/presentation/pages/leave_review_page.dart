@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -177,12 +178,13 @@ class _LeaveReviewPageState extends ConsumerState<LeaveReviewPage> {
               if (widget.carPhoto != null)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(18),
-                  child: Image.network(
-                    widget.carPhoto!,
+                  child: CachedNetworkImage(
+                    imageUrl: widget.carPhoto!,
                     height: 160,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _photoPlaceholder(),
+                    placeholder: (_, __) => _photoPlaceholder(),
+                    errorWidget: (_, __, ___) => _photoPlaceholder(),
                   ),
                 )
               else

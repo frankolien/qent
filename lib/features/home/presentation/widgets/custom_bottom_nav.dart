@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
@@ -134,10 +135,10 @@ class CustomBottomNav extends ConsumerWidget {
                     ),
                   ),
                   child: ClipOval(
-                    child: Image.network(
-                      photoUrl,
+                    child: CachedNetworkImage(
+                      imageUrl: photoUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Image.asset(
+                      errorWidget: (_, __, ___) => Image.asset(
                         fallbackAsset,
                         width: 26,
                         height: 26,
