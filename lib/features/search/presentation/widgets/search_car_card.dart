@@ -32,6 +32,7 @@ class SearchCarCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: context.isDark ? context.bgSecondary : Colors.white,
           borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: context.borderColor, width: 0.5),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),

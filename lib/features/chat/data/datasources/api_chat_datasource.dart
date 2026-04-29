@@ -197,11 +197,21 @@ class ApiChatDataSource {
     );
   }
 
-  /// Parse an ISO-8601 date string, falling back to [DateTime.now].
+  /// Parse an ISO-8601 date string from the backend.
+  ///
+  /// The Rust backend serializes `chrono::NaiveDateTime` without a timezone
+  /// suffix, but the values are always UTC. Dart's `DateTime.parse` treats
+  /// missing-offset strings as LOCAL time, which produces a 1-hour shift for
+  /// Lagos users. Append `Z` when there's no offset so Dart parses as UTC,
+  /// then convert to local for display.
   DateTime _dateFromJson(dynamic value) {
     if (value == null) return DateTime.now();
     try {
-      return DateTime.parse(value.toString());
+      final s = value.toString();
+      final hasOffset = s.endsWith('Z') ||
+          RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(s);
+      final normalized = hasOffset ? s : '${s}Z';
+      return DateTime.parse(normalized).toLocal();
     } catch (_) {
       _log('Failed to parse date: $value');
       return DateTime.now();

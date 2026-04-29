@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/features/search/domain/models/filter_options.dart';
 import 'package:qent/features/search/domain/models/search_filters.dart';
@@ -23,8 +24,10 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
   void initState() {
     super.initState();
     final filters = ref.read(searchControllerProvider).filters;
-    _minPriceController.text = '₦${(filters.priceRange.start / 1000).toInt()}k';
-    _maxPriceController.text = '₦${(filters.priceRange.end / 1000).toInt()}k+';
+    // Store digits only — the ₦ prefix and "k" suffix are fixed UI labels so
+    // users can never delete them from the input.
+    _minPriceController.text = (filters.priceRange.start / 1000).toInt().toString();
+    _maxPriceController.text = (filters.priceRange.end / 1000).toInt().toString();
     if (filters.location != null && filters.location!.isNotEmpty) {
       _locationController.text = filters.location!;
     } else {
@@ -42,8 +45,29 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
 
   void _updatePriceControllers() {
     final filters = ref.read(searchControllerProvider).filters;
-    _minPriceController.text = '₦${(filters.priceRange.start / 1000).toInt()}k';
-    _maxPriceController.text = '₦${(filters.priceRange.end / 1000).toInt()}k+';
+    _minPriceController.text = (filters.priceRange.start / 1000).toInt().toString();
+    _maxPriceController.text = (filters.priceRange.end / 1000).toInt().toString();
+  }
+
+  /// Push edited price text back into the slider state. Called on submit /
+  /// focus loss so dragging the slider stays in sync with manual edits.
+  void _commitPriceFromController(TextEditingController controller, {required bool isMin}) {
+    final filters = ref.read(searchControllerProvider).filters;
+    final raw = int.tryParse(controller.text.trim());
+    if (raw == null) {
+      // Restore previous valid value.
+      controller.text = ((isMin ? filters.priceRange.start : filters.priceRange.end) / 1000).toInt().toString();
+      return;
+    }
+    final next = (raw * 1000).toDouble().clamp(0.0, 1000000.0);
+    final start = isMin ? next : filters.priceRange.start;
+    final end = isMin ? filters.priceRange.end : next;
+    if (start <= end) {
+      ref.read(searchControllerProvider.notifier).updatePriceRange(RangeValues(start, end));
+    } else {
+      // Snap back if user tried to invert the range.
+      controller.text = ((isMin ? filters.priceRange.start : filters.priceRange.end) / 1000).toInt().toString();
+    }
   }
 
   Future<void> _selectDate() async {
@@ -73,8 +97,8 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
   void _clearAllFilters() {
     ref.read(searchControllerProvider.notifier).clearAllFilters();
     final defaultFilters = ref.read(searchControllerProvider).filters;
-    _minPriceController.text = '₦${(defaultFilters.priceRange.start / 1000).toInt()}k';
-    _maxPriceController.text = '₦${(defaultFilters.priceRange.end / 1000).toInt()}k+';
+    _minPriceController.text = (defaultFilters.priceRange.start / 1000).toInt().toString();
+    _maxPriceController.text = (defaultFilters.priceRange.end / 1000).toInt().toString();
     _locationController.text = '';
     setState(() => _showAllColors = false);
   }
@@ -355,33 +379,64 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _buildPriceLabel('Minimum', _minPriceController),
-            _buildPriceLabel('Maximum', _maxPriceController),
+            _buildPriceLabel('Minimum', _minPriceController, isMin: true),
+            _buildPriceLabel('Maximum', _maxPriceController, isMin: false),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildPriceLabel(String label, TextEditingController controller) {
+  Widget _buildPriceLabel(String label, TextEditingController controller, {required bool isMin}) {
+    const valueStyle = TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF1A1A1A));
     return Column(
       children: [
         Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[500], fontWeight: FontWeight.w500)),
         const SizedBox(height: 6),
         Container(
-          width: 80,
+          width: 88,
           height: 40,
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.grey[300]!)),
-          child: Center(
-            child: TextField(
-              controller: controller,
-              textAlign: TextAlign.center,
-              keyboardType: TextInputType.number,
-              textInputAction: TextInputAction.done,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF1A1A1A)),
-              decoration: const InputDecoration(border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.zero),
-              onSubmitted: (_) => FocusScope.of(context).unfocus(),
-            ),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.grey[300]!),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Fixed currency prefix — not part of the editable text.
+              const Text('₦', style: valueStyle),
+              const SizedBox(width: 2),
+              IntrinsicWidth(
+                child: TextField(
+                  controller: controller,
+                  textAlign: TextAlign.center,
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.done,
+                  // Digits only — strips any character that isn't 0-9.
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(4),
+                  ],
+                  style: valueStyle,
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  onSubmitted: (_) {
+                    _commitPriceFromController(controller, isMin: isMin);
+                    FocusScope.of(context).unfocus();
+                  },
+                  onTapOutside: (_) {
+                    _commitPriceFromController(controller, isMin: isMin);
+                    FocusScope.of(context).unfocus();
+                  },
+                ),
+              ),
+              // Fixed suffix — "k" for min, "k+" for max.
+              Text(isMin ? 'k' : 'k+', style: valueStyle),
+            ],
           ),
         ),
       ],

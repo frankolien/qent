@@ -43,6 +43,12 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
   late AnimationController _pulseController;
   late AnimationController _bgController;
 
+  /// ICE candidates that arrive before [_pc] exists or before
+  /// [setRemoteDescription] completes get buffered here and flushed once the
+  /// peer connection is ready. Without this, calls hang on "Connecting…".
+  final List<RTCIceCandidate> _pendingCandidates = [];
+  bool _remoteDescriptionSet = false;
+
   final _config = {
     'iceServers': [
       {'urls': 'stun:stun.l.google.com:19302'},
@@ -198,6 +204,8 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
       await _pc!.setRemoteDescription(
         RTCSessionDescription(sdpMap['sdp'], sdpMap['type']),
       );
+      _remoteDescriptionSet = true;
+      await _flushPendingCandidates();
 
       final answer = await _pc!.createAnswer();
       await _pc!.setLocalDescription(answer);
@@ -218,16 +226,38 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
     await _pc!.setRemoteDescription(
       RTCSessionDescription(sdpMap['sdp'], sdpMap['type']),
     );
+    _remoteDescriptionSet = true;
+    await _flushPendingCandidates();
   }
 
   void _onIceCandidate(Map<String, dynamic> payload) async {
     final candidateMap = payload['candidate'] as Map<String, dynamic>?;
-    if (candidateMap == null || _pc == null) return;
-    await _pc!.addCandidate(RTCIceCandidate(
+    if (candidateMap == null) return;
+    final candidate = RTCIceCandidate(
       candidateMap['candidate'],
       candidateMap['sdpMid'],
       candidateMap['sdpMLineIndex'],
-    ));
+    );
+    // Buffer candidates that arrive before the peer connection is ready or
+    // before remote description is set — adding them too early throws.
+    if (_pc == null || !_remoteDescriptionSet) {
+      _pendingCandidates.add(candidate);
+      return;
+    }
+    await _pc!.addCandidate(candidate);
+  }
+
+  /// Drain any ICE candidates buffered before the remote description was set.
+  Future<void> _flushPendingCandidates() async {
+    if (_pc == null) return;
+    for (final c in _pendingCandidates) {
+      try {
+        await _pc!.addCandidate(c);
+      } catch (e) {
+        debugPrint('[VoiceCall] Failed to add buffered candidate: $e');
+      }
+    }
+    _pendingCandidates.clear();
   }
 
   void _startTimer() {
@@ -341,37 +371,35 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
               children: [
                 const Spacer(flex: 2),
 
-                // Profile image with green dot
+                // Profile image with green online dot
                 Stack(
                   alignment: Alignment.bottomRight,
                   children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 3),
+                    SizedBox(
+                      width: 168, height: 168,
+                      child: ClipOval(
+                        child: ProfileImageWidget(userId: widget.targetId, size: 168),
                       ),
-                      child: ProfileImageWidget(userId: widget.targetId, size: 130),
                     ),
                     Positioned(
-                      bottom: 8, right: 8,
+                      bottom: 6, right: 6,
                       child: Container(
-                        width: 24, height: 24,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF22C55E),
+                        width: 26, height: 26,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF22C55E),
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 3),
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 28),
 
                 // Name
                 Text(
                   widget.targetName,
                   style: const TextStyle(
-                    fontSize: 28,
+                    fontSize: 26,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
                     letterSpacing: -0.3,
@@ -384,8 +412,9 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
                   statusText,
                   style: TextStyle(
                     fontSize: 15,
-                    color: Colors.white.withValues(alpha: 0.7),
+                    color: Colors.white.withValues(alpha: 0.65),
                     fontWeight: FontWeight.w400,
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
 
@@ -394,7 +423,7 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
                 // Bottom control bar
                 _buildBottomBar(),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
               ],
             ),
           ),
@@ -405,31 +434,14 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
 
   Widget _buildBottomBar() {
     if (_callState == CallState.ringing && !widget.isOutgoing) {
-      // Incoming call: Accept / Decline
-      return Container(
-        margin: const EdgeInsets.symmetric(horizontal: 24),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(40),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-        ),
+      // Incoming call: separate Accept / Decline pill (no shared capsule)
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 48),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _buildBarButton(
-              icon: Icons.call_end_rounded,
-              color: const Color(0xFFEF4444),
-              filled: true,
-              onTap: () => _endCall(),
-            ),
-            const SizedBox(width: 24),
-            _buildBarButton(
-              icon: Icons.call_rounded,
-              color: const Color(0xFF22C55E),
-              filled: true,
-              onTap: _acceptCall,
-            ),
+            _buildHangupButton(onTap: () => _endCall()),
+            _buildAcceptButton(onTap: _acceptCall),
           ],
         ),
       );
@@ -437,85 +449,94 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
 
     if (_callState == CallState.ended) return const SizedBox.shrink();
 
-    // Outgoing or connected: control bar
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(40),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          if (_callState == CallState.connected) ...[
-            _buildBarButton(
-              icon: Icons.videocam_off_rounded,
-              color: Colors.white,
-              active: false,
+    // Outgoing or connected: single dark capsule with 4 controls
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Container(
+        height: 76,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E1E22),
+          borderRadius: BorderRadius.circular(48),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            // Video — placeholder, no-op until video calls land
+            _buildFlatButton(
+              icon: Icons.videocam_outlined,
               onTap: () {},
             ),
-            _buildBarButton(
+            // Speaker
+            _buildFlatButton(
               icon: _isSpeaker
                   ? Icons.volume_up_rounded
-                  : Icons.volume_down_rounded,
-              color: Colors.white,
+                  : Icons.volume_up_outlined,
               active: _isSpeaker,
               onTap: _toggleSpeaker,
             ),
-            _buildBarButton(
-              icon: _isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
-              color: Colors.white,
+            // Mute
+            _buildFlatButton(
+              icon: _isMuted ? Icons.mic_off_outlined : Icons.mic_none_rounded,
               active: _isMuted,
               onTap: _toggleMute,
             ),
+            // Hangup — red filled circle, slightly inset
+            _buildHangupButton(onTap: () => _endCall()),
           ],
-          _buildBarButton(
-            icon: Icons.call_end_rounded,
-            color: const Color(0xFFEF4444),
-            filled: true,
-            onTap: () => _endCall(),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildBarButton({
+  /// Flat icon button used inside the dark control capsule.
+  Widget _buildFlatButton({
     required IconData icon,
-    required Color color,
-    bool filled = false,
     bool active = false,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 56, height: 56,
+        child: Center(
+          child: Icon(
+            icon,
+            color: active
+                ? Colors.white
+                : Colors.white.withValues(alpha: 0.5),
+            size: 28,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHangupButton({required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
       child: Container(
-        width: 56,
-        height: 56,
-        decoration: BoxDecoration(
-          color: filled
-              ? color
-              : active
-                  ? Colors.white.withValues(alpha: 0.15)
-                  : Colors.white.withValues(alpha: 0.06),
+        width: 56, height: 56,
+        decoration: const BoxDecoration(
+          color: Color(0xFFE53E5C),
           shape: BoxShape.circle,
-          boxShadow: filled
-              ? [
-                  BoxShadow(
-                    color: color.withValues(alpha: 0.4),
-                    blurRadius: 16,
-                    spreadRadius: 1,
-                  ),
-                ]
-              : null,
         ),
-        child: Icon(
-          icon,
-          color: filled ? Colors.white : color.withValues(alpha: active ? 1.0 : 0.6),
-          size: 26,
+        child: const Icon(Icons.call_end_rounded, color: Colors.white, size: 26),
+      ),
+    );
+  }
+
+  Widget _buildAcceptButton({required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 64, height: 64,
+        decoration: const BoxDecoration(
+          color: Color(0xFF22C55E),
+          shape: BoxShape.circle,
         ),
+        child: const Icon(Icons.call_rounded, color: Colors.white, size: 30),
       ),
     );
   }

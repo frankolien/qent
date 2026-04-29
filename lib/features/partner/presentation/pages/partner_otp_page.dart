@@ -253,8 +253,13 @@ class _PartnerOtpPageState extends State<PartnerOtpPage> {
         controller: _controllers[index],
         focusNode: _focusNodes[index],
         textAlign: TextAlign.center,
-        maxLength: 1,
+        // iOS SMS autofill drops the whole code into the first field at once,
+        // so the first cell can't have maxLength=1 — we split the value
+        // ourselves below. Subsequent cells keep maxLength=1.
+        maxLength: index == 0 ? null : 1,
         keyboardType: TextInputType.number,
+        // Tells iOS this is an SMS one-time code; needed for autofill suggestion
+        autofillHints: index == 0 ? const [AutofillHints.oneTimeCode] : null,
         style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w700),
         decoration: const InputDecoration(
           counterText: '',
@@ -262,6 +267,19 @@ class _PartnerOtpPageState extends State<PartnerOtpPage> {
           contentPadding: EdgeInsets.symmetric(vertical: 12),
         ),
         onChanged: (v) {
+          // Autofill case: iOS pastes the full 4-digit code into the first
+          // field. Split it across all 4 cells.
+          if (index == 0 && v.length > 1) {
+            final digits = v.replaceAll(RegExp(r'\D'), '');
+            for (var i = 0; i < _controllers.length; i++) {
+              _controllers[i].text = i < digits.length ? digits[i] : '';
+            }
+            // Move focus to the last filled cell (or last cell if full)
+            final last = digits.length.clamp(1, _controllers.length) - 1;
+            _focusNodes[last].requestFocus();
+            setState(() {});
+            return;
+          }
           if (v.length == 1 && index < 3) {
             _focusNodes[index + 1].requestFocus();
           } else if (v.isEmpty && index > 0) {

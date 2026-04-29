@@ -151,6 +151,16 @@ class WebSocketService {
     });
   }
 
+  /// Tell the server which conversation (if any) is open in the foreground.
+  /// The server uses this to suppress push notifications for messages the
+  /// user is already looking at. Pass `null` to clear (e.g. on screen exit).
+  void setActiveConversation(String? conversationId) {
+    send({
+      'type': 'view_conversation',
+      if (conversationId != null) 'conversation_id': conversationId,
+    });
+  }
+
   /// Send a call offer (WebRTC SDP)
   void sendCallOffer({required String targetId, required Map<String, dynamic> sdp, required String conversationId}) {
     send({

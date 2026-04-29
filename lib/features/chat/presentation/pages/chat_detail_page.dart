@@ -64,6 +64,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
 
     // Listen for real-time messages via WebSocket
     final ws = ref.read(wsServiceProvider);
+    // Mark this conversation as active so the server suppresses push
+    // notifications while the user has it open.
+    ws.setActiveConversation(widget.chat.id);
     _wsSub = ws.events.listen((event) {
       if (!mounted) return;
       if (event.type == 'new_message' && event.payload['conversation_id'] == widget.chat.id) {
@@ -246,10 +249,12 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
     _messageController.removeListener(_onMessageChanged);
     _focusNode.removeListener(_onFocusChanged);
 
-    // Stop typing indicator via WebSocket
+    // Stop typing indicator + clear active conversation via WebSocket so the
+    // server resumes sending push notifications for messages from this user.
     try {
       final ws = ref.read(wsServiceProvider);
       ws.sendTyping(conversationId: widget.chat.id, isTyping: false);
+      ws.setActiveConversation(null);
     } catch (_) {}
 
     _recorder.dispose();

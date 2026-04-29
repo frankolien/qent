@@ -32,24 +32,12 @@ class _PartnerFormPageState extends ConsumerState<PartnerFormPage> {
   String? _selectedBrand;
   String? _selectedLuxuryBrand;
   String? _selectedModel;
-  String? _selectedColor = 'Blue';
   String _fuelType = 'Diesel';
   bool _acceptedTerms = true;
   bool _showTermsDetails = false;
   final List<String> _uploadedCarImages = [];
   bool _showBrandSelection = true;
   bool _isSubmitting = false;
-
-  final List<Map<String, dynamic>> _colors = const [
-    {'name': 'White', 'color': Colors.white},
-    {'name': 'Gray', 'color': Color(0xFFBDBDBD)},
-    {'name': 'Blue', 'color': Color(0xFF2962FF)},
-    {'name': 'Black', 'color': Colors.black},
-    {'name': 'Red', 'color': Color(0xFFD32F2F)},
-    {'name': 'Silver', 'color': Color(0xFFC0C0C0)},
-    {'name': 'Green', 'color': Color(0xFF4CAF50)},
-    {'name': 'Yellow', 'color': Color(0xFFFFEB3B)},
-  ];
 
   final List<String> _fuelTypes = const ['Electric', 'Petrol', 'Diesel', 'Hybrid'];
   bool _emailValid = false;
@@ -212,8 +200,6 @@ class _PartnerFormPageState extends ConsumerState<PartnerFormPage> {
             icon: Icons.location_on_outlined,
           ),
           const SizedBox(height: 20),
-          _buildColorsSection(),
-          const SizedBox(height: 20),
           _buildFuelSection(),
           const SizedBox(height: 20),
           _buildDescription(),
@@ -374,28 +360,53 @@ class _PartnerFormPageState extends ConsumerState<PartnerFormPage> {
     );
   }
 
+  Future<void> _pickFromGallery() async {
+    final picker = ImagePicker();
+    // pickMultiImage lets the user select many photos at once from the gallery.
+    final picked = await picker.pickMultiImage(imageQuality: 85);
+    if (picked.isNotEmpty) {
+      setState(() {
+        _uploadedCarImages.addAll(picked.map((x) => x.path));
+      });
+    }
+  }
+
+  Future<void> _pickFromCamera() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.camera, imageQuality: 85);
+    if (picked != null) {
+      setState(() => _uploadedCarImages.add(picked.path));
+    }
+  }
+
   Widget _buildCarImageUpload() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        InkWell(
-          onTap: () async {
-            final picker = ImagePicker();
-            final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
-            if (picked != null) {
-              setState(() => _uploadedCarImages.add(picked.path));
-            }
-          },
-          child: Row(
-            children: [
-              Icon(Icons.photo_camera, color: Colors.grey[700], size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Upload at least 2 car images',
-                style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[700], fontWeight: FontWeight.w400),
+        Row(
+          children: [
+            Expanded(
+              child: InkWell(
+                onTap: _pickFromGallery,
+                child: Row(
+                  children: [
+                    Icon(Icons.photo_library_outlined, color: Colors.grey[700], size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Upload at least 2 car images',
+                      style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[700], fontWeight: FontWeight.w400),
+                    ),
+                  ],
+                ),
               ),
-            ],
-          ),
+            ),
+            // Camera shortcut — single shot
+            IconButton(
+              tooltip: 'Take photo',
+              onPressed: _pickFromCamera,
+              icon: Icon(Icons.photo_camera_outlined, color: Colors.grey[700], size: 22),
+            ),
+          ],
         ),
         if (_uploadedCarImages.isNotEmpty) ...[
           const SizedBox(height: 12),
@@ -431,71 +442,6 @@ class _PartnerFormPageState extends ConsumerState<PartnerFormPage> {
             }).toList(),
           ),
         ],
-      ],
-    );
-  }
-
-  Widget _buildColorsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Colors', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black, letterSpacing: -0.3)),
-            InkWell(
-              onTap: () {},
-              child: Text('See All', style: GoogleFonts.inter(fontSize: 14, color: Colors.blue[600], fontWeight: FontWeight.w500)),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: _colors.take(7).map((c) {
-              final String name = c['name'] as String;
-              final Color color = c['color'] as Color;
-              final bool sel = _selectedColor == name;
-              return Padding(
-                padding: const EdgeInsets.only(right: 16),
-                child: InkWell(
-                  onTap: () => setState(() => _selectedColor = name),
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: color,
-                        ),
-                        child: sel
-                            ? Icon(
-                                Icons.check,
-                                color: (color == Colors.white || color == const Color(0xFFBDBDBD) || color == const Color(0xFFC0C0C0))
-                                    ? Colors.black
-                                    : Colors.white,
-                                size: 20,
-                              )
-                            : null,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        name,
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
-                          color: sel ? Colors.black : Colors.black87,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
       ],
     );
   }
@@ -720,7 +666,9 @@ class _PartnerFormPageState extends ConsumerState<PartnerFormPage> {
         'car_make': brand,
         'car_model': _selectedModel!,
         'car_year': int.tryParse(_yearController.text.trim()) ?? 2024,
-        'car_color': _selectedColor ?? 'Black',
+        // Color is no longer collected from the host — backend still requires
+        // a non-empty string so we send a placeholder.
+        'car_color': 'N/A',
         'car_plate_number': _registrationController.text.trim(),
         'car_photos': uploadedUrls,
         'car_description': _descriptionController.text.trim(),

@@ -107,10 +107,19 @@ class NotificationModel {
     );
   }
 
+  /// Parse an ISO-8601 timestamp from the backend.
+  ///
+  /// Rust's `chrono::NaiveDateTime` serializes without a timezone suffix even
+  /// though the values are UTC. Dart's `DateTime.parse` treats no-offset
+  /// strings as LOCAL, which leaves Lagos users 1 hour behind. Force UTC
+  /// when no offset is present, then convert to local.
   static DateTime _parseTimestamp(dynamic raw) {
     if (raw == null) return DateTime.now();
     final s = raw.toString();
-    return DateTime.tryParse(s) ?? DateTime.now();
+    final hasOffset = s.endsWith('Z') ||
+        RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(s);
+    final normalized = hasOffset ? s : '${s}Z';
+    return (DateTime.tryParse(normalized) ?? DateTime.now()).toLocal();
   }
 
   static NotificationType _typeFromString(String s) {
