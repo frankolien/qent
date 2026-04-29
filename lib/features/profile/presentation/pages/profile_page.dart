@@ -8,6 +8,8 @@ import 'package:qent/features/favorites/presentation/pages/favorites_page.dart';
 import 'package:qent/features/dashboard/presentation/pages/host_dashboard_page.dart';
 import 'package:qent/features/dashboard/presentation/pages/add_listing_page.dart';
 import 'package:qent/features/booking/presentation/pages/booking_history_page.dart';
+import 'package:qent/features/notifications/presentation/pages/notifications_page.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:qent/features/admin/presentation/pages/admin_panel_page.dart';
 import 'package:qent/core/providers/theme_provider.dart';
 import 'package:qent/core/theme/app_theme.dart';
@@ -92,7 +94,10 @@ class ProfilePage extends ConsumerWidget {
               _buildMenuItem(
                 'assets/images/Profile/notification.png',
                 'Notification',
-                onTap: () {},
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const NotificationsPage()),
+                ),
               ),
               _buildDarkModeToggle(ref),
               _buildMenuItem(
@@ -106,27 +111,27 @@ class ProfilePage extends ConsumerWidget {
               _buildMenuItem(
                 'assets/images/Profile/settings.png',
                 'Settings',
-                onTap: () {},
+                onTap: () => _showComingSoon(context, 'Settings'),
               ),
               _buildMenuItem(
                 'assets/images/Profile/language.png',
                 'Languages',
-                onTap: () {},
+                onTap: () => _showComingSoon(context, 'Languages'),
               ),
               _buildMenuItem(
                 'assets/images/Profile/invite_friend.png',
                 'Invite Friends',
-                onTap: () {},
+                onTap: () => _showComingSoon(context, 'Invite Friends'),
               ),
               _buildMenuItem(
                 'assets/images/Profile/privacy.png',
-                'privacy policy',
-                onTap: () {},
+                'Privacy Policy',
+                onTap: () => _openUrl(context, 'https://qent.online/privacy'),
               ),
               _buildMenuItem(
                 'assets/images/Profile/support.png',
-                'Help Support',
-                onTap: () {},
+                'Help & Support',
+                onTap: () => _openUrl(context, 'mailto:support@qent.online'),
               ),
               _buildMenuItem(
                 'assets/images/Profile/log_out.png',
@@ -345,6 +350,26 @@ class ProfilePage extends ConsumerWidget {
         ),
       ),
     ));
+  }
+
+  void _showComingSoon(BuildContext context, String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$feature is coming soon'),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Future<void> _openUrl(BuildContext context, String url) async {
+    final uri = Uri.parse(url);
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open $url')),
+      );
+    }
   }
 
   void _showLogoutDialog(BuildContext context, WidgetRef ref) {

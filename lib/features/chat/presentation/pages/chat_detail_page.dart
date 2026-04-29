@@ -255,7 +255,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
       final ws = ref.read(wsServiceProvider);
       ws.sendTyping(conversationId: widget.chat.id, isTyping: false);
       ws.setActiveConversation(null);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[ChatDetail] Failed to clear WS state on dispose: $e');
+    }
 
     _recorder.dispose();
     _messageController.dispose();
@@ -380,7 +382,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
           children: [
             Icon(
               icon,
-              color: isDestructive ? Colors.red : Colors.black87,
+              color: isDestructive ? Colors.red : context.textPrimary,
               size: 24,
             ),
             const SizedBox(width: 16),
@@ -388,7 +390,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
               label,
               style: TextStyle(
                 fontSize: 16,
-                color: isDestructive ? Colors.red : Colors.black87,
+                color: isDestructive ? Colors.red : context.textPrimary,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -1022,15 +1024,15 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                     margin: const EdgeInsets.only(bottom: 4),
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.grey[100],
+                      color: context.bgSecondary,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border(left: BorderSide(color: Colors.grey[400]!, width: 3)),
+                      border: Border(left: BorderSide(color: context.borderColor, width: 3)),
                     ),
                     child: Text(
                       message.replyTo!.message.length > 50
                           ? '${message.replyTo!.message.substring(0, 50)}...'
                           : message.replyTo!.message,
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      style: TextStyle(fontSize: 12, color: context.textSecondary),
                       maxLines: 2, overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -1170,8 +1172,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                   onTap: () { _recorder.stop(); setState(() => _isRecording = false); HapticFeedback.lightImpact(); },
                   child: Container(
                     padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: Colors.grey[100], shape: BoxShape.circle),
-                    child: Icon(Icons.delete_outline, color: Colors.grey[600], size: 22),
+                    decoration: BoxDecoration(color: context.bgSecondary, shape: BoxShape.circle),
+                    child: Icon(Icons.delete_outline, color: context.textSecondary, size: 22),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1329,7 +1331,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: context.borderColor, borderRadius: BorderRadius.circular(2))),
               const SizedBox(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -1367,7 +1369,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
             child: Icon(icon, color: color, size: 26),
           ),
           const SizedBox(height: 8),
-          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.w500)),
+          Text(label, style: TextStyle(fontSize: 12, color: context.textSecondary, fontWeight: FontWeight.w500)),
         ],
       ),
     );
@@ -1381,10 +1383,10 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.blue[50],
+        color: context.bgSecondary,
         border: Border(
           left: BorderSide(
-            color: isReplyFromMe ? Colors.blue : Colors.grey[600]!,
+            color: isReplyFromMe ? context.textPrimary : context.textSecondary,
             width: 3,
           ),
         ),
@@ -1400,7 +1402,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Colors.blue[700],
+                    color: context.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -1410,7 +1412,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                       : _replyingTo!.message,
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey[700],
+                    color: context.textSecondary,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -1419,7 +1421,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
             ),
           ),
           IconButton(
-            icon: Icon(Icons.close, size: 20, color: Colors.grey[600]),
+            icon: Icon(Icons.close, size: 20, color: context.textSecondary),
             onPressed: () {
               setState(() {
                 _replyingTo = null;

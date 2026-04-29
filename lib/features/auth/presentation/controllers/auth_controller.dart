@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -169,7 +170,10 @@ class AuthController extends Notifier<AuthState> {
       if (user != null) {
         state = state.copyWith(user: user);
       }
-    } catch (_) {}
+    } catch (e) {
+      // Soft-fail: keep stale profile, but log so the issue is visible.
+      debugPrint('[AuthController] refreshProfile failed: $e');
+    }
   }
 
   void clearError() {

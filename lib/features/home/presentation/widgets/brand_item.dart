@@ -13,11 +13,13 @@ class BrandItem extends StatelessWidget {
     this.onTap,
   });
 
+  // Wikimedia hotlink-blocks intermittently; carlogos.org serves transparent
+  // PNGs reliably and works with the BlendMode.srcIn color filter below.
   static const Map<String, String> _brandLogos = {
-    'Toyota': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Toyota.svg/200px-Toyota.svg.png',
-    'Honda': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/76/Honda_logo.svg/200px-Honda_logo.svg.png',
-    'Mercedes': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Mercedes-Logo.svg/200px-Mercedes-Logo.svg.png',
-    'Lexus': 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d1/Lexus_division_emblem.svg/200px-Lexus_division_emblem.svg.png',
+    'Toyota': 'https://www.carlogos.org/car-logos/toyota-logo-2020-europe-download.png',
+    'Honda': 'https://www.carlogos.org/car-logos/honda-logo-2000-full-download.png',
+    'Mercedes': 'https://www.carlogos.org/car-logos/mercedes-benz-logo-2011-download.png',
+    'Lexus': 'https://www.carlogos.org/car-logos/lexus-logo-2010-download.png',
     'Range Rover': 'https://www.carlogos.org/logo/Land-Rover-logo-2011-1920x1080.png',
   };
 
@@ -98,6 +100,12 @@ class BrandItem extends StatelessWidget {
         width: 28,
         height: 28,
         fit: BoxFit.contain,
+        // Show nothing while loading instead of flashing the fallback letter.
+        loadingBuilder: (_, child, progress) {
+          if (progress == null) return child;
+          return const SizedBox(width: 28, height: 28);
+        },
+        // Real failure (404 / no network) — fall back to the brand initial.
         errorBuilder: (_, __, ___) => Text(
           brand.substring(0, 1),
           style: TextStyle(

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/home/domain/models/car.dart';
@@ -60,7 +61,12 @@ final filteredCarsProvider = FutureProvider<List<Car>>((ref) async {
     final loc = ref.read(userLocationProvider).value;
     latitude = loc?.latitude;
     longitude = loc?.longitude;
-  } catch (_) {}
+  } catch (e) {
+    // Distance sort silently disables when location is unavailable; surface
+    // the reason in debug builds so we can tell GPS denial apart from
+    // provider misconfiguration.
+    debugPrint('[Search] Could not read user location: $e');
+  }
 
   final cars = await dataSource.searchCars(
     location: filters.location,

@@ -273,8 +273,8 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
 
   Widget _buildImagePlaceholder() {
     return Container(
-      color: const Color(0xFFF0F0F0),
-      child: Center(child: Icon(Icons.directions_car_rounded, size: 80, color: Colors.grey[300])),
+      color: context.bgTertiary,
+      child: Center(child: Icon(Icons.directions_car_rounded, size: 80, color: context.textTertiary)),
     );
   }
 
@@ -356,12 +356,12 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
             height: 50,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.grey[200],
+              color: context.bgTertiary,
             ),
             child: ClipOval(
               child: _carDetail.host.profileImageUrl.isNotEmpty
                   ? Image.network(_carDetail.host.profileImageUrl, fit: BoxFit.cover)
-                  : Icon(Icons.person, size: 28, color: Colors.grey[400]),
+                  : Icon(Icons.person, size: 28, color: context.textTertiary),
             ),
           ),
           const SizedBox(width: 12),
@@ -684,14 +684,14 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
                 height: 40,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.grey[300],
+                  color: context.bgTertiary,
                 ),
                 child: ClipOval(
                   child: review.userImageUrl.isNotEmpty
                       ? Image.network(review.userImageUrl, fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) =>
-                              Icon(Icons.person, size: 22, color: Colors.grey[500]))
-                      : Icon(Icons.person, size: 22, color: Colors.grey[500]),
+                              Icon(Icons.person, size: 22, color: context.textTertiary))
+                      : Icon(Icons.person, size: 22, color: context.textTertiary),
                 ),
               ),
               const SizedBox(width: 10),

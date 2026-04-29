@@ -112,7 +112,7 @@ class _PartnerFormPageState extends ConsumerState<PartnerFormPage> {
         children: [
           Text(
             'Car Owner Information',
-            style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black, letterSpacing: -0.3),
+            style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: context.textPrimary, letterSpacing: -0.3),
           ),
           const SizedBox(height: 20),
           _buildInputWithIcon(
@@ -159,7 +159,7 @@ class _PartnerFormPageState extends ConsumerState<PartnerFormPage> {
         children: [
           Text(
             'Car Information',
-            style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black, letterSpacing: -0.3),
+            style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: context.textPrimary, letterSpacing: -0.3),
           ),
           const SizedBox(height: 20),
           _buildBrandModelSection(),
@@ -214,12 +214,12 @@ class _PartnerFormPageState extends ConsumerState<PartnerFormPage> {
       children: [
         Text(
           'Car Brand & Model',
-          style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87),
+          style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: context.textPrimary),
         ),
         const SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
-            color: Colors.grey[100],
+            color: context.bgSecondary,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
@@ -230,14 +230,14 @@ class _PartnerFormPageState extends ConsumerState<PartnerFormPage> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
-                      color: _showBrandSelection ? Colors.black : Colors.transparent,
+                      color: _showBrandSelection ? context.textPrimary : Colors.transparent,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     alignment: Alignment.center,
                     child: Text(
                       'Car Brand',
                       style: GoogleFonts.inter(
-                        color: _showBrandSelection ? Colors.white : Colors.black87,
+                        color: _showBrandSelection ? context.bgPrimary : context.textPrimary,
                         fontWeight: _showBrandSelection ? FontWeight.w700 : FontWeight.w500,
                         fontSize: 14,
                       ),
@@ -255,14 +255,14 @@ class _PartnerFormPageState extends ConsumerState<PartnerFormPage> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
-                      color: !_showBrandSelection ? Colors.black : Colors.transparent,
+                      color: !_showBrandSelection ? context.textPrimary : Colors.transparent,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     alignment: Alignment.center,
                     child: Text(
                       'Car Model',
                       style: GoogleFonts.inter(
-                        color: !_showBrandSelection ? Colors.white : Colors.black87,
+                        color: !_showBrandSelection ? context.bgPrimary : context.textPrimary,
                         fontWeight: !_showBrandSelection ? FontWeight.w700 : FontWeight.w500,
                         fontSize: 14,
                       ),
@@ -319,9 +319,9 @@ class _PartnerFormPageState extends ConsumerState<PartnerFormPage> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
-                color: Colors.grey[100],
+                color: context.bgSecondary,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.black12),
+                border: Border.all(color: context.borderColor),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -452,7 +452,7 @@ class _PartnerFormPageState extends ConsumerState<PartnerFormPage> {
       children: [
         Text(
           'Fuel Type',
-          style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.black),
+          style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w700, color: context.textPrimary),
         ),
         const SizedBox(height: 16),
         Row(
@@ -466,10 +466,10 @@ class _PartnerFormPageState extends ConsumerState<PartnerFormPage> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
-                      color: sel ? Colors.black : Colors.white,
+                      color: sel ? context.textPrimary : context.bgPrimary,
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(
-                        color: sel ? Colors.black : Colors.grey[300]!,
+                        color: sel ? context.textPrimary : context.borderColor,
                         width: 1,
                       ),
                     ),
@@ -477,7 +477,7 @@ class _PartnerFormPageState extends ConsumerState<PartnerFormPage> {
                     child: Text(
                       t,
                       style: GoogleFonts.inter(
-                        color: sel ? Colors.white : Colors.grey[600],
+                        color: sel ? context.bgPrimary : context.textSecondary,
                         fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
                         fontSize: 14,
                       ),
@@ -503,26 +503,26 @@ class _PartnerFormPageState extends ConsumerState<PartnerFormPage> {
           textCapitalization: TextCapitalization.sentences,
           decoration: InputDecoration(
             hintText: 'Enter your car ability, durability, etc message here.......',
-            hintStyle: GoogleFonts.inter(color: Colors.grey[400], fontSize: 15),
+            hintStyle: GoogleFonts.inter(color: context.textTertiary, fontSize: 15),
             filled: true,
-            fillColor: Colors.white,
+            fillColor: context.inputBg,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey[300]!, width: 1),
+              borderSide: BorderSide(color: context.inputBorder, width: 1),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey[300]!, width: 1),
+              borderSide: BorderSide(color: context.inputBorder, width: 1),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey[400]!, width: 1),
+              borderSide: BorderSide(color: context.textSecondary, width: 1),
             ),
             contentPadding: const EdgeInsets.all(16),
             counterText: '${_descriptionController.text.length}/1000',
-            counterStyle: GoogleFonts.inter(color: Colors.grey[600], fontSize: 12),
+            counterStyle: GoogleFonts.inter(color: context.textSecondary, fontSize: 12),
           ),
-          style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w400, color: Colors.black87),
+          style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w400, color: context.textPrimary),
           onChanged: (value) {
             setState(() {});
           },
@@ -542,18 +542,18 @@ class _PartnerFormPageState extends ConsumerState<PartnerFormPage> {
               Checkbox(
                 value: _acceptedTerms,
                 onChanged: (v) => setState(() => _acceptedTerms = v ?? false),
-                activeColor: Colors.black87,
-                checkColor: Colors.white,
+                activeColor: context.textPrimary,
+                checkColor: context.bgPrimary,
               ),
               Text(
                 'Terms & Conditions',
-                style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87),
+                style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: context.textPrimary),
               ),
               const SizedBox(width: 4),
               Icon(
                 _showTermsDetails ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
                 size: 20,
-                color: Colors.grey[600],
+                color: context.textSecondary,
               ),
             ],
           ),
@@ -562,7 +562,7 @@ class _PartnerFormPageState extends ConsumerState<PartnerFormPage> {
               padding: const EdgeInsets.only(left: 48, right: 16, bottom: 8),
               child: Text(
                 'By submitting this form, you agree to QENT\'s partner terms and conditions...',
-                style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[600], height: 1.4),
+                style: GoogleFonts.inter(fontSize: 12, color: context.textSecondary, height: 1.4),
               ),
             ),
         ],
@@ -575,21 +575,21 @@ class _PartnerFormPageState extends ConsumerState<PartnerFormPage> {
       width: double.infinity,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.black,
+          backgroundColor: context.textPrimary,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           padding: const EdgeInsets.symmetric(vertical: 18),
           elevation: 2,
         ),
         onPressed: _isSubmitting ? null : _handleSubmit,
         child: _isSubmitting
-            ? const SizedBox(
+            ? SizedBox(
                 width: 22,
                 height: 22,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                child: CircularProgressIndicator(strokeWidth: 2, color: context.bgPrimary),
               )
             : Text(
                 'Submit',
-                style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16, letterSpacing: 0.5),
+                style: GoogleFonts.inter(color: context.bgPrimary, fontWeight: FontWeight.w700, fontSize: 16, letterSpacing: 0.5),
               ),
       ),
     );
@@ -736,22 +736,22 @@ class _PartnerFormPageState extends ConsumerState<PartnerFormPage> {
       textCapitalization: textCapitalization,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: GoogleFonts.inter(color: Colors.grey[700], fontWeight: FontWeight.w400),
-        prefixIcon: Icon(icon, color: Colors.grey[600]),
+        labelStyle: GoogleFonts.inter(color: context.textSecondary, fontWeight: FontWeight.w400),
+        prefixIcon: Icon(icon, color: context.textSecondary),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[300]!, width: 1),
+          borderSide: BorderSide(color: context.inputBorder, width: 1),
         ),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: Colors.white,
+        fillColor: context.inputBg,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
-      style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w400),
+      style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w400, color: context.textPrimary),
       validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
       onChanged: onChanged,
     );
@@ -779,9 +779,9 @@ class _StaticBrandLists extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.bgSecondary,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black12),
+        border: Border.all(color: context.borderColor),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -794,7 +794,7 @@ class _StaticBrandLists extends StatelessWidget {
               selected: selectedRegular,
             ),
           ),
-          Container(width: 1, height: 240, color: Colors.black12),
+          Container(width: 1, height: 240, color: context.borderColor),
           Expanded(
             child: _BrandsColumn(
               title: 'Luxury Cars Brand',
@@ -824,13 +824,13 @@ class _BrandsColumn extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 8),
-          Text(title, style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 12)),
+          Text(title, style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 12, color: context.textPrimary)),
           const SizedBox(height: 8),
           SizedBox(
             height: 220,
             child: ListView.builder(
               itemCount: items.length,
-              itemBuilder: (context, index) {
+              itemBuilder: (ctx, index) {
                 final e = items[index];
                 final bool isSel = selected == e;
                 return InkWell(
@@ -841,13 +841,13 @@ class _BrandsColumn extends StatelessWidget {
                     margin: const EdgeInsets.only(bottom: 6),
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
-                      color: isSel ? Colors.black.withValues(alpha: 0.06) : Colors.transparent,
+                      color: isSel ? context.textPrimary.withValues(alpha: 0.08) : Colors.transparent,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
                       children: [
-                        Expanded(child: Text(e, style: GoogleFonts.inter(fontWeight: FontWeight.w600))),
-                        if (isSel) const Icon(Icons.check, size: 16, color: Colors.black),
+                        Expanded(child: Text(e, style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: context.textPrimary))),
+                        if (isSel) Icon(Icons.check, size: 16, color: context.textPrimary),
                       ],
                     ),
                   ),
@@ -873,22 +873,22 @@ class _StaticModelsList extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.bgSecondary,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black12),
+        border: Border.all(color: context.borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Models for $brandName', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+          Text('Models for $brandName', style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: context.textPrimary)),
           const SizedBox(height: 8),
           SizedBox(
             height: 180,
             child: models.isEmpty
-                ? Center(child: Text('No models available', style: GoogleFonts.inter(color: Colors.grey)))
+                ? Center(child: Text('No models available', style: GoogleFonts.inter(color: context.textTertiary)))
                 : ListView.builder(
                     itemCount: models.length,
-                    itemBuilder: (context, index) {
+                    itemBuilder: (ctx, index) {
                       final e = models[index];
                       final bool isSel = e == selectedModel;
                       return InkWell(
@@ -899,13 +899,13 @@ class _StaticModelsList extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           margin: const EdgeInsets.only(bottom: 6),
                           decoration: BoxDecoration(
-                            color: isSel ? Colors.black.withValues(alpha: 0.06) : Colors.transparent,
+                            color: isSel ? context.textPrimary.withValues(alpha: 0.08) : Colors.transparent,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Row(
                             children: [
-                              Expanded(child: Text(e, style: GoogleFonts.inter(fontWeight: FontWeight.w600))),
-                              if (isSel) const Icon(Icons.check, size: 16, color: Colors.black),
+                              Expanded(child: Text(e, style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: context.textPrimary))),
+                              if (isSel) Icon(Icons.check, size: 16, color: context.textPrimary),
                             ],
                           ),
                         ),

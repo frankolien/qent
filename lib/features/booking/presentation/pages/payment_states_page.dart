@@ -297,7 +297,7 @@ class _PaymentStatesPageState extends ConsumerState<PaymentStatesPage>
             width: 24,
             height: 24,
             decoration: BoxDecoration(
-              color: isDone ? const Color(0xFF4CAF50) : Colors.white,
+              color: isDone ? const Color(0xFF4CAF50) : context.bgPrimary,
               shape: BoxShape.circle,
               border: isDone
                   ? null
