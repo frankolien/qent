@@ -73,7 +73,7 @@ void _initializeServicesAsync() async {
   } catch (e) {
     debugPrint('NotificationService initialization error: $e');
   }
-}
+} 
 
 class MainApp extends ConsumerStatefulWidget {
   const MainApp({super.key});

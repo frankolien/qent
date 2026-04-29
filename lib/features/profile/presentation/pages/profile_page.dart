@@ -133,7 +133,7 @@ class ProfilePage extends ConsumerWidget {
                 'Log out',
                 onTap: () => _showLogoutDialog(context, ref),
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 120),
             ],
           ),
         ),

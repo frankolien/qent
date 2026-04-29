@@ -19,6 +19,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:qent/core/theme/app_theme.dart';
 
 class ChatDetailPage extends ConsumerStatefulWidget {
@@ -678,27 +679,60 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
   Widget _buildMessageContent(ChatMessage message, bool isMe) {
     switch (message.type) {
       case MessageType.image:
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(15),
-          child: GestureDetector(
-            onTap: () => _showFullImage(message.message),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 220, maxHeight: 280),
+        return GestureDetector(
+          onTap: () => _showFullImage(message.message),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 240, maxHeight: 320),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(20),
+                topRight: const Radius.circular(20),
+                bottomLeft: Radius.circular(isMe ? 20 : 6),
+                bottomRight: Radius.circular(isMe ? 6 : 20),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: context.isDark ? 0.4 : 0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(20),
+                topRight: const Radius.circular(20),
+                bottomLeft: Radius.circular(isMe ? 20 : 6),
+                bottomRight: Radius.circular(isMe ? 6 : 20),
+              ),
               child: Image.network(
                 message.message,
                 fit: BoxFit.cover,
                 loadingBuilder: (_, child, progress) {
                   if (progress == null) return child;
                   return Container(
-                    width: 200, height: 150,
-                    color: Colors.grey[200],
-                    child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    width: 220, height: 180,
+                    color: context.isDark
+                        ? Colors.white.withValues(alpha: 0.05)
+                        : const Color(0xFFF1F1F2),
+                    child: Center(
+                      child: SizedBox(
+                        width: 24, height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: context.textTertiary,
+                        ),
+                      ),
+                    ),
                   );
                 },
                 errorBuilder: (_, __, ___) => Container(
-                  width: 200, height: 80,
-                  color: Colors.grey[200],
-                  child: const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
+                  width: 220, height: 120,
+                  color: context.isDark
+                      ? Colors.white.withValues(alpha: 0.05)
+                      : const Color(0xFFF1F1F2),
+                  child: Icon(Icons.broken_image_rounded,
+                      color: context.textTertiary, size: 32),
                 ),
               ),
             ),
@@ -709,13 +743,15 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
         return _VoiceMessageBubble(url: message.message, isMe: isMe);
 
       case MessageType.text:
+        final myTextColor = context.isDark ? Colors.black : Colors.white;
         return Text(
           message.message,
-          style:  TextStyle(
-            fontSize: 15,
-            color: context.textPrimary,
+          style: TextStyle(
+            fontSize: 15.5,
+            color: isMe ? myTextColor : context.textPrimary,
             fontWeight: FontWeight.w400,
-            height: 1.4,
+            height: 1.35,
+            letterSpacing: -0.1,
           ),
           softWrap: true,
         );
@@ -928,14 +964,24 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
 
   Widget _buildDateSeparator(DateTime date) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
       child: Center(
-        child: Text(
-          _formatDate(date),
-          style: const TextStyle(
-            fontSize: 14,
-            color: Colors.black87,
-            fontWeight: FontWeight.bold,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: context.isDark
+                ? Colors.white.withValues(alpha: 0.08)
+                : const Color(0xFFEFEFEF),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            _formatDate(date),
+            style: TextStyle(
+              fontSize: 12,
+              color: context.textSecondary,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.1,
+            ),
           ),
         ),
       ),
@@ -985,35 +1031,45 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                   ),
                 // Message bubble
                 Container(
-                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
+                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
                   padding: message.type == MessageType.image
-                      ? const EdgeInsets.all(3)
-                      : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      ? EdgeInsets.zero
+                      : const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                   decoration: BoxDecoration(
-                    color: isMe ? context.bgSecondary : context.bgTertiary,
+                    color: message.type == MessageType.image
+                        ? Colors.transparent
+                        : (isMe
+                            ? (context.isDark ? Colors.white : const Color(0xFF1A1A1A))
+                            : (context.isDark
+                                ? Colors.white.withValues(alpha: 0.08)
+                                : const Color(0xFFF1F1F2))),
                     borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(18),
-                      topRight: const Radius.circular(18),
-                      bottomLeft: Radius.circular(isMe ? 18 : 4),
-                      bottomRight: Radius.circular(isMe ? 4 : 18),
+                      topLeft: const Radius.circular(22),
+                      topRight: const Radius.circular(22),
+                      bottomLeft: Radius.circular(isMe ? 22 : 6),
+                      bottomRight: Radius.circular(isMe ? 6 : 22),
                     ),
-                    border: Border.all(color: context.borderColor, width: 0.8),
                   ),
                   child: _buildMessageContent(message, isMe),
                 ),
                 // Timestamp + read receipt
                 Padding(
-                  padding: const EdgeInsets.only(top: 4, bottom: 2),
+                  padding: const EdgeInsets.only(top: 5, left: 4, right: 4),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         _formatMessageTime(message.timestamp),
-                        style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: context.textTertiary,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
                       ),
                       if (isMe && message.isRead) ...[
                         const SizedBox(width: 4),
-                        Icon(Icons.done_all, size: 14, color: Colors.blue[500]),
+                        Icon(Icons.done_all_rounded,
+                            size: 14, color: context.textPrimary.withValues(alpha: 0.7)),
                       ],
                     ],
                   ),
@@ -1033,22 +1089,43 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
         children: [
           ProfileImageWidget(userId: widget.chat.userId, size: 32),
           const SizedBox(width: 8),
-          AnimatedBuilder(
-            animation: _typingAnimationController,
-            builder: (context, child) {
-              // Animate the dots count
-              final dotCount = ((_typingAnimationController.value * 6) % 6).toInt() + 1;
-              final dots = '.' * dotCount;
-              return Text(
-                'Typing$dots',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[500],
-                  fontWeight: FontWeight.w400,
-                  fontStyle: FontStyle.italic,
-                ),
-              );
-            },
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: context.isDark
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : const Color(0xFFF1F1F2),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(22),
+                topRight: Radius.circular(22),
+                bottomLeft: Radius.circular(6),
+                bottomRight: Radius.circular(22),
+              ),
+            ),
+            child: AnimatedBuilder(
+              animation: _typingAnimationController,
+              builder: (context, _) {
+                final t = _typingAnimationController.value;
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(3, (i) {
+                    // Each dot bobs on a phase-shifted sine wave
+                    final phase = (t * 2 * math.pi) - (i * 0.7);
+                    final offset = (1 - ((1 + math.cos(phase)) / 2)).clamp(0.4, 1.0);
+                    return Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 2.5),
+                      child: Container(
+                        width: 7, height: 7,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: context.textPrimary.withValues(alpha: offset * 0.7),
+                        ),
+                      ),
+                    );
+                  }),
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -1118,21 +1195,24 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                // Expand/attachment button (chevron)
+                // Attachment button — plus icon, filled circle
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
+                  padding: const EdgeInsets.only(bottom: 4),
                   child: GestureDetector(
                     onTap: () {
                       HapticFeedback.lightImpact();
                       _showAttachmentSheet();
                     },
                     child: Container(
-                      width: 36, height: 36,
+                      width: 38, height: 38,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.grey[300]!, width: 1.5),
+                        color: context.isDark
+                            ? Colors.white.withValues(alpha: 0.08)
+                            : const Color(0xFFF1F1F2),
                       ),
-                      child: Icon(Icons.chevron_right_rounded, color: Colors.grey[600], size: 22),
+                      child: Icon(Icons.add_rounded,
+                          color: context.textPrimary, size: 22),
                     ),
                   ),
                 ),
@@ -1180,26 +1260,50 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4),
                   child: _isUploading
-                      ?  Padding(
-                          padding: EdgeInsets.all(6),
-                          child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: context.textPrimary)),
+                      ? Padding(
+                          padding: const EdgeInsets.all(7),
+                          child: SizedBox(
+                            width: 24, height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: context.textPrimary,
+                            ),
+                          ),
                         )
                       : hasText
                           ? GestureDetector(
                               onTap: _sendMessage,
-                              child: Image.asset(
-                                'assets/images/send_message.png',
-                                width: 36, height: 36,
-                                errorBuilder: (_, __, ___) => Container(
-                                  width: 36, height: 36,
-                                  decoration:  BoxDecoration(color: context.textPrimary, shape: BoxShape.circle),
-                                  child: const Icon(Icons.send_rounded, color: Colors.white, size: 18),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                width: 38, height: 38,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: context.isDark
+                                      ? Colors.white
+                                      : const Color(0xFF1A1A1A),
+                                ),
+                                child: Icon(
+                                  Icons.arrow_upward_rounded,
+                                  color: context.isDark
+                                      ? Colors.black
+                                      : Colors.white,
+                                  size: 20,
                                 ),
                               ),
                             )
                           : GestureDetector(
                               onTap: _startVoiceRecording,
-                              child: Icon(Icons.mic_none_rounded, color: Colors.grey[600], size: 28),
+                              child: Container(
+                                width: 38, height: 38,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: context.isDark
+                                      ? Colors.white.withValues(alpha: 0.08)
+                                      : const Color(0xFFF1F1F2),
+                                ),
+                                child: Icon(Icons.mic_none_rounded,
+                                    color: context.textPrimary, size: 22),
+                              ),
                             ),
                 ),
               ],
@@ -1342,6 +1446,13 @@ class _VoiceMessageBubbleState extends State<_VoiceMessageBubble> {
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
 
+  // Static fake waveform — same instance reuses across rebuilds
+  static const _waveform = [
+    0.35, 0.55, 0.75, 0.45, 0.85, 0.65, 0.95, 0.55, 0.7, 0.4,
+    0.6, 0.85, 0.5, 0.75, 0.3, 0.6, 0.8, 0.45, 0.7, 0.5,
+    0.4, 0.65,
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -1363,6 +1474,7 @@ class _VoiceMessageBubbleState extends State<_VoiceMessageBubble> {
   }
 
   void _togglePlay() async {
+    HapticFeedback.lightImpact();
     if (_isPlaying) {
       await _player.pause();
       setState(() => _isPlaying = false);
@@ -1384,63 +1496,77 @@ class _VoiceMessageBubbleState extends State<_VoiceMessageBubble> {
         ? _position.inMilliseconds / _duration.inMilliseconds
         : 0.0;
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Play/pause circle button
-        GestureDetector(
-          onTap: _togglePlay,
-          child: Container(
-            width: 40, height: 40,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.grey[400]!, width: 1.5),
-            ),
-            child: Icon(
-              _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-              color: const Color(0xFF1A1A1A),
-              size: 22,
+    // For my bubbles (dark background) use light icons; theirs use dark
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final foreground = widget.isMe
+        ? (isDark ? Colors.black : Colors.white)
+        : (isDark ? Colors.white : const Color(0xFF1A1A1A));
+    final dimForeground = foreground.withValues(alpha: 0.35);
+
+    return SizedBox(
+      width: 200,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Play/pause button — filled circle for visual weight
+          GestureDetector(
+            onTap: _togglePlay,
+            child: Container(
+              width: 36, height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: foreground.withValues(alpha: 0.15),
+              ),
+              child: Icon(
+                _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                color: foreground,
+                size: 22,
+              ),
             ),
           ),
-        ),
-        const SizedBox(width: 10),
-        // Waveform bars
-        Flexible(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                height: 28,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: List.generate(20, (i) {
-                    // Fake waveform heights
-                    final heights = [0.3, 0.5, 0.7, 0.4, 0.8, 0.6, 0.9, 0.5, 0.7, 0.4,
-                                     0.6, 0.8, 0.5, 0.7, 0.3, 0.6, 0.8, 0.4, 0.7, 0.5];
-                    final barProgress = i / 20;
-                    final isPlayed = barProgress <= progress;
-                    return Expanded(
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 1),
-                        height: 28 * heights[i],
-                        decoration: BoxDecoration(
-                          color: isPlayed ? const Color(0xFF1A1A1A) : Colors.grey[350],
-                          borderRadius: BorderRadius.circular(2),
+          const SizedBox(width: 12),
+          // Waveform + duration
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  height: 24,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: List.generate(_waveform.length, (i) {
+                      final barProgress = i / _waveform.length;
+                      final isPlayed = barProgress <= progress;
+                      return Expanded(
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 1.2),
+                          height: 24 * _waveform[i],
+                          decoration: BoxDecoration(
+                            color: isPlayed ? foreground : dimForeground,
+                            borderRadius: BorderRadius.circular(1.5),
+                          ),
                         ),
-                      ),
-                    );
-                  }),
+                      );
+                    }),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _isPlaying || _position > Duration.zero ? _fmt(_position) : _fmt(_duration),
-                style: TextStyle(fontSize: 11, color: Colors.grey[500]),
-              ),
-            ],
+                const SizedBox(height: 6),
+                Text(
+                  _isPlaying || _position > Duration.zero
+                      ? _fmt(_position)
+                      : _fmt(_duration),
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: foreground.withValues(alpha: 0.6),
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
