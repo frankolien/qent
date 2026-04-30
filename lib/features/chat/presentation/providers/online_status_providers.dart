@@ -2,33 +2,41 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/core/services/websocket_service.dart';
 
-/// Online status — derived from WebSocket connection state.
-/// A user is considered "online" if the WS service is connected
-/// (since the backend tracks connected sessions in WsManager).
-/// For the *other* user, we'd need a presence protocol. For now,
-/// we check the WS state for the current user and always show
-/// online when WS is connected (since both users connect to WS).
+/// Online status — derived from our own WebSocket connection state as
+/// a stand-in for "the other user is reachable". A proper presence
+/// protocol would have the backend broadcast user-online / user-offline
+/// events; for now we reflect WS health, which is good enough for the
+/// green-dot indicator (the only consumer of this value).
+///
+/// We avoid Timer.periodic — the WS service emits events whenever its
+/// state changes, and the chatControllerProvider's per-second WS-state
+/// poll is the single source of "did connection state flip" awareness.
+/// Here we just emit the current state once and re-emit when chat WS
+/// activity nudges the broadcaster (which happens on every reconnect
+/// cycle as part of normal operation).
 final onlineStatusStreamProvider = StreamProvider.family<bool, String>(
   (ref, userId) {
     final ws = ref.watch(wsServiceProvider);
-    // The WS manager on the backend tracks who's connected.
-    // We return true if OUR websocket is connected (basic presence).
-    // A proper implementation would have the backend broadcast
-    // presence events, but for now this is a reasonable indicator.
     final controller = StreamController<bool>();
 
-    // Check immediately
-    controller.add(ws.state == WsState.connected);
-
-    // Poll every 5 seconds
-    final timer = Timer.periodic(const Duration(seconds: 5), (_) {
+    void emit() {
       if (!controller.isClosed) {
         controller.add(ws.state == WsState.connected);
       }
-    });
+    }
+
+    // Emit initial state.
+    emit();
+
+    // Re-emit whenever any WS frame arrives — that's a reliable signal
+    // that the connection is healthy and avoids the periodic timer.
+    // On disconnect/reconnect the WS service rebuilds via auto-reconnect
+    // and a fresh stream subscription gets created next time anyone
+    // watches.
+    final sub = ws.events.listen((_) => emit());
 
     ref.onDispose(() {
-      timer.cancel();
+      sub.cancel();
       controller.close();
     });
 

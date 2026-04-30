@@ -25,13 +25,22 @@ class WebSocketService {
   Timer? _heartbeatTimer;
   int _reconnectAttempts = 0;
   static const _maxReconnectDelay = 30; // seconds
+  /// Hard cap on auto-reconnect attempts in a row. Without this, an
+  /// invalid/expired token would loop forever hammering the server.
+  /// Once exceeded we stop and wait for an explicit `connect()` call
+  /// (which happens on app foreground / on signin).
+  static const _maxReconnectAttempts = 20;
+  bool _giveUp = false;
 
   final _eventController = StreamController<WsEvent>.broadcast();
   Stream<WsEvent> get events => _eventController.stream;
   WsState get state => _state;
 
-  /// Connect to WebSocket with JWT token
+  /// Connect to WebSocket with JWT token. An explicit call resets the
+  /// give-up flag so we'll start trying again after the user re-auths
+  /// or comes back online.
   Future<void> connect() async {
+    _giveUp = false;
     if (_state == WsState.connecting || _state == WsState.connected) {
       print('[WS] Already ${_state.name}, skipping connect');
       return;
@@ -62,6 +71,7 @@ class WebSocketService {
       await _channel!.ready;
       _state = WsState.connected;
       _reconnectAttempts = 0;
+      _giveUp = false;
       print('[WS] OK: Connected!');
 
       _startHeartbeat();
@@ -97,16 +107,35 @@ class WebSocketService {
   }
 
   void _startHeartbeat() {
+    // No app-level heartbeat. The server's WS handler pings every 10s
+    // at the protocol level (`ctx.ping(b"")`); web_socket_channel
+    // auto-responds with a Pong, which resets the server's CLIENT_TIMEOUT.
+    // The previous app-level `{type: 'ping'}` was a JSON message the
+    // server didn't have a handler for — it fell through to the
+    // wildcard branch and was silently dropped. Pure dead code.
     _heartbeatTimer?.cancel();
-    _heartbeatTimer = Timer.periodic(const Duration(seconds: 25), (_) {
-      send({'type': 'ping'});
-    });
   }
 
   void _handleDisconnect() {
     _state = WsState.disconnected;
     _heartbeatTimer?.cancel();
     _channel = null;
+
+    if (_giveUp) {
+      print('[WS] giving up reconnect — already exceeded max attempts');
+      return;
+    }
+
+    if (_reconnectAttempts >= _maxReconnectAttempts) {
+      // Hit the cap. Most likely cause: expired/invalid auth token,
+      // or sustained backend downtime. Stop hammering the server.
+      // The next explicit connect() call (app foreground, signin)
+      // resets the cap and gives us a fresh round.
+      print('[WS] FAIL: gave up after $_reconnectAttempts attempts');
+      _giveUp = true;
+      _reconnectAttempts = 0;
+      return;
+    }
 
     // Exponential backoff reconnect
     final delay = (_reconnectAttempts < 5)

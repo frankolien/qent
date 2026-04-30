@@ -1,9 +1,15 @@
+import 'dart:async';
+import 'dart:io';
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/core/services/api_client.dart';
+import 'package:qent/core/services/file_upload_service.dart';
 import 'package:qent/core/services/websocket_service.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/chat/data/datasources/api_chat_datasource.dart';
+import 'package:qent/features/chat/data/datasources/chat_cache.dart';
 import 'package:qent/features/chat/domain/models/chat.dart';
 
 // API chat datasource provider
@@ -13,35 +19,101 @@ final apiChatDataSourceProvider = Provider<ApiChatDataSource>((ref) {
   return ApiChatDataSource(apiClient: ApiClient(), currentUserId: userId);
 });
 
-// FutureProvider for conversations list
-final chatsProvider = FutureProvider<List<Chat>>((ref) async {
-  final dataSource = ref.watch(apiChatDataSourceProvider);
-  return dataSource.getConversations();
-});
-
-// For backward compat with the UI that uses chatsStreamProvider.
+// All four providers below use `ref.keepAlive()` so they cache for the
+// lifetime of the app session. Re-entering a chat (or the messages list)
+// returns instantly from the cached value instead of triggering a fresh
+// REST round-trip — same model as Instagram / WhatsApp / Telegram do
+// with their on-disk caches. Real-time freshness comes from WebSocket
+// frames mutating provider state. On reconnect we explicitly invalidate
+// to catch any frames missed during the disconnect window.
 //
-// We deliberately let exceptions propagate instead of yielding `[]`: the
-// page treats `[]` as "user has no conversations" and shows the empty
-// state, which is indistinguishable from a network/auth failure. By
-// surfacing the error the page can show its retry UI.
+// To force a refetch: call `ref.invalidate(...)`. That happens on:
+//   - User-initiated pull-to-refresh
+//   - WS reconnect (transition disconnected → connected)
+//   - Send-related events that need fresh `last_message_text` for the
+//     conversations list
+
+final chatsProvider = FutureProvider<List<Chat>>((ref) async {
+  ref.keepAlive();
+  final dataSource = ref.watch(apiChatDataSourceProvider);
+  final cache = ref.watch(chatCacheProvider);
+  // FutureProvider can only emit one value, so we have to wait for the
+  // network. Use the cache as a fast fallback if the network errors.
+  // The StreamProvider variant below is what the UI actually watches
+  // and gets the cache-first behaviour.
+  try {
+    final fresh = await dataSource.getConversations();
+    unawaited(cache.replaceConversations(fresh));
+    return fresh;
+  } catch (e) {
+    final cached = await cache.getConversations();
+    if (cached.isNotEmpty) {
+      debugPrint('[chatsProvider] network failed, serving ${cached.length} cached');
+      return cached;
+    }
+    rethrow;
+  }
+});
+
+// Cache-first stream: yield the on-disk snapshot immediately so the UI
+// renders without waiting for the network, then yield the fresh server
+// snapshot once REST returns. Cache is overwritten on success so the
+// next read is up-to-date. We deliberately let exceptions propagate
+// instead of yielding `[]` — the page treats `[]` as "no conversations"
+// which is indistinguishable from a network/auth failure.
 final chatsStreamProvider = StreamProvider<List<Chat>>((ref) async* {
+  ref.keepAlive();
   final dataSource = ref.watch(apiChatDataSourceProvider);
-  yield await dataSource.getConversations();
+  final cache = ref.watch(chatCacheProvider);
+
+  final cached = await cache.getConversations();
+  if (cached.isNotEmpty) {
+    yield cached;
+  }
+  try {
+    final fresh = await dataSource.getConversations();
+    yield fresh;
+    unawaited(cache.replaceConversations(fresh));
+  } catch (e) {
+    if (cached.isEmpty) rethrow;
+    debugPrint('[chatsStreamProvider] network failed, keeping cached');
+  }
 });
 
-// FutureProvider for messages in a specific conversation
-final messagesProvider = FutureProvider.family<List<ChatMessage>, String>((ref, conversationId) async {
+final messagesProvider =
+    FutureProvider.family<List<ChatMessage>, String>((ref, conversationId) async {
+  ref.keepAlive();
   final dataSource = ref.watch(apiChatDataSourceProvider);
-  return dataSource.getMessages(conversationId);
+  final cache = ref.watch(chatCacheProvider);
+  try {
+    final fresh = await dataSource.getMessages(conversationId);
+    unawaited(cache.replaceMessages(conversationId, fresh));
+    return fresh;
+  } catch (e) {
+    final cached = await cache.getMessages(conversationId);
+    if (cached.isNotEmpty) return cached;
+    rethrow;
+  }
 });
 
-// For backward compat with the UI that uses messagesStreamProvider.
-// Errors propagate so the page can show its retry UI instead of an
-// indistinguishable empty state.
-final messagesStreamProvider = StreamProvider.family<List<ChatMessage>, String>((ref, conversationId) async* {
+final messagesStreamProvider =
+    StreamProvider.family<List<ChatMessage>, String>((ref, conversationId) async* {
+  ref.keepAlive();
   final dataSource = ref.watch(apiChatDataSourceProvider);
-  yield await dataSource.getMessages(conversationId);
+  final cache = ref.watch(chatCacheProvider);
+
+  final cached = await cache.getMessages(conversationId);
+  if (cached.isNotEmpty) {
+    yield cached;
+  }
+  try {
+    final fresh = await dataSource.getMessages(conversationId);
+    yield fresh;
+    unawaited(cache.replaceMessages(conversationId, fresh));
+  } catch (e) {
+    if (cached.isEmpty) rethrow;
+    debugPrint('[messagesStreamProvider] network failed for $conversationId, keeping cached');
+  }
 });
 
 /// Local-only optimistic messages, keyed by conversation id. Each entry is
@@ -54,31 +126,88 @@ class PendingMessages extends Notifier<List<ChatMessage>> {
   final String conversationId;
 
   @override
-  List<ChatMessage> build() => const [];
+  List<ChatMessage> build() {
+    // Keep alive across screen pops. We rely on this for the in-place
+    // pending confirmation flow: a message you sent lives in
+    // pendingMessagesProvider with status=sent until the next REST
+    // poll moves it into the server snapshot.
+    ref.keepAlive();
+
+    // Hydrate from the on-disk outbox. This covers the force-close case:
+    // user taps send → optimistic added → app killed before WS echo
+    // confirms → on next launch (or chat re-open) the entry is loaded
+    // back from disk so the message doesn't visually disappear.
+    Future.microtask(() async {
+      final cache = ref.read(chatCacheProvider);
+      final loaded = await cache.getPendingMessages(conversationId);
+      if (loaded.isEmpty) return;
+      final existingIds = state.map((m) => m.id).toSet();
+      final newOnes = loaded.where((m) => !existingIds.contains(m.id)).toList();
+      if (newOnes.isEmpty) return;
+      state = [...state, ...newOnes];
+      // Re-fire any "sending" entries through the HTTP path. Server
+      // dedupes via client_id, so if the original send had actually
+      // landed before the app was killed, we just get the existing
+      // row back and confirmByClientId flips the bubble to ✓.
+      final controller = ref.read(chatControllerProvider);
+      for (final m in newOnes) {
+        if (m.status == MessageStatus.sending && m.type == MessageType.text) {
+          // Fire-and-forget; don't block the UI
+          unawaited(controller.resumePendingTextSend(m));
+        }
+      }
+    });
+
+    return const [];
+  }
 
   void add(ChatMessage message) {
     state = [...state, message];
+    unawaited(ref.read(chatCacheProvider).upsertPendingMessage(message));
   }
 
   void markFailed(String tempId) {
+    ChatMessage? updated;
     state = [
       for (final m in state)
-        if (m.id == tempId) m.copyWith(status: MessageStatus.failed) else m,
+        if (m.id == tempId) ...[
+          () {
+            final u = m.copyWith(status: MessageStatus.failed);
+            updated = u;
+            return u;
+          }(),
+        ] else
+          m,
     ];
+    if (updated != null) {
+      unawaited(ref.read(chatCacheProvider).upsertPendingMessage(updated!));
+    }
   }
 
   /// Update a pending entry in place — used by the voice/image send path
   /// when the upload finishes and we need to swap the local-file URL for
   /// the real CDN URL, and flip status from `uploading` to `sending`.
   void updateEntry(String tempId, ChatMessage Function(ChatMessage) update) {
+    ChatMessage? updated;
     state = [
       for (final m in state)
-        if (m.id == tempId) update(m) else m,
+        if (m.id == tempId) ...[
+          () {
+            final u = update(m);
+            updated = u;
+            return u;
+          }(),
+        ] else
+          m,
     ];
+    if (updated != null) {
+      unawaited(ref.read(chatCacheProvider).upsertPendingMessage(updated!));
+    }
   }
 
   void remove(String tempId) {
     state = state.where((m) => m.id != tempId).toList();
+    unawaited(ref.read(chatCacheProvider).deletePendingMessage(tempId));
   }
 
   /// Find a pending entry by its `clientId` and flip it to "confirmed":
@@ -101,20 +230,33 @@ class PendingMessages extends Notifier<List<ChatMessage>> {
     required DateTime serverTimestamp,
   }) {
     var found = false;
+    ChatMessage? confirmedRow;
     state = [
       for (final m in state)
         if (m.clientId == clientId && m.status != MessageStatus.sent) ...[
           () {
             found = true;
-            return m.copyWith(
+            final updated = m.copyWith(
               id: serverId,
               status: MessageStatus.sent,
               timestamp: serverTimestamp,
             );
+            confirmedRow = updated;
+            return updated;
           }(),
         ] else
           m,
     ];
+    if (confirmedRow != null) {
+      // Persist the confirmed row to disk (messages table) so it
+      // survives an app restart even before the next REST refetch
+      // moves it into the server snapshot.
+      unawaited(ref.read(chatCacheProvider).upsertMessage(confirmedRow!));
+      // Drop the outbox row — it's confirmed now, no need to retry
+      // on next launch. Match by clientId since confirmByClientId
+      // replaces the local id with the server's id.
+      unawaited(ref.read(chatCacheProvider).deletePendingByClientId(clientId));
+    }
     return found;
   }
 
@@ -317,6 +459,11 @@ class ChatMessagesNotifier
 
     // Force the provider to re-emit so anyone watching gets the new list.
     state = AsyncValue.data(_mergeWith(_lastServer, pending));
+
+    // Persist to the on-disk cache so the message survives an app
+    // restart. Fire-and-forget — the in-memory state is already
+    // correct; sqflite is the slow path.
+    unawaited(ref.read(chatCacheProvider).upsertMessage(message));
   }
 
   List<ChatMessage> _mergeWith(
@@ -375,6 +522,16 @@ class ChatController {
   final Ref _ref;
 
   ChatController(this._dataSource, this._ref);
+
+  /// In-memory retry counter for outbox sends. Reset on app restart
+  /// (which is fine — we WANT to retry from scratch after restart) and
+  /// reset on success. Caps how many times we hammer the server before
+  /// giving up and showing the red error icon to the user.
+  final Map<String, int> _retryAttempts = {};
+  static const int _maxRetryAttempts = 5;
+  // Timers for scheduled exponential-backoff retries, keyed by tempId
+  // so we can cancel them on success or chat dispose.
+  final Map<String, Timer> _retryTimers = {};
 
   Future<Chat> getOrCreateConversation(String carId, String hostId) async {
     return await _dataSource.getOrCreateConversation(carId, hostId);
@@ -689,7 +846,167 @@ class ChatController {
 
   /// Drop a failed optimistic send without retrying.
   void dismissFailed({required String chatId, required String tempId}) {
+    _retryTimers.remove(tempId)?.cancel();
+    _retryAttempts.remove(tempId);
     _ref.read(pendingMessagesProvider(chatId).notifier).remove(tempId);
+  }
+
+  /// Re-fire an outbox-hydrated optimistic send through the HTTP path.
+  /// Used when the app was force-closed mid-send (entry loaded from
+  /// disk on launch) and on WS reconnect (network came back; flush the
+  /// outbox).
+  ///
+  /// Handles all three media types:
+  ///   - text: straight HTTP send with the existing client_id
+  ///   - voice/image with status=sending: upload already completed
+  ///     (the `message` field holds the CDN URL); just resend
+  ///   - voice/image with status=uploading: re-attempt the upload from
+  ///     `localPath` if the file still exists, then send. If the file
+  ///     is gone (temp-dir cleanup, etc.) we mark failed so the user
+  ///     can re-record.
+  ///
+  /// Server dedupes by client_id, so a successful original send + a
+  /// resume attempt is a no-op on the server side (returns the
+  /// existing row).
+  ///
+  /// Failures are retried with exponential backoff (1s, 2s, 4s, 8s,
+  /// 16s capped at 60s) up to [_maxRetryAttempts] times before giving
+  /// up and surfacing the red-error icon.
+  Future<void> resumePending(ChatMessage pending) async {
+    final cid = pending.clientId;
+    if (cid == null || cid.isEmpty) return;
+
+    // Bail if the user dismissed the failed entry (or it was already
+    // confirmed) since this resume attempt was scheduled. Without this
+    // guard we'd resurrect dismissed messages on a stale retry timer.
+    final stillPresent = _ref
+        .read(pendingMessagesProvider(pending.chatId))
+        .any((m) => m.id == pending.id);
+    if (!stillPresent) {
+      debugPrint('[Send] resume: entry $pending.id no longer pending — skip');
+      _retryAttempts.remove(pending.id);
+      _retryTimers.remove(pending.id)?.cancel();
+      return;
+    }
+
+    // Cancel any scheduled retry for this entry — we're attempting now.
+    _retryTimers.remove(pending.id)?.cancel();
+
+    debugPrint('[Send] resume outbox cid=$cid chat=${pending.chatId} type=${pending.type.name} status=${pending.status.name}');
+
+    try {
+      // Resolve the content to send. For uploading-state media, run the
+      // upload first. For everything else, message already holds either
+      // the text or the CDN URL.
+      String content = pending.message;
+      if (pending.type != MessageType.text &&
+          pending.status == MessageStatus.uploading) {
+        final localPath = pending.localPath;
+        if (localPath == null || localPath.isEmpty) {
+          throw Exception('media outbox entry has no localPath');
+        }
+        final file = File(localPath);
+        if (!await file.exists()) {
+          // Temp dir was cleared since the original send. Can't
+          // resurrect — mark failed permanently and stop.
+          debugPrint('[Send] resume: local file gone, giving up cid=$cid');
+          _retryAttempts.remove(pending.id);
+          _ref
+              .read(pendingMessagesProvider(pending.chatId).notifier)
+              .markFailed(pending.id);
+          return;
+        }
+        final uploadedUrl = await FileUploadService.upload(file);
+        if (uploadedUrl == null) {
+          throw Exception('upload returned null');
+        }
+        content = uploadedUrl;
+        // Flip the optimistic entry to status=sending with the CDN URL,
+        // so subsequent crashes resume from the cheaper "just send"
+        // branch instead of re-uploading.
+        _ref
+            .read(pendingMessagesProvider(pending.chatId).notifier)
+            .updateEntry(pending.id, (m) => m.copyWith(
+                  message: uploadedUrl,
+                  status: MessageStatus.sending,
+                ));
+      }
+
+      final confirmed = await _dataSource.sendMessage(
+        pending.chatId,
+        content,
+        type: pending.type,
+        replyToId: pending.replyTo?.messageId,
+        clientId: cid,
+      );
+      _ref
+          .read(pendingMessagesProvider(pending.chatId).notifier)
+          .confirmByClientId(
+            clientId: cid,
+            serverId: confirmed.id,
+            serverTimestamp: confirmed.timestamp,
+          );
+      _retryAttempts.remove(pending.id);
+      _ref.invalidate(chatsStreamProvider);
+    } catch (e) {
+      debugPrint('[Send] resume failed cid=$cid err=$e');
+      final attempts = (_retryAttempts[pending.id] ?? 0) + 1;
+      _retryAttempts[pending.id] = attempts;
+      if (attempts >= _maxRetryAttempts) {
+        debugPrint('[Send] resume: gave up after $attempts attempts cid=$cid');
+        _retryAttempts.remove(pending.id);
+        _ref
+            .read(pendingMessagesProvider(pending.chatId).notifier)
+            .markFailed(pending.id);
+        return;
+      }
+      // Exponential backoff: 1s, 2s, 4s, 8s, 16s — capped at 60s.
+      final delaySec = math.min(60, 1 << attempts);
+      debugPrint('[Send] resume: retry $attempts/$_maxRetryAttempts in ${delaySec}s cid=$cid');
+      _retryTimers[pending.id] = Timer(Duration(seconds: delaySec), () {
+        // Fetch the latest version of the pending entry — its status
+        // or content might have changed in the interim.
+        final latest = _ref
+            .read(pendingMessagesProvider(pending.chatId))
+            .firstWhere(
+              (m) => m.id == pending.id,
+              orElse: () => pending,
+            );
+        unawaited(resumePending(latest));
+      });
+    }
+  }
+
+  /// Backwards-compatible wrapper kept for [PendingMessages] hydration.
+  Future<void> resumePendingTextSend(ChatMessage pending) =>
+      resumePending(pending);
+
+  /// Drain the entire outbox across all conversations. Called at app
+  /// launch (after auth) and on WebSocket reconnect — both are moments
+  /// when "the network might have just come back" and any orphaned
+  /// optimistic sends from a previous session should be retried.
+  Future<void> resumeAllPending() async {
+    final cache = _ref.read(chatCacheProvider);
+    final all = await cache.getAllPendingMessages();
+    if (all.isEmpty) return;
+    debugPrint('[Send] resumeAllPending: ${all.length} outbox entries');
+    // Group by conversation so we can also seed pendingMessagesProvider
+    // state for any chats the user hasn't opened yet. Reading the
+    // notifier triggers build() which hydrates from disk and fires
+    // resume for sending-status entries.
+    final convoIds = all.map((m) => m.chatId).toSet();
+    for (final convoId in convoIds) {
+      // ignore: unused_result
+      _ref.read(pendingMessagesProvider(convoId));
+    }
+    // For entries that didn't go through the per-convo build path
+    // (they did — but belt-and-suspenders), also retry directly.
+    for (final m in all) {
+      if (m.status == MessageStatus.sending ||
+          m.status == MessageStatus.uploading) {
+        unawaited(resumePending(m));
+      }
+    }
   }
 
   Future<void> markAsRead(String chatId) async {
@@ -702,6 +1019,9 @@ class ChatController {
 
   Future<void> deleteConversation(String chatId) async {
     await _dataSource.deleteConversation(chatId);
+    // Drop from the on-disk cache too — otherwise the deleted thread
+    // ghost-shows up on the next app launch until REST refetches.
+    unawaited(_ref.read(chatCacheProvider).deleteConversation(chatId));
     _ref.invalidate(chatsStreamProvider);
     _ref.invalidate(chatsProvider);
   }
@@ -721,6 +1041,54 @@ class ChatController {
 }
 
 final chatControllerProvider = Provider<ChatController>((ref) {
+  ref.keepAlive();
   final dataSource = ref.watch(apiChatDataSourceProvider);
-  return ChatController(dataSource, ref);
+  final controller = ChatController(dataSource, ref);
+
+  // Drain the outbox once on first creation. This is the post-launch
+  // catch-up path — any pending optimistic sends from a previous app
+  // session get re-fired here without the user having to open each
+  // affected chat.
+  Future.microtask(() => controller.resumeAllPending());
+
+  // Also flush the outbox on every WebSocket reconnect: that's when
+  // "the network just came back" so any sends that failed while
+  // offline are due for another try. We poll the WS state every
+  // second — cheaper than wiring a state stream on the WS service.
+  final ws = ref.read(wsServiceProvider);
+  var lastState = ws.state;
+  final wsTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+    final cur = ws.state;
+    if (cur == WsState.connected && lastState != WsState.connected) {
+      debugPrint('[Send] WS reconnected — flushing outbox');
+      controller.resumeAllPending();
+    }
+    lastState = cur;
+  });
+
+  // Global WS event listener for chat-list freshness. When ANY message
+  // arrives over WS — regardless of whether the user is on the chat
+  // detail page, the messages list, or somewhere else entirely — the
+  // chats list's last_message_text and unread_count are out of date.
+  // Invalidate the conversations stream so it re-emits with fresh
+  // data. Combined with the cache-first read, the user sees the
+  // updated last-message preview without ever waiting on a poll.
+  // (Replaces the 5-second polling that used to live in messages_page.)
+  final wsEventSub = ws.events.listen((event) {
+    if (event.type == 'new_message') {
+      ref.invalidate(chatsStreamProvider);
+      ref.invalidate(chatsProvider);
+    }
+  });
+
+  ref.onDispose(() {
+    wsTicker.cancel();
+    wsEventSub.cancel();
+    for (final t in controller._retryTimers.values) {
+      t.cancel();
+    }
+    controller._retryTimers.clear();
+  });
+
+  return controller;
 });

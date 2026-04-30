@@ -8,6 +8,7 @@ import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/auth/presentation/controllers/auth_state.dart';
 import 'package:qent/features/home/presentation/providers/car_providers.dart';
 import 'package:qent/core/services/websocket_service.dart';
+import 'package:qent/features/chat/data/datasources/chat_cache.dart';
 
 /// Google Web client ID — used as `serverClientId` so the SDK returns an
 /// id_token signed for our backend. Must match (or be in) the GOOGLE_CLIENT_IDS
@@ -206,6 +207,9 @@ class AuthController extends Notifier<AuthState> {
       ref.invalidate(carsProvider);
       ref.invalidate(favoriteCarsProvider);
       ref.invalidate(favoriteIdsProvider);
+      // Wipe the on-disk chat cache so the next user doesn't see the
+      // previous user's conversations + messages on launch.
+      unawaited(ref.read(chatCacheProvider).clearAll());
 
       state = state.copyWith(isLoading: false, clearUser: true);
     } catch (e) {

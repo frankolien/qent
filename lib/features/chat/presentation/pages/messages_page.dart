@@ -21,7 +21,6 @@ class MessagesPage extends ConsumerStatefulWidget {
 class _MessagesPageState extends ConsumerState<MessagesPage> {
   String _searchQuery = '';
   bool _showNoChatsTimeout = false;
-  Timer? _pollTimer;
   int _selectedFilter = 0;
 
   final _filters = const ['All', 'Hosting', 'Traveling', 'Support'];
@@ -32,15 +31,15 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
     Future.delayed(const Duration(seconds: 4), () {
       if (mounted) setState(() => _showNoChatsTimeout = true);
     });
-    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      if (mounted) ref.invalidate(chatsStreamProvider);
-    });
-  }
-
-  @override
-  void dispose() {
-    _pollTimer?.cancel();
-    super.dispose();
+    // No periodic polling. The chat list updates via:
+    //   1. WebSocket: every `new_message` event invalidates
+    //      `chatsStreamProvider` indirectly via the send/receive paths
+    //      so `last_message_text` stays fresh
+    //   2. Provider keepAlive cache: chats list survives navigation
+    //   3. User pull-to-refresh on the list (if needed)
+    //
+    // The previous 5-second poll was the source of the user-visible
+    // "messages page keeps refetching" — now removed.
   }
 
   String _formatPreview(String message) {

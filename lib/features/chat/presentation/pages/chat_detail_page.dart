@@ -47,7 +47,6 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
   int _lastMessageCount = 0;
   ReplyInfo? _replyingTo;
   Timer? _typingTimer;
-  Timer? _pollTimer;
   bool _isUserTyping = false;
   late AnimationController _typingAnimationController;
   ChatController? _chatController;
@@ -137,24 +136,23 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
       // duplicate it here.
     });
 
-    // Fallback poll every 60s. Was 15s, but that turned out to drive a
-    // visible sub-second glitch: every poll refetch produces fresh
-    // ChatMessage instances, which churns the merged list reference and
-    // forces every visible bubble widget to rebuild. 60s is plenty of
-    // safety net — the WS fast path delivers in real time, the WS
-    // reconnect-refetch covers the disconnect window, and pull-to-refresh
-    // handles the pathological case. Polling here only catches the
-    // narrow "WS thinks it's connected but silently dropped a frame"
-    // window, which is rare.
-    _pollTimer = Timer.periodic(const Duration(seconds: 60), (_) {
-      if (mounted) {
-        ref.invalidate(messagesStreamProvider(widget.chat.id));
-      }
-    });
-
-    // Watch for WS reconnect: if state flips disconnected→connected, the
-    // gap could have hidden frames from us, so force a refetch right
-    // away instead of waiting for the next poll tick.
+    // No more periodic polling. The architecture is now:
+    //
+    //   1. Provider cache (keepAlive on chatMessagesProvider /
+    //      messagesStreamProvider) is the source of truth between
+    //      explicit invalidations. Re-entering a chat is instant.
+    //   2. WebSocket carries real-time deltas: every `new_message` is
+    //      appended directly into provider state (`appendServerMessage`
+    //      or `confirmByClientId`) — no refetch needed.
+    //   3. On WS reconnect (transition disconnected → connected) we
+    //      invalidate once, so any frames that landed while we were
+    //      offline get pulled in.
+    //   4. Pull-to-refresh on the message list is the user's manual
+    //      "force refresh" escape hatch.
+    //
+    // This matches what Instagram / WhatsApp / iMessage do: cache
+    // aggressively, stream deltas, refetch only on real cache-miss
+    // events. No constant polling churn.
     var lastWsState = ws.state;
     Timer.periodic(const Duration(seconds: 1), (t) {
       if (!mounted) {
@@ -163,7 +161,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
       }
       final cur = ws.state;
       if (cur == WsState.connected && lastWsState != WsState.connected) {
-        debugPrint('[ChatDetail] WS reconnected — refetching messages to catch any gap');
+        debugPrint('[ChatDetail] WS reconnected — refetching to catch any gap');
         ref.invalidate(messagesStreamProvider(widget.chat.id));
       }
       lastWsState = cur;
@@ -350,7 +348,6 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
   @override
   void dispose() {
     _wsSub?.cancel();
-    _pollTimer?.cancel();
     _typingTimer?.cancel();
     _messageController.removeListener(_onMessageChanged);
     _focusNode.removeListener(_onFocusChanged);

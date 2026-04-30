@@ -41,6 +41,11 @@ dependencies:
   cached_network_image: ^3.4.1
   # Storage
   shared_preferences: ^2.3.4
+  # On-disk cache for chat messages + conversations so they render
+  # instantly on app launch instead of waiting for a Render REST round
+  # trip on cold start.
+  sqflite: ^2.4.2
+  path: ^1.9.0
   # Location
   geolocator: ^13.0.1
   geocoding: ^3.0.0

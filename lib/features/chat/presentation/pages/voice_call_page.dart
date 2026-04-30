@@ -50,6 +50,17 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
   /// peer connection is ready. Without this, calls hang on "Connecting…".
   final List<RTCIceCandidate> _pendingCandidates = [];
   bool _remoteDescriptionSet = false;
+  /// Set to true once [_endCall] runs, so any late WS frames after the
+  /// peer connection has been torn down stop allocating buffers /
+  /// touching disposed objects.
+  bool _ended = false;
+  /// In-flight TURN credential fetch — awaited by both the prewarm path
+  /// (callee, on incoming) and the accept path so accepting before the
+  /// prewarm completes doesn't fall back to STUN-only.
+  Future<void>? _iceFetchInFlight;
+  /// Cancellable handle for the 30s ringing timeout. Cancelled when the
+  /// call connects, is rejected, or hangs up.
+  Timer? _ringTimeout;
 
   // STUN handles the easy NATs (~70-80% of cases). On symmetric NATs —
   // every Nigerian carrier (MTN, Glo, Airtel) uses these — STUN alone
@@ -71,7 +82,15 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
   /// Fetch fresh ICE servers from the backend. Best-effort — if the
   /// endpoint fails we keep the STUN-only fallback already in [_config]
   /// and same-LAN calls still work.
-  Future<void> _fetchIceServers() async {
+  ///
+  /// Memoised via [_iceFetchInFlight] so the prewarm started in
+  /// [_handleIncomingCall] can be awaited again in [_acceptCall]
+  /// without firing a second HTTP request.
+  Future<void> _fetchIceServers() {
+    return _iceFetchInFlight ??= _doFetchIceServers();
+  }
+
+  Future<void> _doFetchIceServers() async {
     try {
       final api = ApiClient();
       final resp = await api.get('/turn-credentials');
@@ -184,14 +203,19 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
 
       _pc!.onIceGatheringState = (s) =>
           debugPrint('[VoiceCall] ICE gathering: $s');
-      _pc!.onIceConnectionState = (s) =>
-          debugPrint('[VoiceCall] ICE connection: $s');
+      _pc!.onIceConnectionState = (s) {
+        debugPrint('[VoiceCall] ICE connection: $s');
+        if (s == RTCIceConnectionState.RTCIceConnectionStateFailed) {
+          _endCall();
+        }
+      };
 
       _pc!.onConnectionState = (state) {
         debugPrint('[VoiceCall] PC connection: $state');
         if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
           if (mounted) {
             setState(() => _callState = CallState.connected);
+            _ringTimeout?.cancel();
             _startTimer();
           }
         } else if (state ==
@@ -216,7 +240,7 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
       );
       debugPrint('[VoiceCall] WS out --> call_offer to ${widget.targetId}');
 
-      Future.delayed(const Duration(seconds: 30), () {
+      _ringTimeout = Timer(const Duration(seconds: 30), () {
         if (mounted && _callState == CallState.ringing) {
           debugPrint('[VoiceCall] 30s ring timeout, hanging up');
           _endCall();
@@ -239,7 +263,9 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
     if (widget.incomingOffer == null) return;
     setState(() => _callState = CallState.ringing);
     // Pre-warm TURN credentials while the phone is still ringing so the
-    // accept tap doesn't have to wait for the round-trip.
+    // accept tap doesn't have to wait for the round-trip. The fetch is
+    // memoised so [_acceptCall] awaiting it again is a no-op if it
+    // already finished.
     unawaited(_fetchIceServers());
   }
 
@@ -249,11 +275,16 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
     setState(() => _callState = CallState.connecting);
 
     try {
-      debugPrint('[VoiceCall] callee: requesting mic...');
-      _localStream = await navigator.mediaDevices.getUserMedia({
-        'audio': true,
-        'video': false,
-      });
+      // Fetch mic + (still in-flight or fresh) TURN creds in parallel.
+      // If the prewarm already completed, _fetchIceServers returns the
+      // memoised future immediately. If the user accepted before the
+      // prewarm finished, we wait — STUN-only is unusable on cellular.
+      debugPrint('[VoiceCall] callee: requesting mic + TURN creds...');
+      final results = await Future.wait([
+        navigator.mediaDevices.getUserMedia({'audio': true, 'video': false}),
+        _fetchIceServers(),
+      ]);
+      _localStream = results[0] as MediaStream;
       debugPrint('[VoiceCall] callee: got mic, creating peer connection');
 
       _pc = await createPeerConnection(_config);
@@ -275,8 +306,15 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
 
       _pc!.onIceGatheringState = (s) =>
           debugPrint('[VoiceCall] ICE gathering (callee): $s');
-      _pc!.onIceConnectionState = (s) =>
-          debugPrint('[VoiceCall] ICE connection (callee): $s');
+      _pc!.onIceConnectionState = (s) {
+        debugPrint('[VoiceCall] ICE connection (callee): $s');
+        // If ICE never establishes (TURN unreachable, etc.) the call
+        // sits forever on "Connecting…" without this. Mirror the
+        // caller-side failure handling.
+        if (s == RTCIceConnectionState.RTCIceConnectionStateFailed) {
+          _endCall();
+        }
+      };
 
       _pc!.onConnectionState = (state) {
         debugPrint('[VoiceCall] PC connection (callee): $state');
@@ -285,6 +323,11 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
             setState(() => _callState = CallState.connected);
             _startTimer();
           }
+        } else if (state ==
+                RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
+            state ==
+                RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
+          _endCall();
         }
       };
 
@@ -328,6 +371,7 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
   }
 
   void _onIceCandidate(Map<String, dynamic> payload) async {
+    if (_ended) return;
     final candidateMap = payload['candidate'] as Map<String, dynamic>?;
     if (candidateMap == null) return;
     final candStr = (candidateMap['candidate'] as String?) ?? '';
@@ -381,20 +425,30 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
   }
 
   void _toggleSpeaker() {
-    setState(() => _isSpeaker = !_isSpeaker);
-    _localStream?.getAudioTracks().forEach((track) {
-      track.enableSpeakerphone(_isSpeaker);
-    });
+    final next = !_isSpeaker;
+    // Helper.setSpeakerphoneOn is the documented flutter_webrtc API for
+    // routing call audio to the loudspeaker on iOS / Android. The
+    // previous code called `track.enableSpeakerphone` on each local
+    // audio track, which is a deprecated MediaStreamTrack method that
+    // didn't actually flip the audio route on most builds — speaker
+    // toggle visually changed but audio kept playing through the
+    // earpiece.
+    Helper.setSpeakerphoneOn(next);
+    setState(() => _isSpeaker = next);
     HapticFeedback.lightImpact();
   }
 
   void _endCall({bool remote = false}) {
+    if (_ended) return;
+    _ended = true;
     debugPrint(
         '[VoiceCall] END remote=$remote state=$_callState role=${widget.isOutgoing ? "caller" : "callee"}');
+    _ringTimeout?.cancel();
     _callTimer?.cancel();
     _localStream?.dispose();
     _pc?.close();
     _pc = null;
+    _pendingCandidates.clear();
 
     if (!remote) {
       final ws = ref.read(wsServiceProvider);
@@ -424,6 +478,7 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
   @override
   void dispose() {
     _wsSub?.cancel();
+    _ringTimeout?.cancel();
     _callTimer?.cancel();
     _localStream?.dispose();
     _pc?.close();
