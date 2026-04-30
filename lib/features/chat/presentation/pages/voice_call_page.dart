@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:qent/core/services/api_client.dart';
 import 'package:qent/core/services/websocket_service.dart';
 import 'package:qent/core/widgets/profile_image_widget.dart';
 import 'package:qent/core/providers/user_cache_provider.dart';
@@ -51,36 +52,49 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
   bool _remoteDescriptionSet = false;
 
   // STUN handles the easy NATs (~70-80% of cases). On symmetric NATs —
-  // every Nigerian carrier (MTN, Glo, Airtel) uses these — STUN alone fails
-  // and the peers can't see each other directly. TURN relays media through
-  // a public server and is the universal fix.
+  // every Nigerian carrier (MTN, Glo, Airtel) uses these — STUN alone
+  // fails and the peers can't see each other directly. TURN relays media
+  // through a public server and is the universal fix.
   //
-  // openrelay.metered.ca is a free public TURN server. Rate-limited and
-  // depends on someone else's goodwill, so it's a stopgap; long-term we
-  // should self-host coturn on Oracle Cloud free tier.
-  final _config = {
+  // The actual ICE servers are fetched from `/api/turn-credentials` at
+  // call open time so the Metered API key stays out of the IPA. The
+  // backend mints short-lived (TTL ~hours) credentials via Metered's API.
+  // STUN-only fallback is used if the fetch fails so same-LAN calls
+  // still work.
+  Map<String, dynamic> _config = {
     'iceServers': [
       {'urls': 'stun:stun.l.google.com:19302'},
       {'urls': 'stun:stun1.l.google.com:19302'},
-      {
-        'urls': 'turn:openrelay.metered.ca:80',
-        'username': 'openrelayproject',
-        'credential': 'openrelayproject',
-      },
-      {
-        'urls': 'turn:openrelay.metered.ca:443',
-        'username': 'openrelayproject',
-        'credential': 'openrelayproject',
-      },
-      {
-        // TLS on 443 — survives corporate firewalls and aggressive carrier
-        // filtering that block non-HTTPS UDP.
-        'urls': 'turns:openrelay.metered.ca:443?transport=tcp',
-        'username': 'openrelayproject',
-        'credential': 'openrelayproject',
-      },
-    ]
+    ],
   };
+
+  /// Fetch fresh ICE servers from the backend. Best-effort — if the
+  /// endpoint fails we keep the STUN-only fallback already in [_config]
+  /// and same-LAN calls still work.
+  Future<void> _fetchIceServers() async {
+    try {
+      final api = ApiClient();
+      final resp = await api.get('/turn-credentials');
+      if (resp.isSuccess && resp.body is List) {
+        final list = (resp.body as List).cast<Map<String, dynamic>>();
+        if (list.isNotEmpty) {
+          _config = {'iceServers': list};
+          // Count how many are TURN vs STUN so logs make the
+          // cellular-call diagnosis easy.
+          final turnCount = list
+              .where((s) => (s['urls'] as String?)?.startsWith('turn') ?? false)
+              .length;
+          debugPrint(
+              '[VoiceCall] fetched ${list.length} ICE servers ($turnCount TURN)');
+          return;
+        }
+      }
+      debugPrint(
+          '[VoiceCall] /turn-credentials returned non-list — using STUN fallback');
+    } catch (e) {
+      debugPrint('[VoiceCall] /turn-credentials failed: $e — STUN fallback');
+    }
+  }
 
   @override
   void initState() {
@@ -136,11 +150,16 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
 
   Future<void> _startOutgoingCall() async {
     try {
-      debugPrint('[VoiceCall] caller: requesting mic...');
-      _localStream = await navigator.mediaDevices.getUserMedia({
-        'audio': true,
-        'video': false,
-      });
+      // Fetch TURN credentials in parallel with mic permission — both
+      // need to complete before we createPeerConnection. Doing them
+      // concurrently keeps the time-to-ring snappy on slow Render
+      // cold-start days.
+      debugPrint('[VoiceCall] caller: requesting mic + TURN creds...');
+      final results = await Future.wait([
+        navigator.mediaDevices.getUserMedia({'audio': true, 'video': false}),
+        _fetchIceServers(),
+      ]);
+      _localStream = results[0] as MediaStream;
       debugPrint('[VoiceCall] caller: got mic, creating peer connection');
 
       _pc = await createPeerConnection(_config);
@@ -219,6 +238,9 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
   Future<void> _handleIncomingCall() async {
     if (widget.incomingOffer == null) return;
     setState(() => _callState = CallState.ringing);
+    // Pre-warm TURN credentials while the phone is still ringing so the
+    // accept tap doesn't have to wait for the round-trip.
+    unawaited(_fetchIceServers());
   }
 
   Future<void> _acceptCall() async {
