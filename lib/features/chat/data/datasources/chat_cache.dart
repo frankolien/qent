@@ -272,6 +272,41 @@ class ChatCache {
     }
   }
 
+  /// Bump a conversation's last-message preview + timestamp in place.
+   /// Used when a new_message arrives over WebSocket so the chats list
+   /// re-emits in the correct order even before the next REST refetch
+   /// lands. If the conversation row doesn't exist (first message in a
+   /// brand-new convo) this is a no-op — REST will pick it up.
+  Future<void> bumpConversation({
+    required String conversationId,
+    required String lastMessageText,
+    required DateTime lastMessageAt,
+    int? unreadDelta,
+  }) async {
+    try {
+      final db = await _open();
+      final values = <String, Object?>{
+        'last_message': lastMessageText,
+        'last_message_at': lastMessageAt.millisecondsSinceEpoch,
+        'cached_at': DateTime.now().millisecondsSinceEpoch,
+      };
+      await db.update(
+        'conversations',
+        values,
+        where: 'id = ?',
+        whereArgs: [conversationId],
+      );
+      if (unreadDelta != null && unreadDelta > 0) {
+        await db.rawUpdate(
+          'UPDATE conversations SET unread_count = unread_count + ? WHERE id = ?',
+          [unreadDelta, conversationId],
+        );
+      }
+    } catch (e) {
+      debugPrint('[ChatCache] bumpConversation failed: $e');
+    }
+  }
+
   Future<void> deleteConversation(String conversationId) async {
     try {
       final db = await _open();

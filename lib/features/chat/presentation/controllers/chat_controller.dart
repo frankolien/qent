@@ -322,6 +322,13 @@ class ChatMessagesNotifier
 
   List<ChatMessage> _lastServer = const [];
   bool _hasServerData = false;
+  // Identity of the server list we last synced from the stream. Used to
+  // detect a *new* stream emission vs a rebuild caused by something else
+  // (pending changes, etc). Without this, every rebuild re-ran
+  // `_lastServer = server` and clobbered any messages we'd added via
+  // `appendServerMessage` from WebSocket events — symptom: the other
+  // party's last message disappeared the moment you sent a reply.
+  List<ChatMessage>? _lastSyncedServerRef;
 
   @override
   AsyncValue<List<ChatMessage>> build() {
@@ -333,8 +340,24 @@ class ChatMessagesNotifier
     final pending = ref.watch(pendingMessagesProvider(conversationId));
 
     serverAsync.whenData((server) {
+      // Identity guard: only resync from the stream when it actually
+      // emits a new snapshot. On rebuilds triggered by pending changes,
+      // `server` is the same list reference and we must NOT overwrite
+      // _lastServer (which may have grown via appendServerMessage).
+      if (identical(server, _lastSyncedServerRef)) return;
+      _lastSyncedServerRef = server;
       debugPrint('[Recv] REST snapshot convo=$conversationId count=${server.length}');
-      _lastServer = server;
+      // Merge the fresh server snapshot with anything we appended via
+      // WebSocket since the last sync. Any WS-appended message that the
+      // fresh snapshot already contains (matched by id) is dropped from
+      // the in-memory list — the server is now the truth for that row.
+      final freshIds = <String>{for (final m in server) m.id};
+      final extras = [
+        for (final m in _lastServer)
+          if (!freshIds.contains(m.id)) m,
+      ];
+      _lastServer = extras.isEmpty ? server : [...server, ...extras]
+        ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
       _hasServerData = true;
 
       // Auto-confirm pending entries that the server now has. We do a
@@ -464,6 +487,37 @@ class ChatMessagesNotifier
     // restart. Fire-and-forget — the in-memory state is already
     // correct; sqflite is the slow path.
     unawaited(ref.read(chatCacheProvider).upsertMessage(message));
+  }
+
+  /// The other party in this conversation just opened the chat and
+  /// marked everything from us as read. Flip `isRead = true` on every
+  /// outgoing message in the cached snapshot so bubbles update from
+  /// double-grey-tick to double-blue-tick immediately.
+  void markMessagesReadByOtherParty(String readerId) {
+    if (_lastServer.isEmpty) return;
+    var changed = false;
+    final next = <ChatMessage>[];
+    for (final m in _lastServer) {
+      // Only flip messages WE sent (recipient = readerId, sender = us).
+      // The reader's own messages don't need updating.
+      if (m.senderId != readerId && !m.isRead) {
+        next.add(m.copyWith(isRead: true));
+        changed = true;
+      } else {
+        next.add(m);
+      }
+    }
+    if (!changed) return;
+    _lastServer = next;
+    final pending = ref.read(pendingMessagesProvider(conversationId));
+    state = AsyncValue.data(_mergeWith(_lastServer, pending));
+    // Best-effort persist; ignore errors.
+    final cache = ref.read(chatCacheProvider);
+    for (final m in _lastServer) {
+      if (m.isRead && m.senderId != readerId) {
+        unawaited(cache.upsertMessage(m));
+      }
+    }
   }
 
   List<ChatMessage> _mergeWith(
@@ -1076,8 +1130,63 @@ final chatControllerProvider = Provider<ChatController>((ref) {
   // (Replaces the 5-second polling that used to live in messages_page.)
   final wsEventSub = ws.events.listen((event) {
     if (event.type == 'new_message') {
+      // Bump the affected conversation in the cache FIRST so the next
+      // chatsStreamProvider yield (cached) is already in the right
+      // order — the user sees the chat float to the top instantly,
+      // not after the REST round-trip lands. Without this, the cached
+      // yield emits stale ordering and only the (slow) network yield
+      // bubbles the chat up.
+      final convoId = event.payload['conversation_id']?.toString();
+      final content = event.payload['content']?.toString() ?? '';
+      final senderId = event.payload['sender_id']?.toString();
+      final auth = ref.read(authControllerProvider);
+      final myId = auth.user?.uid;
+      final isFromOther = senderId != null && myId != null && senderId != myId;
+      if (convoId != null && convoId.isNotEmpty) {
+        final ts = _parseWsTimestamp(event.payload['created_at']);
+        unawaited(ref.read(chatCacheProvider).bumpConversation(
+              conversationId: convoId,
+              lastMessageText: content,
+              lastMessageAt: ts,
+              unreadDelta: isFromOther ? 1 : 0,
+            ));
+      }
       ref.invalidate(chatsStreamProvider);
       ref.invalidate(chatsProvider);
+    } else if (event.type == 'message_read') {
+      // The OTHER party opened our chat and marked our messages as
+      // read. Flip is_read=true on every message we sent in this
+      // conversation so bubbles update from double-grey-tick to
+      // double-blue-tick immediately.
+      final convoId = event.payload['conversation_id']?.toString();
+      final readerId = event.payload['reader_id']?.toString();
+      if (convoId != null && convoId.isNotEmpty && readerId != null) {
+        ref
+            .read(chatMessagesProvider(convoId).notifier)
+            .markMessagesReadByOtherParty(readerId);
+      }
+    } else if (event.type == 'presence_update') {
+      // Another user came online or went offline. Stash in the
+      // shared presence map so bubble icons can switch between
+      // single-grey-tick (offline) and double-grey-tick (online).
+      final userId = event.payload['user_id']?.toString();
+      final online = event.payload['online'] == true;
+      if (userId != null && userId.isNotEmpty) {
+        ref.read(presenceProvider.notifier).setOnline(userId, online);
+      }
+    } else if (event.type == 'presence_snapshot') {
+      // Pushed by the server immediately after this device's WS
+      // connects. Carries the full set of users that were already
+      // online at that moment, so we don't have to wait for
+      // per-user transition events to know who's reachable.
+      final ids = event.payload['online_user_ids'];
+      if (ids is List) {
+        final next = <String, bool>{
+          for (final id in ids)
+            if (id is String && id.isNotEmpty) id: true,
+        };
+        ref.read(presenceProvider.notifier).replaceAll(next);
+      }
     }
   });
 
@@ -1092,3 +1201,47 @@ final chatControllerProvider = Provider<ChatController>((ref) {
 
   return controller;
 });
+
+/// Parse a server `created_at` timestamp from a WebSocket payload. The
+/// backend serialises NaiveDateTime with no offset, so we treat it as
+/// UTC. Falls back to "now" if the field is missing.
+DateTime _parseWsTimestamp(dynamic raw) {
+  if (raw == null) return DateTime.now();
+  final s = raw.toString();
+  if (s.isEmpty) return DateTime.now();
+  final hasOffset = s.endsWith('Z') || RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(s);
+  try {
+    return DateTime.parse(hasOffset ? s : '${s}Z').toLocal();
+  } catch (_) {
+    return DateTime.now();
+  }
+}
+
+/// Tracks which other users are currently online (have at least one WS
+/// session connected to the backend). Populated by `presence_update`
+/// events from the server. Bubble status icons read from this to flip
+/// between single-grey-tick (recipient offline) and double-grey-tick
+/// (recipient online but hasn't read yet).
+class PresenceState extends Notifier<Map<String, bool>> {
+  @override
+  Map<String, bool> build() {
+    ref.keepAlive();
+    return const {};
+  }
+
+  void setOnline(String userId, bool online) {
+    if (state[userId] == online) return;
+    state = {...state, userId: online};
+  }
+
+  /// Bulk-set from a server snapshot — used after the chat list loads
+  /// to seed online status for all known peers in one call.
+  void replaceAll(Map<String, bool> next) {
+    state = Map.unmodifiable(next);
+  }
+
+  bool isOnline(String userId) => state[userId] == true;
+}
+
+final presenceProvider =
+    NotifierProvider<PresenceState, Map<String, bool>>(PresenceState.new);

@@ -1371,8 +1371,26 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
               size: 14, color: Colors.red.shade400),
         );
       case MessageStatus.sent:
+        // Three states for sent messages, WhatsApp-style:
+        //   • single grey tick — recipient is offline (not yet
+        //     "delivered" in the sense the user cares about).
+        //   • double grey tick — recipient is online but hasn't
+        //     opened this chat yet (treat their WS connection as
+        //     proof of delivery).
+        //   • double blue tick — recipient has opened the chat and
+        //     marked our messages as read (server broadcasts
+        //     `message_read` which flips isRead=true locally).
+        if (message.isRead) {
+          return const Icon(
+            Icons.done_all_rounded,
+            size: 14,
+            color: Color(0xFF4FC3F7),
+          );
+        }
+        final otherOnline =
+            ref.watch(presenceProvider)[widget.chat.userId] == true;
         return Icon(
-          message.isRead ? Icons.done_all_rounded : Icons.done_rounded,
+          otherOnline ? Icons.done_all_rounded : Icons.done_rounded,
           size: 14,
           color: context.textPrimary.withValues(alpha: 0.7),
         );
