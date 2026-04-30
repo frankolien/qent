@@ -26,8 +26,19 @@ class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
-  
+
   bool _isInitialized = false;
+
+  /// Conversation id the user currently has open in the foreground, or
+  /// null when no chat detail page is showing. Set from
+  /// [ChatDetailPage.initState] / dispose. We use this client-side as a
+  /// safety net: even if the server-side suppression isn't deployed yet
+  /// (Render lagging behind code) we still skip the local banner for
+  /// the chat the user is already looking at.
+  String? _activeConversationId;
+  void setActiveConversation(String? conversationId) {
+    _activeConversationId = conversationId;
+  }
 
   Future<void> initialize() async {
     // Skip if already initialized (hot restart scenario)
@@ -185,6 +196,18 @@ class NotificationService {
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
     if (kDebugMode) {
       print('Received foreground message: ${message.messageId}');
+    }
+
+    // Suppress banners for the chat the user is currently looking at —
+    // they already see the message live via WebSocket. Server-side
+    // suppression covers the same case once Render is on the latest
+    // build, but this guard removes the dependency on deploy timing.
+    final pushedConvoId = (message.data['conversation_id'] as String?) ??
+        (message.data['chatId'] as String?);
+    if (pushedConvoId != null &&
+        _activeConversationId != null &&
+        pushedConvoId == _activeConversationId) {
+      return;
     }
 
     // Show local notification for foreground messages

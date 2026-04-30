@@ -18,16 +18,15 @@ final chatsProvider = FutureProvider<List<Chat>>((ref) async {
   return dataSource.getConversations();
 });
 
-// For backward compat with the UI that uses chatsStreamProvider
+// For backward compat with the UI that uses chatsStreamProvider.
+//
+// We deliberately let exceptions propagate instead of yielding `[]`: the
+// page treats `[]` as "user has no conversations" and shows the empty
+// state, which is indistinguishable from a network/auth failure. By
+// surfacing the error the page can show its retry UI.
 final chatsStreamProvider = StreamProvider<List<Chat>>((ref) async* {
   final dataSource = ref.watch(apiChatDataSourceProvider);
-  try {
-    final chats = await dataSource.getConversations();
-    yield chats;
-  } catch (e) {
-    debugPrint('[Qent Chat] Error loading conversations: $e');
-    yield [];
-  }
+  yield await dataSource.getConversations();
 });
 
 // FutureProvider for messages in a specific conversation
@@ -36,16 +35,12 @@ final messagesProvider = FutureProvider.family<List<ChatMessage>, String>((ref, 
   return dataSource.getMessages(conversationId);
 });
 
-// For backward compat with the UI that uses messagesStreamProvider
+// For backward compat with the UI that uses messagesStreamProvider.
+// Errors propagate so the page can show its retry UI instead of an
+// indistinguishable empty state.
 final messagesStreamProvider = StreamProvider.family<List<ChatMessage>, String>((ref, conversationId) async* {
   final dataSource = ref.watch(apiChatDataSourceProvider);
-  try {
-    final messages = await dataSource.getMessages(conversationId);
-    yield messages;
-  } catch (e) {
-    debugPrint('[Qent Chat] Error loading messages: $e');
-    yield [];
-  }
+  yield await dataSource.getMessages(conversationId);
 });
 
 /// Local-only optimistic messages, keyed by conversation id. Each entry is

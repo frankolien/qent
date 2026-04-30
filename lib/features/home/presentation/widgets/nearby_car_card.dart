@@ -189,6 +189,10 @@ class NearbyCarCard extends StatelessWidget {
   }
 
   String _formatPrice(double price) {
+    if (price >= 1000000) {
+      final m = price / 1000000;
+      return '${m.toStringAsFixed(price % 1000000 == 0 ? 0 : 1)}m';
+    }
     if (price >= 1000) {
       return '${(price / 1000).toStringAsFixed(price % 1000 == 0 ? 0 : 1)}k';
     }

@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -36,14 +35,14 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Initialize API client with backend URL
+  // Initialize API client with backend URL.
+  //
+  // TEMPORARY: forcing production for on-device testing. Revert this
+  // ternary back to `kReleaseMode ? prodUrl : (dotenv.env['API_BASE_URL']
+  // ?? prodUrl)` to resume hitting the local Rust server in debug.
   const prodUrl = 'https://qent-backend.onrender.com/api';
   final apiClient = ApiClient();
-  await apiClient.initialize(
-    baseUrl: kReleaseMode
-        ? prodUrl
-        : (dotenv.env['API_BASE_URL'] ?? prodUrl),
-  );
+  await apiClient.initialize(baseUrl: prodUrl);
 
   // Load the saved theme BEFORE the first frame so we never paint with the
   // wrong colors. Defaults to ThemeMode.system for first-time users.

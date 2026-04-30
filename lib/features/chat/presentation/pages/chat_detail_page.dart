@@ -11,6 +11,7 @@ import 'package:qent/features/chat/presentation/providers/online_status_provider
 import 'package:qent/features/chat/presentation/pages/new_chat_page.dart';
 import 'package:qent/features/chat/presentation/widgets/chat_skeleton.dart';
 import 'package:qent/core/services/websocket_service.dart';
+import 'package:qent/core/services/notification_service.dart';
 import 'package:qent/features/chat/presentation/pages/voice_call_page.dart';
 import 'package:qent/core/services/file_upload_service.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -64,8 +65,12 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
     // Listen for real-time messages via WebSocket
     final ws = ref.read(wsServiceProvider);
     // Mark this conversation as active so the server suppresses push
-    // notifications while the user has it open.
+    // notifications while the user has it open. We also tell the local
+    // NotificationService so foreground banners don't fire even if the
+    // backend tracking is out of date or the message arrives via FCM
+    // before the WS view_conversation reaches the server.
     ws.setActiveConversation(widget.chat.id);
+    NotificationService().setActiveConversation(widget.chat.id);
     _wsSub = ws.events.listen((event) {
       if (!mounted) return;
       if (event.type == 'new_message' && event.payload['conversation_id'] == widget.chat.id) {
@@ -147,22 +152,21 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
       }
 
       final dir = await getTemporaryDirectory();
-      // Opus in OGG container — what Android writes natively and what iOS
-      // accepts via kAudioFormatOpus. AAC in `.m4a` was a holdover from when
-      // we recorded AAC-LC.
-      final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.ogg';
+      final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
       print('[Voice] Starting recording at: $path');
 
-      // Opus mono at 24 kbps — voice-message sweet spot. A 30-second clip
-      // is ~90 KB instead of ~480 KB at the AAC-LC default (128 kbps stereo),
-      // so uploads finish in ~1–2s on slow Lagos cellular instead of 5–10s.
-      // Both iOS and Android support Opus in `record` 4.4.x.
+      // AAC-LC mono at 24 kbps / 22.05 kHz — voice-message sweet spot. A
+      // 30-second clip is ~90 KB instead of ~480 KB at the package default
+      // (128 kbps stereo), so uploads finish in ~1–2s on slow Lagos
+      // cellular instead of 5–10s. Tried Opus first but iOS forces it into
+      // a `.caf` container that Android can't play; AAC-LC plays
+      // everywhere natively at the same compression ratio.
       await _recorder.start(
         path: path,
-        encoder: AudioEncoder.opus,
+        encoder: AudioEncoder.aacLc,
         bitRate: 24000,
         numChannels: 1,
-        samplingRate: 16000,
+        samplingRate: 22050,
       );
       print('[Voice] Recording started!');
       setState(() => _isRecording = true);
@@ -275,6 +279,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
       final ws = ref.read(wsServiceProvider);
       ws.sendTyping(conversationId: widget.chat.id, isTyping: false);
       ws.setActiveConversation(null);
+      NotificationService().setActiveConversation(null);
     } catch (e) {
       debugPrint('[ChatDetail] Failed to clear WS state on dispose: $e');
     }
