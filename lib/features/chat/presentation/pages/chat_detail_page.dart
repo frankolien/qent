@@ -82,17 +82,47 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
     _wsSub = ws.events.listen((event) {
       if (!mounted) return;
       if (event.type == 'new_message' && event.payload['conversation_id'] == widget.chat.id) {
-        // Append the message directly into provider state instead of
-        // invalidating + refetching over HTTP. This is the WS fast path:
-        // the bubble appears the instant the frame arrives, with no
-        // round-trip.
+        debugPrint('[ChatDetail] WS new_message in convo=${widget.chat.id} sender=${event.payload['sender_id']}');
         final msg = _chatMessageFromWsPayload(event.payload);
         if (msg != null) {
-          ref
-              .read(chatMessagesProvider(widget.chat.id).notifier)
-              .appendServerMessage(msg);
+          // Two-path delivery:
+          //
+          // (1) Echo of MY OWN message (clientId matches a pending entry):
+          //     mutate the pending entry in place — flip status to sent
+          //     and stamp the server's id+timestamp on it. The bubble
+          //     widget never gets unmounted/remounted; only the status
+          //     icon flips. This is what kills the "bubble briefly
+          //     disappears on send" flash.
+          //
+          // (2) Message from the OTHER party (no matching pending):
+          //     normal append into the server snapshot.
+          final cid = msg.clientId;
+          var confirmedInPlace = false;
+          if (cid != null && cid.isNotEmpty) {
+            confirmedInPlace = ref
+                .read(pendingMessagesProvider(widget.chat.id).notifier)
+                .confirmByClientId(
+                  clientId: cid,
+                  serverId: msg.id,
+                  serverTimestamp: msg.timestamp,
+                );
+          }
+          if (!confirmedInPlace) {
+            // Capture stickiness BEFORE the new row lands, since adding
+            // it changes the layout. If the user was already at the
+            // bottom, we follow the new message; otherwise leave their
+            // scroll alone (iMessage / WhatsApp UX).
+            final wasNearBottom = _isNearBottom;
+            ref
+                .read(chatMessagesProvider(widget.chat.id).notifier)
+                .appendServerMessage(msg);
+            if (wasNearBottom) {
+              _scrollToBottom();
+            }
+          } else {
+            debugPrint('[ChatDetail] WS echo confirmed pending in place cid=$cid');
+          }
         }
-        _scrollToBottom();
       } else if (event.type == 'typing' && event.payload['conversation_id'] == widget.chat.id) {
         setState(() => _otherUserTyping = event.payload['is_typing'] == true);
         // Auto-clear after 3s
@@ -101,28 +131,78 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
             if (mounted) setState(() => _otherUserTyping = false);
           });
         }
-      } else if (event.type == 'call_offer') {
-        _handleIncomingCall(event.payload);
+      }
+      // Note: incoming call_offer is handled globally in MainNavPage so
+      // calls land regardless of which screen the callee is on. Don't
+      // duplicate it here.
+    });
+
+    // Fallback poll every 60s. Was 15s, but that turned out to drive a
+    // visible sub-second glitch: every poll refetch produces fresh
+    // ChatMessage instances, which churns the merged list reference and
+    // forces every visible bubble widget to rebuild. 60s is plenty of
+    // safety net — the WS fast path delivers in real time, the WS
+    // reconnect-refetch covers the disconnect window, and pull-to-refresh
+    // handles the pathological case. Polling here only catches the
+    // narrow "WS thinks it's connected but silently dropped a frame"
+    // window, which is rare.
+    _pollTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+      if (mounted) {
+        ref.invalidate(messagesStreamProvider(widget.chat.id));
       }
     });
 
-    // Fallback poll every 30s in case WS drops. Less aggressive than
-    // before now that the WS fast-path delivers messages reliably; the
-    // poll is just a safety net for "WS quietly disconnected and we
-    // haven't reconnected yet."
-    _pollTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted && ws.state != WsState.connected) {
+    // Watch for WS reconnect: if state flips disconnected→connected, the
+    // gap could have hidden frames from us, so force a refetch right
+    // away instead of waiting for the next poll tick.
+    var lastWsState = ws.state;
+    Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      final cur = ws.state;
+      if (cur == WsState.connected && lastWsState != WsState.connected) {
+        debugPrint('[ChatDetail] WS reconnected — refetching messages to catch any gap');
         ref.invalidate(messagesStreamProvider(widget.chat.id));
       }
+      lastWsState = cur;
     });
 
     _updateTypingStatus();
   }
 
-  void _scrollToBottom() {
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(0, duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
+  /// Threshold (in pixels) for considering the user "at the bottom" of the
+  /// chat. If they're within this many pixels of the latest message, an
+  /// incoming message scrolls them down to it. Otherwise we leave their
+  /// scroll position alone — they're reading older messages and we don't
+  /// want to yank them away.
+  static const double _stickToBottomThreshold = 120;
+
+  bool get _isNearBottom {
+    if (!_scrollController.hasClients) return true;
+    // With reverse:true, the "bottom" of the chat (newest messages) is
+    // at offset 0. Anything within the threshold of 0 counts as near
+    // the bottom, so an incoming message can stick the view down.
+    return _scrollController.position.pixels < _stickToBottomThreshold;
+  }
+
+  /// Scroll to the latest message. With the reversed ListView, that's
+  /// always offset 0 — no chasing maxScrollExtent, no lazy-layout race.
+  /// `jumpTo(0)` is instant; `animateTo(0)` is used when we want the
+  /// camera to glide back to the bottom (e.g. after the user has
+  /// scrolled up a bit and a new message arrives).
+  void _scrollToBottom({bool animate = true}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients || !mounted) return;
+      if (animate) {
+        _scrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+        );
+      } else {
+        _scrollController.jumpTo(0);
       }
     });
   }
@@ -231,20 +311,6 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
     try { await file.delete(); } catch (_) {}
   }
 
-  void _handleIncomingCall(Map<String, dynamic> payload) {
-    final senderId = payload['sender_id'] as String? ?? '';
-    if (senderId.isEmpty) return;
-    Navigator.push(context, MaterialPageRoute(
-      builder: (_) => VoiceCallPage(
-        targetId: senderId,
-        targetName: widget.chat.userName,
-        conversationId: widget.chat.id,
-        isOutgoing: false,
-        incomingOffer: payload,
-      ),
-    ));
-  }
-  
   void _onMessageChanged() {
     setState(() {
       // Trigger rebuild for input field
@@ -551,24 +617,20 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
 
     HapticFeedback.lightImpact();
 
-    await chatController.sendMessage(
+    // Kick off the send. The optimistic pending entry is added
+    // synchronously inside sendMessage (before the first await), so by
+    // the time sendMessage returns control, the bubble already exists
+    // in provider state. We trigger _scrollToBottom right after so its
+    // post-frame callback runs once the new bubble has been laid out.
+    final sendFuture = chatController.sendMessage(
       chatId: widget.chat.id,
       message: message,
       type: MessageType.text,
       replyToMessageId: replyToMessageId,
       replyTo: replyTo,
     );
-
-    // Auto-scroll to bottom after messages refresh
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
+    _scrollToBottom();
+    await sendFuture;
   }
 
   @override
@@ -927,23 +989,12 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
 
     return messagesAsync.when(
       data: (messages) {
-        // Auto-scroll only when the message count actually grows. Without
-        // this guard every provider tick (status flips, isRead updates,
-        // pending-merge churn) re-snaps the list and reads as a flicker.
-        final didGrow = messages.length > _lastMessageCount;
+        // With the reversed ListView, the chat opens already pinned to
+        // the latest message at offset 0 — no first-paint scroll needed.
+        // We still track _lastMessageCount because the WS handler reads
+        // it via _isNearBottom for incoming-message stickiness.
         if (messages.length != _lastMessageCount) {
           _lastMessageCount = messages.length;
-        }
-        if (didGrow) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (_scrollController.hasClients && messages.isNotEmpty) {
-              _scrollController.animateTo(
-                _scrollController.position.maxScrollExtent,
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeOut,
-              );
-            }
-          });
         }
 
         if (messages.isEmpty) {
@@ -980,31 +1031,61 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
               
               return ListView.builder(
                 controller: _scrollController,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                // Drag the message list down to dismiss the keyboard —
-                // standard iOS / Material chat UX.
+                // Reverse the scroll so item index 0 is the visual bottom
+                // (where the newest message lives). With a reversed list,
+                // "scroll to the latest message" becomes `jumpTo(0)` — the
+                // start of the scroll axis is always at offset 0, no
+                // matter how many bubbles have been laid out. This is
+                // what WhatsApp / iMessage / Telegram all do internally;
+                // a non-reversed ListView with auto-scroll is a known
+                // source of "newest message hidden below the viewport"
+                // bugs because of lazy item layout.
+                reverse: true,
+                padding: const EdgeInsets.fromLTRB(0, 16, 0, 8),
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
                 itemCount: messages.length + (isOtherUserTyping ? 1 : 0),
                 itemBuilder: (context, index) {
-                  if (index == messages.length) {
-                    return _buildTypingIndicator();
+                  // With reverse:true the typing indicator (which should
+                  // sit just above the input bar) is item index 0.
+                  if (isOtherUserTyping && index == 0) {
+                    return KeyedSubtree(
+                      key: const ValueKey('typing_indicator'),
+                      child: _buildTypingIndicator(),
+                    );
                   }
-                  
-                  final message = messages[index];
+                  // Map the visual index (0 = newest) back to the
+                  // chronological index in the messages list.
+                  final messageIndex = messages.length - 1 -
+                      (isOtherUserTyping ? index - 1 : index);
+                  final message = messages[messageIndex];
                   final authState = ref.read(authControllerProvider);
                   final currentUserId = authState.user?.uid ?? '';
                   final isMe = message.senderId == currentUserId || message.senderId == 'current';
-              
-              // Check if we should show date separator
-              final showDateSeparator = _shouldShowDateSeparator(messages, index);
-              
-              // Check if previous message is from same sender and within 5 minutes
-              final showAvatar = index == 0 || 
-                  messages[index - 1].senderId != message.senderId ||
-                  message.timestamp.difference(messages[index - 1].timestamp).inMinutes > 5;
+
+              // Date separator + showAvatar both look at the *previous*
+              // message in chronological order — i.e. messageIndex - 1.
+              final showDateSeparator = _shouldShowDateSeparator(messages, messageIndex);
+              final showAvatar = messageIndex == 0 ||
+                  messages[messageIndex - 1].senderId != message.senderId ||
+                  message.timestamp.difference(messages[messageIndex - 1].timestamp).inMinutes > 5;
               
               return Column(
+                // Stable key so Flutter preserves widget identity across
+                // rebuilds. We prefer the clientId because the optimistic
+                // pending bubble (id=`pending_<cid>`) and its server-
+                // confirmed replacement (id=real UUID) share the same
+                // clientId. Keying by id alone would treat them as
+                // different widgets — the optimistic one gets unmounted,
+                // the server one gets mounted — producing the visible
+                // "bubble disappears then reappears" flash on send.
+                // Falling back to message.id covers legacy messages with
+                // no clientId.
+                key: ValueKey(
+                  message.clientId != null && message.clientId!.isNotEmpty
+                      ? 'msg_cid_${message.clientId}'
+                      : 'msg_${message.id}',
+                ),
                 children: [
                   if (showDateSeparator) _buildDateSeparator(message.timestamp),
                   _SwipeToReply(
@@ -1210,6 +1291,33 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
           type = MessageType.text;
       }
 
+      // Reply preview, when this is a reply. Server now sends the full
+      // preview alongside `reply_to_id` via a self-join on insert.
+      ReplyInfo? replyTo;
+      final replyToId = payload['reply_to_id']?.toString();
+      final replyToContent = payload['reply_to_content']?.toString();
+      if (replyToId != null && replyToId.isNotEmpty &&
+          replyToContent != null) {
+        MessageType replyType;
+        switch ((payload['reply_to_message_type'] ?? 'text').toString()) {
+          case 'voice':
+            replyType = MessageType.voice;
+            break;
+          case 'image':
+            replyType = MessageType.image;
+            break;
+          default:
+            replyType = MessageType.text;
+        }
+        replyTo = ReplyInfo(
+          messageId: replyToId,
+          senderId: (payload['reply_to_sender_id'] ?? '').toString(),
+          senderName: (payload['reply_to_sender_name'] ?? '').toString(),
+          message: replyToContent,
+          type: replyType,
+        );
+      }
+
       return ChatMessage(
         id: id,
         chatId: convo,
@@ -1220,6 +1328,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
         timestamp: ts,
         type: type,
         isRead: false,
+        replyTo: replyTo,
         clientId: payload['client_id']?.toString(),
       );
     } catch (e) {

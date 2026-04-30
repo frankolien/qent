@@ -1,14 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:qent/core/providers/user_cache_provider.dart';
 import 'package:qent/core/services/notification_service.dart';
+import 'package:qent/core/services/websocket_service.dart';
 import 'package:qent/core/theme/app_theme.dart';
 import 'package:qent/core/utils/ios_version.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
-import 'package:qent/features/chat/data/datasources/api_chat_datasource.dart';
 import 'package:qent/features/chat/domain/models/chat.dart';
 import 'package:qent/features/chat/presentation/controllers/chat_controller.dart';
 import 'package:qent/features/chat/presentation/pages/chat_detail_page.dart';
 import 'package:qent/features/chat/presentation/pages/messages_page.dart';
+import 'package:qent/features/chat/presentation/pages/voice_call_page.dart';
 import 'package:qent/features/home/presentation/pages/home_page.dart';
 import 'package:qent/features/home/presentation/widgets/custom_bottom_nav.dart';
 import 'package:qent/features/home/presentation/widgets/liquid_tab_bar.dart';
@@ -30,6 +34,12 @@ class MainNavPageState extends ConsumerState<MainNavPage>
   int _currentIndex = 0;
   bool _useLiquidBar = false;
   bool _handlingDeepLink = false;
+  StreamSubscription<WsEvent>? _wsSub;
+  // True while a VoiceCallPage is on top of the navigator. Used to drop
+  // duplicate `call_offer` frames the server retransmits before the
+  // callee answers — without this, we'd push a second call screen on
+  // top of the first.
+  bool _callInFlight = false;
 
   @override
   void initState() {
@@ -45,11 +55,23 @@ class MainNavPageState extends ConsumerState<MainNavPage>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _consumePendingNotificationTap();
     });
+
+    // Global incoming-call listener. Lives here (not on chat detail)
+    // because calls must land regardless of which screen the callee is
+    // currently on.
+    final ws = ref.read(wsServiceProvider);
+    _wsSub = ws.events.listen((event) {
+      if (!mounted) return;
+      if (event.type == 'call_offer') {
+        _handleIncomingCall(event.payload);
+      }
+    });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _wsSub?.cancel();
     super.dispose();
   }
 
@@ -60,7 +82,44 @@ class MainNavPageState extends ConsumerState<MainNavPage>
     // and the app resumes. Pick up the deep link as soon as we're foreground.
     if (state == AppLifecycleState.resumed) {
       _consumePendingNotificationTap();
+      // Nudge the WS back online ASAP after foregrounding so an incoming
+      // call_offer landing right after resume doesn't get dropped.
+      // connect() is a no-op if we're already connected.
+      ref.read(wsServiceProvider).connect();
     }
+  }
+
+  Future<void> _handleIncomingCall(Map<String, dynamic> payload) async {
+    if (_callInFlight) return;
+
+    final senderId = payload['sender_id'] as String? ?? '';
+    final conversationId = payload['conversation_id'] as String? ?? '';
+    if (senderId.isEmpty || conversationId.isEmpty) return;
+
+    // Best-effort caller name. Falls back to "Caller" if the user lookup
+    // fails or hasn't completed yet — we don't want to delay the ring UI
+    // on a profile fetch.
+    String callerName = 'Caller';
+    try {
+      final user = await ref.read(userDataProvider(senderId).future);
+      final name = user?['fullName'] as String?;
+      if (name != null && name.isNotEmpty) callerName = name;
+    } catch (_) {}
+
+    if (!mounted) return;
+    _callInFlight = true;
+    final navigator = Navigator.of(context, rootNavigator: true);
+    await navigator.push(MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => VoiceCallPage(
+        targetId: senderId,
+        targetName: callerName,
+        conversationId: conversationId,
+        isOutgoing: false,
+        incomingOffer: payload,
+      ),
+    ));
+    _callInFlight = false;
   }
 
   Future<void> _consumePendingNotificationTap() async {

@@ -193,6 +193,25 @@ class ApiChatDataSource {
 
   /// Map API message JSON to [ChatMessage] model.
   ChatMessage _messageFromJson(Map<String, dynamic> data) {
+    // Reply preview is populated via a self-join on the server, so the
+    // API includes the original message's content + sender + type
+    // alongside `reply_to_id`. Build a [ReplyInfo] from it when present
+    // so the bubble can render the "Replying to X: …" chip without a
+    // second round-trip.
+    ReplyInfo? replyTo;
+    final replyToId = data['reply_to_id']?.toString();
+    final replyToContent = data['reply_to_content']?.toString();
+    if (replyToId != null && replyToId.isNotEmpty &&
+        replyToContent != null) {
+      replyTo = ReplyInfo(
+        messageId: replyToId,
+        senderId: (data['reply_to_sender_id'] ?? '').toString(),
+        senderName: (data['reply_to_sender_name'] ?? '').toString(),
+        message: replyToContent,
+        type: _messageTypeFromJson(data['reply_to_message_type']),
+      );
+    }
+
     return ChatMessage(
       id: (data['id'] ?? '').toString(),
       chatId: (data['conversation_id'] ?? '').toString(),
@@ -203,7 +222,7 @@ class ApiChatDataSource {
       timestamp: _dateFromJson(data['created_at']),
       type: _messageTypeFromJson(data['message_type']),
       isRead: data['is_read'] == true,
-      replyTo: null, // Reply info resolved separately if needed
+      replyTo: replyTo,
       clientId: data['client_id']?.toString(),
     );
   }

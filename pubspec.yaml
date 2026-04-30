@@ -1,7 +1,7 @@
 name: qent
 description: "Qent - P2P Car Rental Platform"
 publish_to: 'none'
-version: 1.0.0+6
+version: 1.0.0+7
 
 environment:
   sdk: ^3.9.2

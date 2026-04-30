@@ -81,6 +81,43 @@ class PendingMessages extends Notifier<List<ChatMessage>> {
     state = state.where((m) => m.id != tempId).toList();
   }
 
+  /// Find a pending entry by its `clientId` and flip it to "confirmed":
+  /// status=sent, real server id, server timestamp. Used when the WS
+  /// echo or HTTP rescue returns for a message the user just sent.
+  ///
+  /// Why: the alternative is to add a *new* entry to the server snapshot
+  /// and drop the pending one. That swap, even with stable widget keys,
+  /// produces a visible flash because the optimistic and the server
+  /// message have different ids, timestamps, and (sometimes) replyTo
+  /// state — Flutter has to rebuild and relayout. Mutating in place
+  /// keeps the same widget instance with the same key from optimistic
+  /// add through final confirmation; the only visible change is the
+  /// status icon flipping clock → check.
+  ///
+  /// Returns true if a pending entry was found and updated.
+  bool confirmByClientId({
+    required String clientId,
+    required String serverId,
+    required DateTime serverTimestamp,
+  }) {
+    var found = false;
+    state = [
+      for (final m in state)
+        if (m.clientId == clientId && m.status != MessageStatus.sent) ...[
+          () {
+            found = true;
+            return m.copyWith(
+              id: serverId,
+              status: MessageStatus.sent,
+              timestamp: serverTimestamp,
+            );
+          }(),
+        ] else
+          m,
+    ];
+    return found;
+  }
+
   void clear() {
     state = const [];
   }
@@ -146,10 +183,15 @@ class ChatMessagesNotifier
 
   @override
   AsyncValue<List<ChatMessage>> build() {
+    // Keep the provider alive across screen pops so reopening a chat
+    // shows the cached messages immediately instead of skeleton-flashing
+    // while REST refetches over slow cellular.
+    ref.keepAlive();
     final serverAsync = ref.watch(messagesStreamProvider(conversationId));
     final pending = ref.watch(pendingMessagesProvider(conversationId));
 
     serverAsync.whenData((server) {
+      debugPrint('[Recv] REST snapshot convo=$conversationId count=${server.length}');
       _lastServer = server;
       _hasServerData = true;
 
@@ -205,7 +247,23 @@ class ChatMessagesNotifier
   /// Idempotent: if the same id/client_id is already in `_lastServer`
   /// we replace in place instead of duplicating, so a delayed HTTP
   /// refetch arriving after the WS event is harmless.
+  /// Cheap structural compare — true if the two messages would render
+  /// identically. Used to skip rebuilds when the same `new_message`
+  /// frame is broadcast more than once (server retransmits, our own
+  /// HTTP rescue racing the WS echo, etc.). Anything that affects
+  /// rendering must be in here.
+  bool _sameMessage(ChatMessage a, ChatMessage b) {
+    return a.id == b.id &&
+        a.message == b.message &&
+        a.timestamp == b.timestamp &&
+        a.type == b.type &&
+        a.isRead == b.isRead &&
+        a.status == b.status &&
+        a.clientId == b.clientId;
+  }
+
   void appendServerMessage(ChatMessage message) {
+    debugPrint('[Recv] appendServerMessage convo=$conversationId id=${message.id} cid=${message.clientId} sender=${message.senderId}');
     if (!_hasServerData) {
       _lastServer = [message];
       _hasServerData = true;
@@ -218,6 +276,14 @@ class ChatMessagesNotifier
         return ac != null && ac.isNotEmpty && m.clientId == ac;
       });
       if (existingIdx >= 0) {
+        // No-op fast path: incoming message is structurally identical to
+        // the cached one. Skipping the state update here is what
+        // eliminates the sub-second flash when the same WS frame gets
+        // delivered twice (WS echo + HTTP rescue, or server retransmit).
+        if (_sameMessage(_lastServer[existingIdx], message)) {
+          debugPrint('[Recv] skip rebuild — identical to cached');
+          return;
+        }
         final next = List<ChatMessage>.from(_lastServer);
         next[existingIdx] = message;
         _lastServer = next;
@@ -225,8 +291,31 @@ class ChatMessagesNotifier
         _lastServer = [..._lastServer, message];
       }
     }
-    // Force the provider to re-emit so anyone watching gets the new list.
+
+    // Drop the matching pending optimistic entry (if any) directly. The
+    // merge function would also hide it, but explicitly removing it keeps
+    // pendingMessagesProvider's state clean — otherwise stale "sending"
+    // entries pile up across screen lifecycles, and the keep-alive on
+    // chatMessagesProvider means they'd survive across chat reopens.
     final pending = ref.read(pendingMessagesProvider(conversationId));
+    final cid = message.clientId;
+    if (cid != null && cid.isNotEmpty) {
+      final match = pending.where((p) => p.clientId == cid).toList();
+      if (match.isNotEmpty) {
+        debugPrint('[Recv] confirming ${match.length} pending entry/entries by clientId=$cid');
+        final pendingNotifier =
+            ref.read(pendingMessagesProvider(conversationId).notifier);
+        // Defer to microtask: we're inside another notifier's build/append,
+        // mutating sibling notifier state synchronously isn't safe.
+        Future.microtask(() {
+          for (final m in match) {
+            pendingNotifier.remove(m.id);
+          }
+        });
+      }
+    }
+
+    // Force the provider to re-emit so anyone watching gets the new list.
     state = AsyncValue.data(_mergeWith(_lastServer, pending));
   }
 
@@ -235,12 +324,31 @@ class ChatMessagesNotifier
     List<ChatMessage> pending,
   ) {
     if (pending.isEmpty) return server;
-    // Drop any pending entries the server already has, using the same
-    // one-to-one greedy match used for confirmation, so duplicate sends
-    // (same text twice) aren't both swallowed by a single server entry.
+    // Build sets of server-side identifiers so we can cheaply drop any
+    // pending entry that's already represented in the server snapshot
+    // — covers two cases:
+    //   1) Sent-then-refetched: our in-place-confirmed pending (status
+    //      sent, id = server's id) shows up as a duplicate when the
+    //      next REST poll returns it. Match by id and drop the pending.
+    //   2) Sent-then-clientId-echoed (legacy / non-in-place): pending
+    //      with status=sending matches a server entry by clientId.
+    //      Match and drop.
+    final serverIds = <String>{for (final m in server) m.id};
+    final serverCids = <String>{
+      for (final m in server)
+        if (m.clientId != null && m.clientId!.isNotEmpty) m.clientId!,
+    };
     final claimed = <int>{};
     final stillPending = <ChatMessage>[];
     for (final p in pending) {
+      // Already in server by id? Drop.
+      if (serverIds.contains(p.id)) continue;
+      // Already in server by clientId? Drop.
+      final pcid = p.clientId;
+      if (pcid != null && pcid.isNotEmpty && serverCids.contains(pcid)) {
+        continue;
+      }
+      // Legacy heuristic match (no clientIds on either side).
       var matched = false;
       if (p.status == MessageStatus.sending ||
           p.status == MessageStatus.uploading) {
@@ -320,6 +428,7 @@ class ChatController {
 
     final pending = _ref.read(pendingMessagesProvider(chatId).notifier);
     pending.add(optimistic);
+    debugPrint('[Send] optimistic added cid=$cid chat=$chatId type=${type.name}');
 
     // Fast path: send over WebSocket. The server inserts, dedupes by
     // client_id, and broadcasts a `new_message` back to us — the
@@ -327,6 +436,8 @@ class ChatController {
     // arrives. No HTTP round-trip, no refetch. This is what makes chat
     // feel instant on slow networks.
     final ws = _ref.read(wsServiceProvider);
+    final wsState = ws.state;
+    debugPrint('[Send] ws.state=$wsState');
     final sentOverWs = ws.sendChatMessage(
       conversationId: chatId,
       content: message,
@@ -334,35 +445,82 @@ class ChatController {
       clientId: cid,
       replyToId: replyToMessageId,
     );
+    debugPrint('[Send] sentOverWs=$sentOverWs');
 
     if (sentOverWs) {
       // Bump the chat list now too — `last_message_text` will be stale
-      // until the server-broadcast new_message round-trips. Cheap to
-      // refetch the conversations list.
+      // until the server-broadcast new_message round-trips.
       _ref.invalidate(chatsStreamProvider);
       _ref.invalidate(chatsProvider);
+      // Safety net: if the WS echo doesn't return in 2.5s, also fire
+      // HTTP. Idempotent via client_id, so no risk of duplicates if
+      // both eventually land. The HTTP response invalidates the
+      // messagesStreamProvider, which causes chatMessagesProvider to
+      // confirm-and-remove the optimistic row even when the WS echo
+      // got lost. Without this, a flaky WS leaves bubbles on the clock
+      // icon indefinitely — the exact symptom the user is seeing.
+      Future.delayed(const Duration(milliseconds: 2500), () async {
+        final stillPending = _ref
+            .read(pendingMessagesProvider(chatId))
+            .any((m) => m.id == tempId && m.status == MessageStatus.sending);
+        if (!stillPending) return;
+        debugPrint('[Send] WS echo not in 2.5s for cid=$cid — HTTP rescue');
+        try {
+          final confirmed = await _dataSource.sendMessage(
+            chatId,
+            message,
+            type: type,
+            replyToId: replyToMessageId,
+            clientId: cid,
+          );
+          // Confirm the pending entry IN PLACE (same widget, just status
+          // icon flips). Falls back to appendServerMessage if the
+          // pending entry has somehow already disappeared.
+          final ok = pending.confirmByClientId(
+            clientId: cid,
+            serverId: confirmed.id,
+            serverTimestamp: confirmed.timestamp,
+          );
+          if (!ok) {
+            _ref
+                .read(chatMessagesProvider(chatId).notifier)
+                .appendServerMessage(confirmed);
+          }
+          _ref.invalidate(chatsStreamProvider);
+        } catch (e) {
+          debugPrint('[Send] HTTP rescue failed: $e');
+          pending.markFailed(tempId);
+        }
+      });
       return;
     }
 
     // WS not connected — fall back to HTTP. Same idempotency key, so if
     // both somehow land the server dedupes.
     try {
-      await _dataSource.sendMessage(
+      debugPrint('[Send] HTTP path POST /chat/.../messages cid=$cid');
+      final confirmed = await _dataSource.sendMessage(
         chatId,
         message,
         type: type,
         replyToId: replyToMessageId,
         clientId: cid,
       );
-      // We do NOT remove the optimistic entry here. chatMessagesProvider
-      // matches by clientId on the next stream tick (HTTP + invalidate)
-      // and confirms it then.
-      _ref.invalidate(messagesStreamProvider(chatId));
-      _ref.invalidate(messagesProvider(chatId));
+      debugPrint('[Send] HTTP path OK cid=$cid id=${confirmed.id}');
+      final ok = pending.confirmByClientId(
+        clientId: cid,
+        serverId: confirmed.id,
+        serverTimestamp: confirmed.timestamp,
+      );
+      if (!ok) {
+        _ref
+            .read(chatMessagesProvider(chatId).notifier)
+            .appendServerMessage(confirmed);
+      }
       _ref.invalidate(chatsStreamProvider);
       _ref.invalidate(chatsProvider);
     } catch (e) {
-      debugPrint('[Qent Chat] sendMessage HTTP fallback failed: $e');
+      debugPrint('[Send] HTTP path FAILED cid=$cid err=$e');
       pending.markFailed(tempId);
       rethrow;
     }
@@ -443,7 +601,8 @@ class ChatController {
       (m) => m.copyWith(message: uploadedUrl!, status: MessageStatus.sending),
     );
 
-    // Same fast path as text: try WebSocket first, fall back to HTTP.
+    // Same fast path as text: try WebSocket first, with HTTP rescue if
+    // the echo doesn't return.
     final ws = _ref.read(wsServiceProvider);
     final sentOverWs = ws.sendChatMessage(
       conversationId: chatId,
@@ -454,18 +613,55 @@ class ChatController {
     if (sentOverWs) {
       _ref.invalidate(chatsStreamProvider);
       _ref.invalidate(chatsProvider);
+      Future.delayed(const Duration(milliseconds: 2500), () async {
+        final stillPending = _ref
+            .read(pendingMessagesProvider(chatId))
+            .any((m) => m.id == tempId && m.status == MessageStatus.sending);
+        if (!stillPending) return;
+        debugPrint('[Send media] WS echo not in 2.5s for cid=$cid — HTTP rescue');
+        try {
+          final confirmed = await _dataSource.sendMessage(
+            chatId,
+            uploadedUrl!,
+            type: type,
+            clientId: cid,
+          );
+          final ok = pending.confirmByClientId(
+            clientId: cid,
+            serverId: confirmed.id,
+            serverTimestamp: confirmed.timestamp,
+          );
+          if (!ok) {
+            _ref
+                .read(chatMessagesProvider(chatId).notifier)
+                .appendServerMessage(confirmed);
+          }
+          _ref.invalidate(chatsStreamProvider);
+        } catch (e) {
+          debugPrint('[Send media] HTTP rescue failed: $e');
+          pending.markFailed(tempId);
+        }
+      });
       return;
     }
 
     try {
-      await _dataSource.sendMessage(
+      final confirmed = await _dataSource.sendMessage(
         chatId,
         uploadedUrl,
         type: type,
         clientId: cid,
       );
-      _ref.invalidate(messagesStreamProvider(chatId));
-      _ref.invalidate(messagesProvider(chatId));
+      final ok = pending.confirmByClientId(
+        clientId: cid,
+        serverId: confirmed.id,
+        serverTimestamp: confirmed.timestamp,
+      );
+      if (!ok) {
+        _ref
+            .read(chatMessagesProvider(chatId).notifier)
+            .appendServerMessage(confirmed);
+      }
       _ref.invalidate(chatsStreamProvider);
       _ref.invalidate(chatsProvider);
     } catch (e) {
