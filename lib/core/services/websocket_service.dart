@@ -128,18 +128,32 @@ class WebSocketService {
     }
   }
 
-  /// Send a chat message
-  void sendChatMessage({
+  /// Send a chat message over the WebSocket. Returns `true` if the frame
+  /// was actually sent (state == connected), `false` otherwise — the
+  /// caller is expected to fall back to the HTTP path in that case.
+  ///
+  /// `clientId` is the same idempotency key sent on the HTTP path; the
+  /// server uses it to dedupe retries and to echo back so the sender's
+  /// optimistic bubble can be matched without a refetch.
+  bool sendChatMessage({
     required String conversationId,
     required String content,
     String messageType = 'text',
+    String? clientId,
+    String? replyToId,
   }) {
+    if (_state != WsState.connected || _channel == null) {
+      return false;
+    }
     send({
       'type': 'chat_message',
       'conversation_id': conversationId,
       'content': content,
       'message_type': messageType,
+      if (clientId != null) 'client_id': clientId,
+      if (replyToId != null) 'reply_to_id': replyToId,
     });
+    return true;
   }
 
   /// Send typing indicator

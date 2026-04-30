@@ -40,6 +40,13 @@ class NotificationService {
     _activeConversationId = conversationId;
   }
 
+  /// Conversation id the user tapped a notification for, but the app
+  /// wasn't ready yet (still on splash, auth gate, etc.). The
+  /// `MainNavPage` consumes this on each build and clears it after
+  /// pushing the chat detail page. Without this, taps that fire before
+  /// the navigator is mounted (cold-start tap) silently do nothing.
+  String? pendingConversationTap;
+
   Future<void> initialize() async {
     // Skip if already initialized (hot restart scenario)
     if (_isInitialized) return;
@@ -108,9 +115,16 @@ class NotificationService {
     await _localNotifications.initialize(
       initSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
-        // Handle notification tap
         if (kDebugMode) {
-          print('Notification tapped: ${response.payload}');
+          print('Local notification tapped: payload=${response.payload}');
+        }
+        // Foreground-banner taps (the local notification we show via
+        // `_localNotifications.show` when an FCM arrives in foreground)
+        // need the same deeplink wiring as background FCM taps. Reuse
+        // pendingConversationTap so MainNavPage picks it up.
+        final convoId = response.payload;
+        if (convoId != null && convoId.isNotEmpty) {
+          pendingConversationTap = convoId;
         }
       },
     );
@@ -214,8 +228,16 @@ class NotificationService {
     final notification = message.notification;
 
     if (notification != null) {
+      // Stable per-conversation id so multiple notifications for the
+      // same chat collapse instead of stacking — and so we can cancel
+      // them all when the user opens that chat. Falls back to a
+      // pseudo-unique value when no conversation_id is present.
+      final id = pushedConvoId != null
+          ? pushedConvoId.hashCode
+          : notification.hashCode;
+
       await _localNotifications.show(
-        notification.hashCode,
+        id,
         notification.title ?? 'New Message',
         notification.body ?? '',
         const NotificationDetails(
@@ -229,17 +251,42 @@ class NotificationService {
           ),
           iOS: DarwinNotificationDetails(),
         ),
-        payload: message.data['chatId'] ?? '',
+        // Payload is the conversation id so the tap handler can deeplink.
+        payload: pushedConvoId ?? message.data['chatId']?.toString() ?? '',
       );
+    }
+  }
+
+  /// Clear all local-notification banners for a given conversation. Call
+  /// this when the user opens the chat detail page so any pending push
+  /// banners for that thread disappear from the lock screen / tray —
+  /// matches WhatsApp / iMessage / Slack behavior.
+  Future<void> clearNotificationsForConversation(String conversationId) async {
+    try {
+      await _localNotifications.cancel(conversationId.hashCode);
+    } catch (e) {
+      if (kDebugMode) {
+        print('clearNotificationsForConversation failed: $e');
+      }
     }
   }
 
   void _handleNotificationTap(RemoteMessage message) {
     if (kDebugMode) {
-      print('Notification tapped: ${message.messageId}');
+      print('Notification tapped: ${message.messageId} data=${message.data}');
     }
-    // Navigate to chat - this will be handled by the app's navigation logic
-    // You can use a global navigator key or Riverpod state to navigate
+    // Server-side push payload includes both keys depending on origin:
+    // chat backend uses `conversation_id`, older firestore code used
+    // `chatId`. Accept either.
+    final convoId = (message.data['conversation_id'] as String?) ??
+        (message.data['chatId'] as String?);
+    if (convoId == null || convoId.isEmpty) return;
+
+    // Store for MainNavPage to pick up on its next build. Setting this
+    // unconditionally is safe — if the user is already in a chat detail
+    // page, MainNavPage will pop it before pushing the new one (handled
+    // there).
+    pendingConversationTap = convoId;
   }
 
   Future<String?> getFCMToken() async {

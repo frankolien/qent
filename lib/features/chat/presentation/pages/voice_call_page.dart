@@ -86,6 +86,9 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
   void initState() {
     super.initState();
     HapticFeedback.heavyImpact();
+    debugPrint(
+        '[VoiceCall] OPEN role=${widget.isOutgoing ? "caller" : "callee"} '
+        'target=${widget.targetId} convo=${widget.conversationId}');
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2000),
@@ -106,6 +109,14 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
     final ws = ref.read(wsServiceProvider);
     _wsSub = ws.events.listen((event) {
       if (!mounted) return;
+      // Only log call-relevant events so we don't spam the console with
+      // every chat WS frame.
+      const callTypes = {
+        'call_answer', 'ice_candidate', 'call_hangup', 'call_reject'
+      };
+      if (callTypes.contains(event.type)) {
+        debugPrint('[VoiceCall] WS in <-- ${event.type}');
+      }
       switch (event.type) {
         case 'call_answer':
           _onCallAnswer(event.payload);
@@ -125,10 +136,12 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
 
   Future<void> _startOutgoingCall() async {
     try {
+      debugPrint('[VoiceCall] caller: requesting mic...');
       _localStream = await navigator.mediaDevices.getUserMedia({
         'audio': true,
         'video': false,
       });
+      debugPrint('[VoiceCall] caller: got mic, creating peer connection');
 
       _pc = await createPeerConnection(_config);
       _localStream!.getAudioTracks().forEach((track) {
@@ -137,6 +150,12 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
 
       _pc!.onIceCandidate = (candidate) {
         if (candidate.candidate != null) {
+          // Log candidate type so we can tell if TURN relay is being
+          // attempted at all on cellular. The candidate string contains
+          // 'typ host', 'typ srflx' (STUN), or 'typ relay' (TURN).
+          final c = candidate.candidate ?? '';
+          final typ = RegExp(r'typ (\w+)').firstMatch(c)?.group(1) ?? '?';
+          debugPrint('[VoiceCall] local ICE: $typ');
           ref.read(wsServiceProvider).sendIceCandidate(
             targetId: widget.targetId,
             candidate: candidate.toMap(),
@@ -144,7 +163,13 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
         }
       };
 
+      _pc!.onIceGatheringState = (s) =>
+          debugPrint('[VoiceCall] ICE gathering: $s');
+      _pc!.onIceConnectionState = (s) =>
+          debugPrint('[VoiceCall] ICE connection: $s');
+
       _pc!.onConnectionState = (state) {
+        debugPrint('[VoiceCall] PC connection: $state');
         if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
           if (mounted) {
             setState(() => _callState = CallState.connected);
@@ -161,6 +186,7 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
 
       final offer = await _pc!.createOffer();
       await _pc!.setLocalDescription(offer);
+      debugPrint('[VoiceCall] caller: local SDP set, sending offer');
 
       setState(() => _callState = CallState.ringing);
 
@@ -169,9 +195,11 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
         sdp: offer.toMap(),
         conversationId: widget.conversationId,
       );
+      debugPrint('[VoiceCall] WS out --> call_offer to ${widget.targetId}');
 
       Future.delayed(const Duration(seconds: 30), () {
         if (mounted && _callState == CallState.ringing) {
+          debugPrint('[VoiceCall] 30s ring timeout, hanging up');
           _endCall();
         }
       });
@@ -195,13 +223,16 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
 
   Future<void> _acceptCall() async {
     if (widget.incomingOffer == null) return;
+    debugPrint('[VoiceCall] callee: accept tapped');
     setState(() => _callState = CallState.connecting);
 
     try {
+      debugPrint('[VoiceCall] callee: requesting mic...');
       _localStream = await navigator.mediaDevices.getUserMedia({
         'audio': true,
         'video': false,
       });
+      debugPrint('[VoiceCall] callee: got mic, creating peer connection');
 
       _pc = await createPeerConnection(_config);
       _localStream!.getAudioTracks().forEach((track) {
@@ -210,6 +241,9 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
 
       _pc!.onIceCandidate = (candidate) {
         if (candidate.candidate != null) {
+          final c = candidate.candidate ?? '';
+          final typ = RegExp(r'typ (\w+)').firstMatch(c)?.group(1) ?? '?';
+          debugPrint('[VoiceCall] local ICE (callee): $typ');
           ref.read(wsServiceProvider).sendIceCandidate(
             targetId: widget.targetId,
             candidate: candidate.toMap(),
@@ -217,7 +251,13 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
         }
       };
 
+      _pc!.onIceGatheringState = (s) =>
+          debugPrint('[VoiceCall] ICE gathering (callee): $s');
+      _pc!.onIceConnectionState = (s) =>
+          debugPrint('[VoiceCall] ICE connection (callee): $s');
+
       _pc!.onConnectionState = (state) {
+        debugPrint('[VoiceCall] PC connection (callee): $state');
         if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
           if (mounted) {
             setState(() => _callState = CallState.connected);
@@ -227,12 +267,14 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
       };
 
       final sdpMap = widget.incomingOffer!['sdp'] as Map<String, dynamic>;
+      debugPrint('[VoiceCall] callee: applying remote offer');
       await _pc!.setRemoteDescription(
         RTCSessionDescription(sdpMap['sdp'], sdpMap['type']),
       );
       _remoteDescriptionSet = true;
       await _flushPendingCandidates();
 
+      debugPrint('[VoiceCall] callee: creating answer');
       final answer = await _pc!.createAnswer();
       await _pc!.setLocalDescription(answer);
 
@@ -240,14 +282,21 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
         targetId: widget.targetId,
         sdp: answer.toMap(),
       );
+      debugPrint('[VoiceCall] WS out --> call_answer to ${widget.targetId}');
     } catch (e) {
+      debugPrint('[VoiceCall] _acceptCall failed: $e');
       if (mounted) _endCall();
     }
   }
 
   void _onCallAnswer(Map<String, dynamic> payload) async {
     final sdpMap = payload['sdp'] as Map<String, dynamic>?;
-    if (sdpMap == null || _pc == null) return;
+    if (sdpMap == null || _pc == null) {
+      debugPrint('[VoiceCall] caller: ignoring call_answer '
+          '(sdp=${sdpMap != null}, pc=${_pc != null})');
+      return;
+    }
+    debugPrint('[VoiceCall] caller: applying remote answer');
     setState(() => _callState = CallState.connecting);
     await _pc!.setRemoteDescription(
       RTCSessionDescription(sdpMap['sdp'], sdpMap['type']),
@@ -259,6 +308,8 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
   void _onIceCandidate(Map<String, dynamic> payload) async {
     final candidateMap = payload['candidate'] as Map<String, dynamic>?;
     if (candidateMap == null) return;
+    final candStr = (candidateMap['candidate'] as String?) ?? '';
+    final typ = RegExp(r'typ (\w+)').firstMatch(candStr)?.group(1) ?? '?';
     final candidate = RTCIceCandidate(
       candidateMap['candidate'],
       candidateMap['sdpMid'],
@@ -268,14 +319,20 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
     // before remote description is set — adding them too early throws.
     if (_pc == null || !_remoteDescriptionSet) {
       _pendingCandidates.add(candidate);
+      debugPrint(
+          '[VoiceCall] remote ICE buffered ($typ, total=${_pendingCandidates.length})');
       return;
     }
+    debugPrint('[VoiceCall] remote ICE applied: $typ');
     await _pc!.addCandidate(candidate);
   }
 
   /// Drain any ICE candidates buffered before the remote description was set.
   Future<void> _flushPendingCandidates() async {
     if (_pc == null) return;
+    if (_pendingCandidates.isEmpty) return;
+    debugPrint(
+        '[VoiceCall] flushing ${_pendingCandidates.length} buffered remote ICE');
     for (final c in _pendingCandidates) {
       try {
         await _pc!.addCandidate(c);
@@ -310,6 +367,8 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
   }
 
   void _endCall({bool remote = false}) {
+    debugPrint(
+        '[VoiceCall] END remote=$remote state=$_callState role=${widget.isOutgoing ? "caller" : "callee"}');
     _callTimer?.cancel();
     _localStream?.dispose();
     _pc?.close();
@@ -319,8 +378,10 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
       final ws = ref.read(wsServiceProvider);
       if (_callState == CallState.ringing && !widget.isOutgoing) {
         ws.sendCallReject(targetId: widget.targetId);
+        debugPrint('[VoiceCall] WS out --> call_reject');
       } else {
         ws.sendCallHangup(targetId: widget.targetId);
+        debugPrint('[VoiceCall] WS out --> call_hangup');
       }
     }
 

@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:qent/core/services/notification_service.dart';
 import 'package:qent/core/theme/app_theme.dart';
 import 'package:qent/core/utils/ios_version.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
+import 'package:qent/features/chat/data/datasources/api_chat_datasource.dart';
+import 'package:qent/features/chat/domain/models/chat.dart';
+import 'package:qent/features/chat/presentation/controllers/chat_controller.dart';
+import 'package:qent/features/chat/presentation/pages/chat_detail_page.dart';
 import 'package:qent/features/chat/presentation/pages/messages_page.dart';
 import 'package:qent/features/home/presentation/pages/home_page.dart';
 import 'package:qent/features/home/presentation/widgets/custom_bottom_nav.dart';
@@ -20,16 +25,97 @@ class MainNavPage extends ConsumerStatefulWidget {
   ConsumerState<MainNavPage> createState() => MainNavPageState();
 }
 
-class MainNavPageState extends ConsumerState<MainNavPage> {
+class MainNavPageState extends ConsumerState<MainNavPage>
+    with WidgetsBindingObserver {
   int _currentIndex = 0;
   bool _useLiquidBar = false;
+  bool _handlingDeepLink = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     IosVersion.isIOS26OrLater().then((value) {
       if (mounted && value) setState(() => _useLiquidBar = true);
     });
+
+    // First-launch case: a notification tap that fired before this page
+    // was mounted left a pending conversation id on NotificationService.
+    // Drain it on the next frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _consumePendingNotificationTap();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Background-tap case: user tapped a push while the app was
+    // backgrounded; onMessageOpenedApp fires, sets pendingConversationTap,
+    // and the app resumes. Pick up the deep link as soon as we're foreground.
+    if (state == AppLifecycleState.resumed) {
+      _consumePendingNotificationTap();
+    }
+  }
+
+  Future<void> _consumePendingNotificationTap() async {
+    if (_handlingDeepLink) return;
+    final svc = NotificationService();
+    final convoId = svc.pendingConversationTap;
+    if (convoId == null || convoId.isEmpty) return;
+
+    _handlingDeepLink = true;
+    svc.pendingConversationTap = null;
+    // Tapping a notification should always clear the banner for that
+    // chat from the tray. The chat detail page also clears on init,
+    // but this covers cases where the chat couldn't be found (e.g.
+    // network failure on the conversations refresh) and the page
+    // never opens.
+    svc.clearNotificationsForConversation(convoId);
+
+    try {
+      // Find the chat in the cached conversations list. Force a fresh fetch
+      // first so we don't navigate to a stale snapshot — the user just got
+      // a notification, so the conversation likely exists or was just bumped.
+      final dataSource = ref.read(apiChatDataSourceProvider);
+      late List<Chat> chats;
+      try {
+        chats = await dataSource.getConversations();
+      } catch (_) {
+        chats = const [];
+      }
+
+      final chat = chats.where((c) => c.id == convoId).cast<Chat?>().firstWhere(
+            (_) => true,
+            orElse: () => null,
+          );
+      if (!mounted || chat == null) return;
+
+      // Make sure the messages tab is the visible one, so the back-nav
+      // from the chat detail returns somewhere sensible.
+      setState(() => _currentIndex = 2);
+
+      // Pop any chat detail that might already be on top (e.g. user was
+      // looking at chat A and tapped a notification for chat B). Then push
+      // the requested chat.
+      final navigator = Navigator.of(context);
+      while (navigator.canPop()) {
+        navigator.pop();
+      }
+      navigator.push(MaterialPageRoute(
+        builder: (_) => ChatDetailPage(chat: chat),
+      ));
+
+      // Refresh the chats list provider so the unread badges update.
+      ref.invalidate(chatsStreamProvider);
+    } finally {
+      _handlingDeepLink = false;
+    }
   }
 
   void switchToTab(int index) {

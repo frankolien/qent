@@ -40,6 +40,11 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
   bool _hasMarkedAsRead = false;
+  // Last rendered message count, used to decide when to auto-scroll. We
+  // only scroll on count changes, not on every provider rebuild — otherwise
+  // every status flip (sending→sent, isRead update) re-snaps the list and
+  // looks like a flicker.
+  int _lastMessageCount = 0;
   ReplyInfo? _replyingTo;
   Timer? _typingTimer;
   Timer? _pollTimer;
@@ -71,14 +76,22 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
     // before the WS view_conversation reaches the server.
     ws.setActiveConversation(widget.chat.id);
     NotificationService().setActiveConversation(widget.chat.id);
+    // Clear any banners for this conversation that the user is now
+    // looking at — matches WhatsApp / iMessage. Best-effort.
+    NotificationService().clearNotificationsForConversation(widget.chat.id);
     _wsSub = ws.events.listen((event) {
       if (!mounted) return;
       if (event.type == 'new_message' && event.payload['conversation_id'] == widget.chat.id) {
-        // Refresh messages when we receive a new one for this conversation
-        ref.invalidate(messagesStreamProvider(widget.chat.id));
-        _scrollToBottom();
-      } else if (event.type == 'message_sent' && event.payload['conversation_id'] == widget.chat.id) {
-        ref.invalidate(messagesStreamProvider(widget.chat.id));
+        // Append the message directly into provider state instead of
+        // invalidating + refetching over HTTP. This is the WS fast path:
+        // the bubble appears the instant the frame arrives, with no
+        // round-trip.
+        final msg = _chatMessageFromWsPayload(event.payload);
+        if (msg != null) {
+          ref
+              .read(chatMessagesProvider(widget.chat.id).notifier)
+              .appendServerMessage(msg);
+        }
         _scrollToBottom();
       } else if (event.type == 'typing' && event.payload['conversation_id'] == widget.chat.id) {
         setState(() => _otherUserTyping = event.payload['is_typing'] == true);
@@ -93,9 +106,12 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
       }
     });
 
-    // Fallback poll every 15s in case WS drops
-    _pollTimer = Timer.periodic(const Duration(seconds: 15), (_) {
-      if (mounted) {
+    // Fallback poll every 30s in case WS drops. Less aggressive than
+    // before now that the WS fast-path delivers messages reliably; the
+    // poll is just a safety net for "WS quietly disconnected and we
+    // haven't reconnected yet."
+    _pollTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted && ws.state != WsState.connected) {
         ref.invalidate(messagesStreamProvider(widget.chat.id));
       }
     });
@@ -353,16 +369,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
                 label: 'Reply',
                 onTap: () {
                   Navigator.pop(context);
-                  setState(() {
-                    _replyingTo = ReplyInfo(
-                      messageId: message.id,
-                      senderId: message.senderId,
-                      senderName: message.senderName,
-                      message: message.message,
-                      type: message.type,
-                    );
-                  });
-                  _focusNode.requestFocus();
+                  _startReply(message);
                 },
               ),
               _buildMenuOption(
@@ -697,9 +704,16 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
           // Partner + car context banner
           if (widget.chat.isPartner || (widget.chat.carName != null && widget.chat.carName!.isNotEmpty))
             _buildContextBanner(),
-          // Messages List
+          // Messages List — tapping anywhere on it dismisses the keyboard,
+          // matching iMessage / WhatsApp / IG behavior. Dragging the list
+          // also dismisses (handled by ScrollViewKeyboardDismissBehavior
+          // inside the ListView itself).
           Expanded(
-            child: _buildMessagesList(),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => FocusScope.of(context).unfocus(),
+              child: _buildMessagesList(),
+            ),
           ),
           // Message Input
           _buildMessageInput(),
@@ -913,12 +927,24 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
 
     return messagesAsync.when(
       data: (messages) {
-        // Auto-scroll to bottom when new messages arrive
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_scrollController.hasClients && messages.isNotEmpty) {
-            _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-          }
-        });
+        // Auto-scroll only when the message count actually grows. Without
+        // this guard every provider tick (status flips, isRead updates,
+        // pending-merge churn) re-snaps the list and reads as a flicker.
+        final didGrow = messages.length > _lastMessageCount;
+        if (messages.length != _lastMessageCount) {
+          _lastMessageCount = messages.length;
+        }
+        if (didGrow) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (_scrollController.hasClients && messages.isNotEmpty) {
+              _scrollController.animateTo(
+                _scrollController.position.maxScrollExtent,
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOut,
+              );
+            }
+          });
+        }
 
         if (messages.isEmpty) {
           return Center(
@@ -955,6 +981,10 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
               return ListView.builder(
                 controller: _scrollController,
                 padding: const EdgeInsets.symmetric(vertical: 16),
+                // Drag the message list down to dismiss the keyboard —
+                // standard iOS / Material chat UX.
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 itemCount: messages.length + (isOtherUserTyping ? 1 : 0),
                 itemBuilder: (context, index) {
                   if (index == messages.length) {
@@ -977,12 +1007,18 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
               return Column(
                 children: [
                   if (showDateSeparator) _buildDateSeparator(message.timestamp),
-                  GestureDetector(
-                    onLongPress: () => _showMessageMenu(context, message),
-                    child: _buildMessageBubble(
-                      message,
-                      showAvatar: showAvatar,
-                      isMe: isMe,
+                  _SwipeToReply(
+                    onReply: () {
+                      HapticFeedback.mediumImpact();
+                      _startReply(message);
+                    },
+                    child: GestureDetector(
+                      onLongPress: () => _showMessageMenu(context, message),
+                      child: _buildMessageBubble(
+                        message,
+                        showAvatar: showAvatar,
+                        isMe: isMe,
+                      ),
                     ),
                   ),
                 ],
@@ -1136,6 +1172,76 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
         ],
       ),
     );
+  }
+
+  /// Build a [ChatMessage] from the JSON payload of a `new_message`
+  /// WebSocket event. Mirrors the shape produced by the backend's
+  /// `process_chat_message` and the HTTP message endpoint, so the
+  /// resulting object is structurally identical to one fetched via REST.
+  ChatMessage? _chatMessageFromWsPayload(Map<String, dynamic> payload) {
+    try {
+      final id = (payload['id'] ?? '').toString();
+      final convo = (payload['conversation_id'] ?? '').toString();
+      final senderId = (payload['sender_id'] ?? '').toString();
+      if (id.isEmpty || convo.isEmpty || senderId.isEmpty) return null;
+
+      // Backend sends NaiveDateTime without offset for created_at; treat
+      // the same way as REST: append `Z` if no offset, then convert to
+      // local for display.
+      DateTime ts;
+      final raw = payload['created_at']?.toString();
+      if (raw == null || raw.isEmpty) {
+        ts = DateTime.now();
+      } else {
+        final hasOffset = raw.endsWith('Z') ||
+            RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(raw);
+        ts = DateTime.parse(hasOffset ? raw : '${raw}Z').toLocal();
+      }
+
+      MessageType type;
+      switch ((payload['message_type'] ?? 'text').toString()) {
+        case 'voice':
+          type = MessageType.voice;
+          break;
+        case 'image':
+          type = MessageType.image;
+          break;
+        default:
+          type = MessageType.text;
+      }
+
+      return ChatMessage(
+        id: id,
+        chatId: convo,
+        senderId: senderId,
+        senderName: (payload['sender_name'] ?? '').toString(),
+        senderImageUrl: '',
+        message: (payload['content'] ?? '').toString(),
+        timestamp: ts,
+        type: type,
+        isRead: false,
+        clientId: payload['client_id']?.toString(),
+      );
+    } catch (e) {
+      debugPrint('[ChatDetail] Failed to parse new_message payload: $e');
+      return null;
+    }
+  }
+
+  /// Begin replying to [message]. Shared by the long-press menu and the
+  /// new swipe-right gesture. Focuses the input so the user can start
+  /// typing immediately — same UX as Snap/IG.
+  void _startReply(ChatMessage message) {
+    setState(() {
+      _replyingTo = ReplyInfo(
+        messageId: message.id,
+        senderId: message.senderId,
+        senderName: message.senderName,
+        message: message.message,
+        type: message.type,
+      );
+    });
+    _focusNode.requestFocus();
   }
 
   Widget _buildStatusIcon(ChatMessage message) {
@@ -1691,6 +1797,143 @@ class _VoiceMessageBubbleState extends State<_VoiceMessageBubble> {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Snap/IG-style swipe-right-to-reply.
+///
+/// The bubble translates with the user's finger up to a hard cap. A reply
+/// icon fades in to the left of the bubble; once the drag passes the
+/// trigger threshold the icon scales up and locks in. On release past the
+/// threshold we fire [onReply]; otherwise we animate the bubble back to
+/// rest. The gesture only activates on rightward drags so vertical scroll
+/// of the chat list is preserved.
+class _SwipeToReply extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onReply;
+  const _SwipeToReply({required this.child, required this.onReply});
+
+  @override
+  State<_SwipeToReply> createState() => _SwipeToReplyState();
+}
+
+class _SwipeToReplyState extends State<_SwipeToReply>
+    with SingleTickerProviderStateMixin {
+  static const double _maxDrag = 80;
+  static const double _trigger = 56;
+
+  double _dragX = 0;
+  bool _triggered = false;
+  late final AnimationController _settleController;
+  Animation<double>? _settleAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _settleController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 220),
+    )..addListener(() {
+      if (_settleAnim != null && mounted) {
+        setState(() => _dragX = _settleAnim!.value);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _settleController.dispose();
+    super.dispose();
+  }
+
+  void _animateBack() {
+    _settleAnim = Tween<double>(begin: _dragX, end: 0)
+        .chain(CurveTween(curve: Curves.easeOutCubic))
+        .animate(_settleController);
+    _settleController
+      ..reset()
+      ..forward();
+  }
+
+  void _onUpdate(DragUpdateDetails d) {
+    if (_settleController.isAnimating) return;
+    var next = _dragX + d.delta.dx;
+    // Only allow rightward drag.
+    if (next < 0) next = 0;
+    if (next > _maxDrag) next = _maxDrag;
+
+    final crossing = !_triggered && next >= _trigger;
+    if (crossing) {
+      HapticFeedback.lightImpact();
+      _triggered = true;
+    } else if (_triggered && next < _trigger) {
+      _triggered = false;
+    }
+    setState(() => _dragX = next);
+  }
+
+  void _onEnd(DragEndDetails _) {
+    if (_dragX >= _trigger) {
+      widget.onReply();
+    }
+    _triggered = false;
+    _animateBack();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = (_dragX / _trigger).clamp(0.0, 1.0);
+    final iconScale = 0.6 + 0.6 * progress;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onHorizontalDragUpdate: _onUpdate,
+      onHorizontalDragEnd: _onEnd,
+      onHorizontalDragCancel: _animateBack,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // Reply icon revealed behind the bubble as it swipes right.
+          if (_dragX > 4)
+            Positioned.fill(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 12),
+                  child: Opacity(
+                    opacity: progress,
+                    child: Transform.scale(
+                      scale: iconScale,
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white.withValues(alpha: 0.12)
+                              : const Color(0xFFE5E5EA),
+                        ),
+                        alignment: Alignment.center,
+                        child: Icon(
+                          Icons.reply_rounded,
+                          size: 18,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white
+                              : Colors.black87,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          Transform.translate(
+            offset: Offset(_dragX, 0),
+            child: widget.child,
           ),
         ],
       ),

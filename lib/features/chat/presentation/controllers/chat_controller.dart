@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/core/services/api_client.dart';
+import 'package:qent/core/services/websocket_service.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/chat/data/datasources/api_chat_datasource.dart';
 import 'package:qent/features/chat/domain/models/chat.dart';
@@ -195,6 +196,40 @@ class ChatMessagesNotifier
     return AsyncValue.data(_mergeWith(_lastServer, pending));
   }
 
+  /// Append (or replace, if already present by id or client_id) a server
+  /// message into the cached snapshot, then trigger a rebuild. This is
+  /// what the WebSocket `new_message` handler calls — much faster than
+  /// invalidating the messagesStreamProvider and refetching the whole
+  /// list over HTTP.
+  ///
+  /// Idempotent: if the same id/client_id is already in `_lastServer`
+  /// we replace in place instead of duplicating, so a delayed HTTP
+  /// refetch arriving after the WS event is harmless.
+  void appendServerMessage(ChatMessage message) {
+    if (!_hasServerData) {
+      _lastServer = [message];
+      _hasServerData = true;
+    } else {
+      // Find existing by id (server-confirmed) or by clientId (when an
+      // older snapshot saw it before its server id materialised).
+      final existingIdx = _lastServer.indexWhere((m) {
+        if (m.id == message.id) return true;
+        final ac = message.clientId;
+        return ac != null && ac.isNotEmpty && m.clientId == ac;
+      });
+      if (existingIdx >= 0) {
+        final next = List<ChatMessage>.from(_lastServer);
+        next[existingIdx] = message;
+        _lastServer = next;
+      } else {
+        _lastServer = [..._lastServer, message];
+      }
+    }
+    // Force the provider to re-emit so anyone watching gets the new list.
+    final pending = ref.read(pendingMessagesProvider(conversationId));
+    state = AsyncValue.data(_mergeWith(_lastServer, pending));
+  }
+
   List<ChatMessage> _mergeWith(
     List<ChatMessage> server,
     List<ChatMessage> pending,
@@ -286,6 +321,31 @@ class ChatController {
     final pending = _ref.read(pendingMessagesProvider(chatId).notifier);
     pending.add(optimistic);
 
+    // Fast path: send over WebSocket. The server inserts, dedupes by
+    // client_id, and broadcasts a `new_message` back to us — the
+    // chatMessagesProvider auto-confirms our optimistic row when that
+    // arrives. No HTTP round-trip, no refetch. This is what makes chat
+    // feel instant on slow networks.
+    final ws = _ref.read(wsServiceProvider);
+    final sentOverWs = ws.sendChatMessage(
+      conversationId: chatId,
+      content: message,
+      messageType: type.name,
+      clientId: cid,
+      replyToId: replyToMessageId,
+    );
+
+    if (sentOverWs) {
+      // Bump the chat list now too — `last_message_text` will be stale
+      // until the server-broadcast new_message round-trips. Cheap to
+      // refetch the conversations list.
+      _ref.invalidate(chatsStreamProvider);
+      _ref.invalidate(chatsProvider);
+      return;
+    }
+
+    // WS not connected — fall back to HTTP. Same idempotency key, so if
+    // both somehow land the server dedupes.
     try {
       await _dataSource.sendMessage(
         chatId,
@@ -294,16 +354,15 @@ class ChatController {
         replyToId: replyToMessageId,
         clientId: cid,
       );
-      // We do NOT remove the optimistic entry here. The chatMessagesProvider
-      // refetches on invalidate and removes pending entries automatically
-      // once a matching server message arrives. Removing here would create
-      // a brief gap where the message vanishes (refetch is async).
+      // We do NOT remove the optimistic entry here. chatMessagesProvider
+      // matches by clientId on the next stream tick (HTTP + invalidate)
+      // and confirms it then.
       _ref.invalidate(messagesStreamProvider(chatId));
       _ref.invalidate(messagesProvider(chatId));
       _ref.invalidate(chatsStreamProvider);
       _ref.invalidate(chatsProvider);
     } catch (e) {
-      debugPrint('[Qent Chat] sendMessage failed: $e');
+      debugPrint('[Qent Chat] sendMessage HTTP fallback failed: $e');
       pending.markFailed(tempId);
       rethrow;
     }
@@ -384,6 +443,20 @@ class ChatController {
       (m) => m.copyWith(message: uploadedUrl!, status: MessageStatus.sending),
     );
 
+    // Same fast path as text: try WebSocket first, fall back to HTTP.
+    final ws = _ref.read(wsServiceProvider);
+    final sentOverWs = ws.sendChatMessage(
+      conversationId: chatId,
+      content: uploadedUrl,
+      messageType: type.name,
+      clientId: cid,
+    );
+    if (sentOverWs) {
+      _ref.invalidate(chatsStreamProvider);
+      _ref.invalidate(chatsProvider);
+      return;
+    }
+
     try {
       await _dataSource.sendMessage(
         chatId,
@@ -396,7 +469,7 @@ class ChatController {
       _ref.invalidate(chatsStreamProvider);
       _ref.invalidate(chatsProvider);
     } catch (e) {
-      debugPrint('[Qent Chat] media sendMessage failed: $e');
+      debugPrint('[Qent Chat] media sendMessage HTTP fallback failed: $e');
       pending.markFailed(tempId);
       rethrow;
     }
