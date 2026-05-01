@@ -8,6 +8,7 @@ import 'package:qent/core/services/websocket_service.dart';
 import 'package:qent/core/theme/app_theme.dart';
 import 'package:qent/core/utils/ios_version.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
+import 'package:qent/features/chat/data/datasources/chat_cache.dart';
 import 'package:qent/features/chat/domain/models/chat.dart';
 import 'package:qent/features/chat/presentation/controllers/chat_controller.dart';
 import 'package:qent/features/chat/presentation/pages/chat_detail_page.dart';
@@ -65,6 +66,24 @@ class MainNavPageState extends ConsumerState<MainNavPage>
       if (event.type == 'call_offer') {
         _handleIncomingCall(event.payload);
       }
+    });
+
+    // Build chatControllerProvider eagerly so its global WS event
+    // listener exists from the moment the user lands on the home
+    // tab. Without this, messages that arrive before the user first
+    // visits the Messages tab don't get cached / appended into
+    // chatMessagesProvider, and the chat detail "loads slowly" the
+    // first time it's opened.
+    // ignore: unused_result
+    ref.read(chatControllerProvider);
+    // Touch the chat cache so sqflite opens + initializes its
+    // tables now (during launch where the user is looking at the
+    // home tab) rather than during the first chat tap, where the
+    // 200-500ms cold-open shows up as visible lag.
+    Future.microtask(() async {
+      try {
+        await ref.read(chatCacheProvider).getConversations();
+      } catch (_) {}
     });
   }
 

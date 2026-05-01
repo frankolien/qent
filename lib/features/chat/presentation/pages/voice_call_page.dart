@@ -61,6 +61,18 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
   /// Cancellable handle for the 30s ringing timeout. Cancelled when the
   /// call connects, is rejected, or hangs up.
   Timer? _ringTimeout;
+  /// Last few diagnostic events so the on-screen debug overlay can
+  /// surface where a call is stalling on TestFlight (no flutter logs
+  /// available there).
+  final List<String> _diag = [];
+  void _logDiag(String s) {
+    debugPrint('[VoiceCall] $s');
+    if (!mounted) return;
+    setState(() {
+      _diag.add(s);
+      if (_diag.length > 8) _diag.removeAt(0);
+    });
+  }
 
   // STUN handles the easy NATs (~70-80% of cases). On symmetric NATs —
   // every Nigerian carrier (MTN, Glo, Airtel) uses these — STUN alone
@@ -193,7 +205,7 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
           // 'typ host', 'typ srflx' (STUN), or 'typ relay' (TURN).
           final c = candidate.candidate ?? '';
           final typ = RegExp(r'typ (\w+)').firstMatch(c)?.group(1) ?? '?';
-          debugPrint('[VoiceCall] local ICE: $typ');
+          _logDiag('local ICE: $typ');
           ref.read(wsServiceProvider).sendIceCandidate(
             targetId: widget.targetId,
             candidate: candidate.toMap(),
@@ -202,16 +214,16 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
       };
 
       _pc!.onIceGatheringState = (s) =>
-          debugPrint('[VoiceCall] ICE gathering: $s');
+          _logDiag('ICE gather: ${s.name.replaceFirst('RTCIceGatheringState', '')}');
       _pc!.onIceConnectionState = (s) {
-        debugPrint('[VoiceCall] ICE connection: $s');
+        _logDiag('ICE conn: ${s.name.replaceFirst('RTCIceConnectionState', '')}');
         if (s == RTCIceConnectionState.RTCIceConnectionStateFailed) {
           _endCall();
         }
       };
 
       _pc!.onConnectionState = (state) {
-        debugPrint('[VoiceCall] PC connection: $state');
+        _logDiag('PC: ${state.name.replaceFirst('RTCPeerConnectionState', '')}');
         if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
           if (mounted) {
             setState(() => _callState = CallState.connected);
@@ -224,6 +236,22 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
                 RTCPeerConnectionState
                     .RTCPeerConnectionStateDisconnected) {
           _endCall();
+        }
+      };
+
+      // Without an explicit onTrack handler the remote stream isn't
+      // attached anywhere, and on iOS the AVAudioSession isn't
+      // necessarily activated to play it. Adding the remote audio
+      // tracks and forcing the speaker route through Helper sets up
+      // the AVAudioSession in PlayAndRecord mode so the earpiece /
+      // loudspeaker can actually play received audio. Without this
+      // the call connects ICE-wise but the user hears silence.
+      _pc!.onTrack = (event) {
+        _logDiag('remote track: ${event.track.kind}');
+        if (event.streams.isNotEmpty) {
+          for (final t in event.streams.first.getAudioTracks()) {
+            t.enabled = true;
+          }
         }
       };
 
@@ -296,7 +324,7 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
         if (candidate.candidate != null) {
           final c = candidate.candidate ?? '';
           final typ = RegExp(r'typ (\w+)').firstMatch(c)?.group(1) ?? '?';
-          debugPrint('[VoiceCall] local ICE (callee): $typ');
+          _logDiag('local ICE (cee): $typ');
           ref.read(wsServiceProvider).sendIceCandidate(
             targetId: widget.targetId,
             candidate: candidate.toMap(),
@@ -305,9 +333,9 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
       };
 
       _pc!.onIceGatheringState = (s) =>
-          debugPrint('[VoiceCall] ICE gathering (callee): $s');
+          _logDiag('ICE gather (cee): ${s.name.replaceFirst('RTCIceGatheringState', '')}');
       _pc!.onIceConnectionState = (s) {
-        debugPrint('[VoiceCall] ICE connection (callee): $s');
+        _logDiag('ICE conn (cee): ${s.name.replaceFirst('RTCIceConnectionState', '')}');
         // If ICE never establishes (TURN unreachable, etc.) the call
         // sits forever on "Connecting…" without this. Mirror the
         // caller-side failure handling.
@@ -317,7 +345,7 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
       };
 
       _pc!.onConnectionState = (state) {
-        debugPrint('[VoiceCall] PC connection (callee): $state');
+        _logDiag('PC (cee): ${state.name.replaceFirst('RTCPeerConnectionState', '')}');
         if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
           if (mounted) {
             setState(() => _callState = CallState.connected);
@@ -328,6 +356,17 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
             state ==
                 RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
           _endCall();
+        }
+      };
+
+      // Mirror the caller-side onTrack handler so received audio is
+      // attached + iOS AudioSession is activated for playback.
+      _pc!.onTrack = (event) {
+        _logDiag('remote track (cee): ${event.track.kind}');
+        if (event.streams.isNotEmpty) {
+          for (final t in event.streams.first.getAudioTracks()) {
+            t.enabled = true;
+          }
         }
       };
 
@@ -533,6 +572,38 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
           SafeArea(
             child: Column(
               children: [
+                // Tiny diagnostic pill so we can verify TURN/ICE state
+                // on TestFlight (where there's no flutter logs). Green
+                // pill = TURN servers fetched (cross-network calls
+                // should work). Amber pill = STUN-only fallback (key
+                // missing on backend or Metered call failed).
+                _IceStatusPill(config: _config),
+                if (_diag.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.45),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (final line in _diag)
+                            Text(
+                              line,
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 10,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
                 const Spacer(flex: 2),
 
                 // Profile image with green online dot
@@ -701,6 +772,59 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
           shape: BoxShape.circle,
         ),
         child: const Icon(Icons.call_rounded, color: Colors.white, size: 30),
+      ),
+    );
+  }
+}
+
+/// Tiny status pill at the top of the call screen showing whether
+/// TURN servers were fetched. Visible to the user so we can verify
+/// cross-network call readiness on TestFlight without relying on
+/// `flutter logs` (which isn't available off a debug build).
+///
+/// Green pill ("TURN: N") = relay servers fetched from Metered.
+/// Cross-cellular calls should connect.
+///
+/// Amber pill ("STUN only") = the backend's `/turn-credentials`
+/// returned no TURN entries — either `METERED_API_KEY` is unset on
+/// Render or the upstream call to Metered failed. Calls between
+/// devices on different NATs (different cellular networks) will
+/// fail to connect.
+class _IceStatusPill extends StatelessWidget {
+  final Map<String, dynamic> config;
+  const _IceStatusPill({required this.config});
+
+  @override
+  Widget build(BuildContext context) {
+    final servers = (config['iceServers'] as List?) ?? const [];
+    final turnCount = servers.where((s) {
+      final urls = (s as Map)['urls'];
+      if (urls is String) return urls.startsWith('turn');
+      if (urls is List) return urls.any((u) => u is String && u.startsWith('turn'));
+      return false;
+    }).length;
+    final hasTurn = turnCount > 0;
+    final label = hasTurn ? 'TURN: $turnCount' : 'STUN only';
+    final bg = hasTurn
+        ? const Color(0xFF1B5E20).withValues(alpha: 0.85)
+        : const Color(0xFFB26A00).withValues(alpha: 0.85);
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.3,
+          ),
+        ),
       ),
     );
   }

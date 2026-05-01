@@ -394,11 +394,19 @@ class ChatMessagesNotifier
       }
     });
 
-    // Until the very first server fetch lands, mirror the server state
-    // (loading/error). After that, always serve the last good snapshot
-    // merged with current pending — never go back to loading on refetch.
+    // Until the very first server fetch lands, surface errors so the
+    // detail page can show its retry button — but treat the brief
+    // "loading" window as an empty data snapshot, not a skeleton.
+    // The user perceives an empty chat that fills in fast as snappy;
+    // a full-screen skeleton that flashes for 200-800ms then swaps
+    // to a populated chat reads as "slow load." Pending optimistic
+    // entries still render during this window.
     if (!_hasServerData) {
-      return serverAsync.whenData((server) => _mergeWith(server, pending));
+      return serverAsync.when(
+        data: (server) => AsyncValue.data(_mergeWith(server, pending)),
+        error: (e, st) => AsyncValue.error(e, st),
+        loading: () => AsyncValue.data(_mergeWith(const [], pending)),
+      );
     }
     return AsyncValue.data(_mergeWith(_lastServer, pending));
   }

@@ -199,6 +199,24 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
 
       final chats = chatsAsync.value!;
 
+      // Pre-warm the message providers for the top conversations so
+      // tapping into a chat shows messages instantly (cache + REST
+      // already resolved) instead of flashing a skeleton while the
+      // first sqflite open + network round-trip happen on entry.
+      // Limited to the first 8 chats — that covers the visible part
+      // of the list without paying the full N-chats network cost on
+      // slow cellular.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        for (final chat in chats.take(8)) {
+          // Touch the providers so their async generators start.
+          // ignore: unused_result
+          ref.read(messagesStreamProvider(chat.id));
+          // ignore: unused_result
+          ref.read(chatMessagesProvider(chat.id));
+        }
+      });
+
       // Apply search filter
       var filteredChats = _searchQuery.isEmpty
           ? chats
@@ -211,13 +229,23 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
         return _buildEmptyState();
       }
 
-      return ListView.builder(
-        physics: const AlwaysScrollableScrollPhysics(
-          parent: BouncingScrollPhysics(),
+      return RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(chatsStreamProvider);
+          ref.invalidate(chatsProvider);
+          // Wait long enough that the spinner stays visible while the
+          // REST refetch is in flight; the indicator dismisses as soon
+          // as the future completes.
+          await Future.delayed(const Duration(milliseconds: 600));
+        },
+        child: ListView.builder(
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
+          padding: const EdgeInsets.only(top: 8),
+          itemCount: filteredChats.length,
+          itemBuilder: (_, idx) => _buildSwipeableChatItem(filteredChats[idx]),
         ),
-        padding: const EdgeInsets.only(top: 8),
-        itemCount: filteredChats.length,
-        itemBuilder: (_, idx) => _buildSwipeableChatItem(filteredChats[idx]),
       );
     }
 
@@ -392,6 +420,16 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
     return InkWell(
       onTap: () {
         HapticFeedback.selectionClick();
+        // Kick the providers a frame BEFORE pushing the detail page.
+        // The route transition is ~300ms — that head start covers the
+        // sqflite open + cache read + initial REST round-trip on most
+        // networks, so by the time the detail page mounts the data is
+        // already in memory and the chat shows instantly. Without
+        // this, chats outside the prefetched top-8 cold-load on tap.
+        // ignore: unused_result
+        ref.read(messagesStreamProvider(chat.id));
+        // ignore: unused_result
+        ref.read(chatMessagesProvider(chat.id));
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => ChatDetailPage(chat: chat)),

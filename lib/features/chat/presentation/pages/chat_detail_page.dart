@@ -66,6 +66,21 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
     _messageController.addListener(_onMessageChanged);
     _focusNode.addListener(_onFocusChanged);
 
+    // Belt-and-suspenders: always force a fresh REST fetch on chat
+    // open. The kept-alive `chatMessagesProvider` keeps showing
+    // whatever it had (cached + WS-appended), so this is invisible
+    // to the user — the new emission just reconciles the in-memory
+    // snapshot with whatever the server says is canonical right
+    // now, picking up any messages that were missed (e.g. WS gap
+    // that the periodic reconnect-check didn't catch, or an upsert
+    // that lost a race with replaceMessages). Cost: one HTTP call
+    // per chat-open. Benefit: chat detail is never out of date by
+    // more than the round-trip.
+    Future.microtask(() {
+      if (!mounted) return;
+      ref.invalidate(messagesStreamProvider(widget.chat.id));
+    });
+
     // Listen for real-time messages via WebSocket
     final ws = ref.read(wsServiceProvider);
     // Mark this conversation as active so the server suppresses push

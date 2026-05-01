@@ -30,7 +30,7 @@ void main() async {
     debugPrint('Error loading .env file: $e');
   }
 
-  // Initialize Firebase (needed for chat, notifications, online status)
+  // Initialize Firebase (needed for chat, notifications, oxPnline status)
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
