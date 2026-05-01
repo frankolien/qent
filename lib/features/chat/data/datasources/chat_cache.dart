@@ -307,6 +307,24 @@ class ChatCache {
     }
   }
 
+  /// Reset the cached unread count for a conversation to zero. Called
+  /// when the user opens the chat (mirrors the server's mark_read), so
+  /// the chats list's blue badge clears instantly without waiting on
+  /// the next REST refetch.
+  Future<void> clearUnread(String conversationId) async {
+    try {
+      final db = await _open();
+      await db.update(
+        'conversations',
+        const {'unread_count': 0},
+        where: 'id = ?',
+        whereArgs: [conversationId],
+      );
+    } catch (e) {
+      debugPrint('[ChatCache] clearUnread failed: $e');
+    }
+  }
+
   Future<void> deleteConversation(String conversationId) async {
     try {
       final db = await _open();

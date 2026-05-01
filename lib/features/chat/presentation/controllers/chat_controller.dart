@@ -1064,6 +1064,13 @@ class ChatController {
   }
 
   Future<void> markAsRead(String chatId) async {
+    // Clear the cached unread count immediately so the blue badge in
+    // the chat list disappears without waiting on the HTTP round-trip
+    // (or the next /conversations refetch). The server call below is
+    // the authoritative reset; this is just the optimistic mirror.
+    unawaited(_ref.read(chatCacheProvider).clearUnread(chatId));
+    _ref.invalidate(chatsStreamProvider);
+    _ref.invalidate(chatsProvider);
     try {
       await _dataSource.markAsRead(chatId);
     } catch (e) {
@@ -1150,6 +1157,31 @@ final chatControllerProvider = Provider<ChatController>((ref) {
               lastMessageAt: ts,
               unreadDelta: isFromOther ? 1 : 0,
             ));
+        // Also write the actual message into the messages cache, AND
+        // append it into the in-memory chatMessagesProvider snapshot
+        // (if that provider is alive). Without this, opening the chat
+        // from the list shows yesterday's tail and "loads" the new
+        // message visibly slowly while REST refetches — even though
+        // the chat-list preview already showed it. The chat detail's
+        // own WS handler still runs when that screen is mounted; this
+        // is the global fallback for "user is anywhere else."
+        final msg = _chatMessageFromGlobalWsPayload(event.payload);
+        if (msg != null) {
+          unawaited(ref.read(chatCacheProvider).upsertMessage(msg));
+          // The keep-alive on chatMessagesProvider means once the user
+          // has opened a chat this session, the provider stays alive
+          // and this append lands instantly — opening the chat again
+          // shows the new message with no REST round-trip. If they've
+          // never opened it, this read constructs it; the cache write
+          // above is what keeps that first open snappy.
+          try {
+            ref
+                .read(chatMessagesProvider(convoId).notifier)
+                .appendServerMessage(msg);
+          } catch (_) {
+            // best-effort
+          }
+        }
       }
       ref.invalidate(chatsStreamProvider);
       ref.invalidate(chatsProvider);
@@ -1201,6 +1233,72 @@ final chatControllerProvider = Provider<ChatController>((ref) {
 
   return controller;
 });
+
+/// Build a [ChatMessage] from a `new_message` WS payload. Mirrors the
+/// version that lives in chat_detail_page (which has access to the
+/// page's local sender_image lookup) — this one is used by the global
+/// WS listener that runs regardless of which screen is on top, so it
+/// only needs the fields the cache and chat-list snapshot care about.
+ChatMessage? _chatMessageFromGlobalWsPayload(Map<String, dynamic> payload) {
+  try {
+    final id = (payload['id'] ?? '').toString();
+    final convo = (payload['conversation_id'] ?? '').toString();
+    final senderId = (payload['sender_id'] ?? '').toString();
+    if (id.isEmpty || convo.isEmpty || senderId.isEmpty) return null;
+
+    MessageType type;
+    switch ((payload['message_type'] ?? 'text').toString()) {
+      case 'voice':
+        type = MessageType.voice;
+        break;
+      case 'image':
+        type = MessageType.image;
+        break;
+      default:
+        type = MessageType.text;
+    }
+
+    ReplyInfo? replyTo;
+    final replyToId = payload['reply_to_id']?.toString();
+    final replyToContent = payload['reply_to_content']?.toString();
+    if (replyToId != null && replyToId.isNotEmpty && replyToContent != null) {
+      MessageType replyType;
+      switch ((payload['reply_to_message_type'] ?? 'text').toString()) {
+        case 'voice':
+          replyType = MessageType.voice;
+          break;
+        case 'image':
+          replyType = MessageType.image;
+          break;
+        default:
+          replyType = MessageType.text;
+      }
+      replyTo = ReplyInfo(
+        messageId: replyToId,
+        senderId: (payload['reply_to_sender_id'] ?? '').toString(),
+        senderName: (payload['reply_to_sender_name'] ?? '').toString(),
+        message: replyToContent,
+        type: replyType,
+      );
+    }
+
+    return ChatMessage(
+      id: id,
+      chatId: convo,
+      senderId: senderId,
+      senderName: (payload['sender_name'] ?? '').toString(),
+      senderImageUrl: '',
+      message: (payload['content'] ?? '').toString(),
+      timestamp: _parseWsTimestamp(payload['created_at']),
+      type: type,
+      isRead: payload['is_read'] == true,
+      replyTo: replyTo,
+      clientId: payload['client_id']?.toString(),
+    );
+  } catch (_) {
+    return null;
+  }
+}
 
 /// Parse a server `created_at` timestamp from a WebSocket payload. The
 /// backend serialises NaiveDateTime with no offset, so we treat it as
