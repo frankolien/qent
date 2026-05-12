@@ -7,6 +7,7 @@ import 'package:qent/features/profile/presentation/pages/edit_profile_page.dart'
 import 'package:qent/features/favorites/presentation/pages/favorites_page.dart';
 import 'package:qent/features/dashboard/presentation/pages/host_dashboard_page.dart';
 import 'package:qent/features/dashboard/presentation/pages/add_listing_page.dart';
+import 'package:qent/features/partner/presentation/pages/partner_onboarding_welcome_page.dart';
 import 'package:qent/features/booking/presentation/pages/booking_history_page.dart';
 import 'package:qent/features/notifications/presentation/pages/notifications_page.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -103,7 +104,10 @@ class ProfilePage extends ConsumerWidget {
               _buildMenuItem(
                 'assets/images/Profile/connect.png',
                 'Connected to QENT Partnerships',
-                onTap: () => Navigator.of(context).pushNamed('/partner/onboarding'),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                      builder: (_) => const PartnerOnboardingWelcomePage()),
+                ),
               ),
               const SizedBox(height: 28),
               _buildSectionTitle('Support'),

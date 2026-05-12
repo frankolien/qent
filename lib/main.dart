@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -37,12 +38,17 @@ void main() async {
 
   // Initialize API client with backend URL.
   //
-  // TEMPORARY: forcing production for on-device testing. Revert this
-  // ternary back to `kReleaseMode ? prodUrl : (dotenv.env['API_BASE_URL']
-  // ?? prodUrl)` to resume hitting the local Rust server in debug.
+  // Debug builds hit the local Rust server (configured via the
+  // `API_BASE_URL` entry in `.env`, e.g. http://192.168.x.x:8080/api
+  // for on-device testing). Release builds always hit production so
+  // shipped APKs can't accidentally point at someone's laptop.
   const prodUrl = 'https://qent-backend.onrender.com/api';
   final apiClient = ApiClient();
-  await apiClient.initialize(baseUrl: prodUrl);
+  await apiClient.initialize(
+    baseUrl: kReleaseMode
+        ? prodUrl
+        : (dotenv.env['API_BASE_URL'] ?? prodUrl),
+  );
 
   // Load the saved theme BEFORE the first frame so we never paint with the
   // wrong colors. Defaults to ThemeMode.system for first-time users.

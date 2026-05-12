@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:qent/features/partner/presentation/pages/partner_form_page.dart';
+import 'package:qent/features/partner/presentation/pages/v2/editorial_owner_page.dart';
 
 class PartnerOnboardingWelcomePage extends StatelessWidget {
   const PartnerOnboardingWelcomePage({super.key});
@@ -95,7 +95,7 @@ class PartnerOnboardingWelcomePage extends StatelessWidget {
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const PartnerFormPage()),
+                          MaterialPageRoute(builder: (_) => const EditorialOwnerPage()),
                         );
                       },
                       child: const Text(
