@@ -7,7 +7,9 @@ import 'package:qent/features/profile/presentation/pages/edit_profile_page.dart'
 import 'package:qent/features/favorites/presentation/pages/favorites_page.dart';
 import 'package:qent/features/dashboard/presentation/pages/host_dashboard_page.dart';
 import 'package:qent/features/dashboard/presentation/pages/add_listing_page.dart';
+import 'package:qent/features/partner/presentation/controllers/partner_v2_controller.dart';
 import 'package:qent/features/partner/presentation/pages/partner_onboarding_welcome_page.dart';
+import 'package:qent/features/partner/presentation/pages/v2/editorial_vehicle_page.dart';
 import 'package:qent/features/booking/presentation/pages/booking_history_page.dart';
 import 'package:qent/features/notifications/presentation/pages/notifications_page.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -101,14 +103,66 @@ class ProfilePage extends ConsumerWidget {
                 ),
               ),
               _buildDarkModeToggle(ref),
-              _buildMenuItem(
-                'assets/images/Profile/connect.png',
-                'Connected to QENT Partnerships',
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                      builder: (_) => const PartnerOnboardingWelcomePage()),
-                ),
-              ),
+              // Partner entry — label + behavior depends on whether the
+              // user is already a verified host. New users see "Become a
+               // partner" and start onboarding; verified hosts see a
+              // "Connected" confirmation snackbar and a separate "Add
+              // new listing" entry that jumps straight to Vehicle.
+              Consumer(builder: (context, ref, _) {
+                final profile =
+                    ref.watch(partnerProfileProvider).asData?.value;
+                final listings = ref
+                        .watch(partnerListingsProvider)
+                        .asData
+                        ?.value ??
+                    const [];
+                final isVerified = profile?.identityStatus == 'verified';
+                final hasLiveListing = listings.any(
+                  (l) => l.listingStatus == 'approved',
+                );
+                final isPartner = isVerified && hasLiveListing;
+
+                return Column(
+                  children: [
+                    _buildMenuItem(
+                      'assets/images/Profile/connect.png',
+                      isPartner
+                          ? 'Connected to QENT Partnerships'
+                          : 'Become a QENT Partner',
+                      onTap: () {
+                        if (isPartner) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                "You're already a QENT Partner",
+                                style: GoogleFonts.roboto(),
+                              ),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                          return;
+                        }
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const PartnerOnboardingWelcomePage(),
+                          ),
+                        );
+                      },
+                    ),
+                    if (isPartner)
+                      _buildMenuItemIcon(
+                        Icons.add_circle_outline,
+                        'Add new listing',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const EditorialVehiclePage(),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              }),
               const SizedBox(height: 28),
               _buildSectionTitle('Support'),
               const SizedBox(height: 12),

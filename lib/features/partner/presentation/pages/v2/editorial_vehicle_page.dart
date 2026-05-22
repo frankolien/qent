@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:qent/core/utils/friendly_error.dart';
 import 'package:qent/features/partner/data/models/partner_listing.dart';
 import 'package:qent/features/partner/presentation/controllers/partner_v2_controller.dart';
 import 'package:qent/features/partner/presentation/pages/v2/editorial_owner_page.dart'
@@ -140,10 +141,10 @@ class _EditorialVehiclePageState extends ConsumerState<EditorialVehiclePage> {
       Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => const EditorialPhotosPage()),
       );
-    } catch (e) {
+    } catch (e, st) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
+        SnackBar(content: Text(friendlyError(e, tag: 'Partner/vehicle', stack: st))),
       );
     } finally {
       if (mounted) setState(() => _submitting = false);

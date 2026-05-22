@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:qent/core/services/cloudinary_service.dart';
+import 'package:qent/core/utils/friendly_error.dart';
 import 'package:qent/features/partner/data/models/partner_listing.dart';
 import 'package:qent/features/partner/presentation/controllers/partner_v2_controller.dart';
 import 'package:qent/features/partner/presentation/pages/v2/editorial_documents_page.dart';
@@ -114,7 +115,15 @@ class _EditorialPhotosPageState extends ConsumerState<EditorialPhotosPage> {
     if (source == null) return;
 
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: source, imageQuality: 85);
+    // Cap on-device before upload. iPhone shoots 4032×3024 (~5 MB) which
+    // takes a minute+ to push over LTE for no visible quality gain at
+    // listing-card sizes. 1920px wide + quality 75 lands around 400-800 KB
+    // and finishes in seconds.
+    final picked = await picker.pickImage(
+      source: source,
+      maxWidth: 1920,
+      imageQuality: 75,
+    );
     if (picked == null) return;
     if (!mounted) return;
     setState(() {
@@ -175,10 +184,10 @@ class _EditorialPhotosPageState extends ConsumerState<EditorialPhotosPage> {
       Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => const EditorialDocumentsPage()),
       );
-    } catch (e) {
+    } catch (e, st) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
+        SnackBar(content: Text(friendlyError(e, tag: 'Partner/photos', stack: st))),
       );
     } finally {
       if (mounted) setState(() => _submitting = false);

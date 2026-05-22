@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:qent/core/utils/friendly_error.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/auth/presentation/controllers/auth_state.dart';
 import 'package:qent/features/home/presentation/providers/car_providers.dart';
@@ -65,8 +66,11 @@ class AuthController extends Notifier<AuthState> {
       );
       state = state.copyWith(isLoading: false, user: user);
       ref.read(wsServiceProvider).connect();
-    } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+    } catch (e, st) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: friendlyError(e, tag: 'Auth/signIn', stack: st),
+      );
     }
   }
 
@@ -110,8 +114,11 @@ class AuthController extends Notifier<AuthState> {
       } else {
         state = state.copyWith(isLoading: false, errorMessage: e.message);
       }
-    } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+    } catch (e, st) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: friendlyError(e, tag: 'Auth/apple', stack: st),
+      );
     }
   }
 
@@ -150,8 +157,11 @@ class AuthController extends Notifier<AuthState> {
       );
       state = state.copyWith(isLoading: false, user: user);
       ref.read(wsServiceProvider).connect();
-    } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+    } catch (e, st) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: friendlyError(e, tag: 'Auth/google', stack: st),
+      );
     }
   }
 
@@ -172,8 +182,11 @@ class AuthController extends Notifier<AuthState> {
       );
       state = state.copyWith(isLoading: false, user: user);
       ref.read(wsServiceProvider).connect();
-    } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+    } catch (e, st) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: friendlyError(e, tag: 'Auth/signUp', stack: st),
+      );
     }
   }
 
@@ -212,8 +225,11 @@ class AuthController extends Notifier<AuthState> {
       unawaited(ref.read(chatCacheProvider).clearAll());
 
       state = state.copyWith(isLoading: false, clearUser: true);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+    } catch (e, st) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: friendlyError(e, tag: 'Auth/signOut', stack: st),
+      );
     }
   }
 }

@@ -1,17 +1,25 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+/// Cloudinary uploader using **unsigned upload presets**.
+///
+/// The Cloudinary `api_secret` is no longer in the client — only the
+/// (public) cloud name and a named upload preset configured for unsigned
+/// uploads on the Cloudinary dashboard. The preset locks down what's
+/// allowed (folders, formats, size, transformations) so it's safe to
+/// ship the preset name in the bundle.
+///
+/// Any operation that requires the secret — deletion, admin moves — must
+/// happen on the Rust backend.
 class CloudinaryService {
   static final CloudinaryService _instance = CloudinaryService._internal();
   factory CloudinaryService() => _instance;
   CloudinaryService._internal();
 
   late String _cloudName;
-  late String _apiKey;
-  late String _apiSecret;
+  late String _uploadPreset;
 
   void _log(String message) {
     if (kDebugMode) debugPrint('[Qent Cloudinary] $message');
@@ -19,223 +27,110 @@ class CloudinaryService {
 
   void initialize({
     String? cloudName,
-    String? apiKey,
-    String? apiSecret,
+    String? uploadPreset,
   }) {
-    if (cloudName == null || apiKey == null || apiSecret == null) {
-      throw Exception('Cloudinary credentials must be provided via .env');
+    if (cloudName == null || cloudName.isEmpty ||
+        uploadPreset == null || uploadPreset.isEmpty) {
+      throw Exception(
+        'Cloudinary needs CLOUDINARY_CLOUD_NAME and CLOUDINARY_UPLOAD_PRESET '
+        'in .env. The upload preset must be configured as "Unsigned" in the '
+        'Cloudinary dashboard.',
+      );
     }
     _cloudName = cloudName;
-    _apiKey = apiKey;
-    _apiSecret = apiSecret;
-    _log('Initialized | cloud: $_cloudName');
+    _uploadPreset = uploadPreset;
+    _log('Initialized | cloud: $_cloudName | preset: $_uploadPreset');
   }
 
   Future<String?> uploadImage({
     required File imageFile,
     String? folder,
     String? publicId,
-  }) async {
-    _log('> Uploading file: ${imageFile.path} | folder: $folder');
-    final sw = Stopwatch()..start();
-    try {
-      final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-      final url = 'https://api.cloudinary.com/v1_1/$_cloudName/image/upload';
-
-      final request = http.MultipartRequest('POST', Uri.parse(url));
-      request.fields['timestamp'] = timestamp;
-      if (folder != null) request.fields['folder'] = folder;
-      if (publicId != null) request.fields['public_id'] = publicId;
-
-      request.files.add(
-        await http.MultipartFile.fromPath('file', imageFile.path),
-      );
-
-      final params = <String, String>{'timestamp': timestamp};
-      if (folder != null) params['folder'] = folder;
-      if (publicId != null) params['public_id'] = publicId;
-
-      final sortedParams = Map.fromEntries(
-        params.entries.toList()..sort((a, b) => a.key.compareTo(b.key))
-      );
-      final queryString = sortedParams.entries
-          .map((e) => '${e.key}=${e.value}')
-          .join('&');
-      final signature = sha1.convert(utf8.encode('$queryString$_apiSecret')).toString();
-
-      request.fields['api_key'] = _apiKey;
-      request.fields['signature'] = signature;
-
-      final response = await request.send();
-      final responseBody = await response.stream.bytesToString();
-      sw.stop();
-
-      if (response.statusCode == 200) {
-        final jsonResponse = jsonDecode(responseBody) as Map<String, dynamic>;
-        final secureUrl = jsonResponse['secure_url'] as String?;
-        _log('OK: Upload success (${sw.elapsedMilliseconds}ms) -> $secureUrl');
-        return secureUrl;
-      } else {
-        _log('FAIL: Upload failed: ${response.statusCode} (${sw.elapsedMilliseconds}ms)');
-        _log('  Response: $responseBody');
-        return null;
-      }
-    } catch (e) {
-      sw.stop();
-      _log('ERROR: Upload error (${sw.elapsedMilliseconds}ms): $e');
-      return null;
-    }
+  }) {
+    return _upload(
+      resourceType: 'image',
+      fileBytes: null,
+      filePath: imageFile.path,
+      fileName: null,
+      folder: folder,
+      publicId: publicId,
+    );
   }
 
-  /// Upload a non-image file (audio, video, etc.) via Cloudinary's raw upload.
+  /// Upload a non-image file (audio, video, etc.) via Cloudinary's raw endpoint.
   Future<String?> uploadRaw({
     required File file,
     String? folder,
-  }) async {
-    _log('> Uploading raw file: ${file.path} | folder: $folder');
-    final sw = Stopwatch()..start();
-    try {
-      final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-      final url = 'https://api.cloudinary.com/v1_1/$_cloudName/raw/upload';
-
-      final request = http.MultipartRequest('POST', Uri.parse(url));
-      request.fields['timestamp'] = timestamp;
-      if (folder != null) request.fields['folder'] = folder;
-
-      request.files.add(
-        await http.MultipartFile.fromPath('file', file.path),
-      );
-
-      final params = <String, String>{'timestamp': timestamp};
-      if (folder != null) params['folder'] = folder;
-
-      final sortedParams = Map.fromEntries(
-        params.entries.toList()..sort((a, b) => a.key.compareTo(b.key))
-      );
-      final queryString = sortedParams.entries
-          .map((e) => '${e.key}=${e.value}')
-          .join('&');
-      final signature = sha1.convert(utf8.encode('$queryString$_apiSecret')).toString();
-
-      request.fields['api_key'] = _apiKey;
-      request.fields['signature'] = signature;
-
-      final response = await request.send();
-      final responseBody = await response.stream.bytesToString();
-      sw.stop();
-
-      if (response.statusCode == 200) {
-        final jsonResponse = jsonDecode(responseBody) as Map<String, dynamic>;
-        final secureUrl = jsonResponse['secure_url'] as String?;
-        _log('OK: Raw upload success (${sw.elapsedMilliseconds}ms) -> $secureUrl');
-        return secureUrl;
-      } else {
-        _log('FAIL: Raw upload failed: ${response.statusCode} (${sw.elapsedMilliseconds}ms)');
-        _log('  Response: $responseBody');
-        return null;
-      }
-    } catch (e) {
-      sw.stop();
-      _log('ERROR: Raw upload error (${sw.elapsedMilliseconds}ms): $e');
-      return null;
-    }
+  }) {
+    return _upload(
+      resourceType: 'raw',
+      fileBytes: null,
+      filePath: file.path,
+      fileName: null,
+      folder: folder,
+      publicId: null,
+    );
   }
 
   Future<String?> uploadImageFromBytes({
     required List<int> imageBytes,
     required String fileName,
     String? folder,
-  }) async {
-    _log('> Uploading bytes: $fileName (${imageBytes.length} bytes) | folder: $folder');
-    final sw = Stopwatch()..start();
-    try {
-      final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-      final url = 'https://api.cloudinary.com/v1_1/$_cloudName/image/upload';
-
-      final request = http.MultipartRequest('POST', Uri.parse(url));
-      request.fields['timestamp'] = timestamp;
-      if (folder != null) request.fields['folder'] = folder;
-
-      request.files.add(
-        http.MultipartFile.fromBytes('file', imageBytes, filename: fileName),
-      );
-
-      final params = <String, String>{'timestamp': timestamp};
-      if (folder != null) params['folder'] = folder;
-
-      final sortedParams = Map.fromEntries(
-        params.entries.toList()..sort((a, b) => a.key.compareTo(b.key))
-      );
-      final queryString = sortedParams.entries
-          .map((e) => '${e.key}=${e.value}')
-          .join('&');
-      final signature = sha1.convert(utf8.encode('$queryString$_apiSecret')).toString();
-
-      request.fields['api_key'] = _apiKey;
-      request.fields['signature'] = signature;
-
-      final response = await request.send();
-      final responseBody = await response.stream.bytesToString();
-      sw.stop();
-
-      if (response.statusCode == 200) {
-        final jsonResponse = jsonDecode(responseBody) as Map<String, dynamic>;
-        final secureUrl = jsonResponse['secure_url'] as String?;
-        _log('OK: Bytes upload success (${sw.elapsedMilliseconds}ms) -> $secureUrl');
-        return secureUrl;
-      } else {
-        _log('FAIL: Bytes upload failed: ${response.statusCode} (${sw.elapsedMilliseconds}ms)');
-        _log('  Response: $responseBody');
-        return null;
-      }
-    } catch (e) {
-      sw.stop();
-      _log('ERROR: Bytes upload error (${sw.elapsedMilliseconds}ms): $e');
-      return null;
-    }
+  }) {
+    return _upload(
+      resourceType: 'image',
+      fileBytes: imageBytes,
+      filePath: null,
+      fileName: fileName,
+      folder: folder,
+      publicId: null,
+    );
   }
 
-  Future<bool> deleteImage(String publicId) async {
-    _log('> Deleting image: $publicId');
+  Future<String?> _upload({
+    required String resourceType,
+    required List<int>? fileBytes,
+    required String? filePath,
+    required String? fileName,
+    required String? folder,
+    required String? publicId,
+  }) async {
+    final label = filePath ?? fileName ?? '<bytes>';
+    _log('> Uploading ($resourceType): $label | folder: $folder');
     final sw = Stopwatch()..start();
     try {
-      final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-
-      final params = <String, String>{
-        'public_id': publicId,
-        'timestamp': timestamp,
-      };
-      final sortedParams = Map.fromEntries(
-        params.entries.toList()..sort((a, b) => a.key.compareTo(b.key))
+      final url = Uri.parse(
+        'https://api.cloudinary.com/v1_1/$_cloudName/$resourceType/upload',
       );
-      final queryString = sortedParams.entries
-          .map((e) => '${e.key}=${e.value}')
-          .join('&');
-      final signature = sha1.convert(utf8.encode('$queryString$_apiSecret')).toString();
+      final request = http.MultipartRequest('POST', url);
+      request.fields['upload_preset'] = _uploadPreset;
+      if (folder != null) request.fields['folder'] = folder;
+      if (publicId != null) request.fields['public_id'] = publicId;
 
-      final url = Uri.parse('https://api.cloudinary.com/v1_1/$_cloudName/image/destroy').replace(
-        queryParameters: {
-          'public_id': publicId,
-          'timestamp': timestamp,
-          'api_key': _apiKey,
-          'signature': signature,
-        },
-      );
+      if (filePath != null) {
+        request.files.add(await http.MultipartFile.fromPath('file', filePath));
+      } else {
+        request.files.add(
+          http.MultipartFile.fromBytes('file', fileBytes!, filename: fileName),
+        );
+      }
 
-      final response = await http.delete(url);
+      final response = await request.send();
+      final body = await response.stream.bytesToString();
       sw.stop();
 
       if (response.statusCode == 200) {
-        _log('OK: Deleted $publicId (${sw.elapsedMilliseconds}ms)');
-        return true;
-      } else {
-        _log('FAIL: Delete failed: ${response.statusCode} (${sw.elapsedMilliseconds}ms) - ${response.body}');
-        return false;
+        final json = jsonDecode(body) as Map<String, dynamic>;
+        final secureUrl = json['secure_url'] as String?;
+        _log('OK (${sw.elapsedMilliseconds}ms) -> $secureUrl');
+        return secureUrl;
       }
+      _log('FAIL ${response.statusCode} (${sw.elapsedMilliseconds}ms): $body');
+      return null;
     } catch (e) {
       sw.stop();
-      _log('ERROR: Delete error (${sw.elapsedMilliseconds}ms): $e');
-      return false;
+      _log('ERROR (${sw.elapsedMilliseconds}ms): $e');
+      return null;
     }
   }
 
@@ -243,14 +138,10 @@ class CloudinaryService {
     try {
       final uri = Uri.parse(url);
       final pathSegments = uri.pathSegments;
-      if (pathSegments.isNotEmpty) {
-        final lastSegment = pathSegments.last;
-        final publicId = lastSegment.split('.').first;
-        return publicId;
-      }
-      return null;
+      if (pathSegments.isEmpty) return null;
+      return pathSegments.last.split('.').first;
     } catch (e) {
-      _log('ERROR: Error extracting public ID from $url: $e');
+      _log('ERROR: extracting public ID from $url: $e');
       return null;
     }
   }

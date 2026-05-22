@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:qent/core/utils/friendly_error.dart';
 import 'package:qent/core/widgets/profile_image_widget.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/chat/domain/models/chat.dart';
@@ -284,7 +285,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
       print('[Voice] FAILED to start recording: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not start recording: $e')),
+          SnackBar(content: Text(friendlyError(e, tag: 'Chat/record'))),
         );
       }
     }
@@ -537,7 +538,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
               } catch (e) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error deleting message: $e')),
+                    SnackBar(content: Text(friendlyError(e, tag: 'Chat/deleteMsg'))),
                   );
                 }
               }
@@ -599,7 +600,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> with SingleTick
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error forwarding message: $e')),
+          SnackBar(content: Text(friendlyError(e, tag: 'Chat/forwardMsg'))),
         );
       }
     }

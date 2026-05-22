@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:qent/core/services/cloudinary_service.dart';
+import 'package:qent/core/utils/friendly_error.dart';
 import 'package:qent/features/partner/data/models/partner_profile.dart';
 import 'package:qent/features/partner/presentation/controllers/partner_v2_controller.dart';
 import 'package:qent/features/partner/presentation/pages/v2/editorial_email_verify_page.dart';
@@ -72,7 +73,8 @@ class _EditorialOwnerPageState extends ConsumerState<EditorialOwnerPage> {
     final picker = ImagePicker();
     final picked = await picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 80,
+      maxWidth: 1280,
+      imageQuality: 75,
     );
     if (picked == null) return;
     setState(() => _localPhotoPath = picked.path);
@@ -114,10 +116,10 @@ class _EditorialOwnerPageState extends ConsumerState<EditorialOwnerPage> {
           ),
         ),
       );
-    } catch (e) {
+    } catch (e, st) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
+        SnackBar(content: Text(friendlyError(e, tag: 'Partner/owner', stack: st))),
       );
     } finally {
       if (mounted) setState(() => _submitting = false);

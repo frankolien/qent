@@ -66,8 +66,7 @@ void _initializeServicesAsync() async {
   try {
     CloudinaryService().initialize(
       cloudName: dotenv.env['CLOUDINARY_CLOUD_NAME'],
-      apiKey: dotenv.env['CLOUDINARY_API_KEY'],
-      apiSecret: dotenv.env['CLOUDINARY_API_SECRET'],
+      uploadPreset: dotenv.env['CLOUDINARY_UPLOAD_PRESET'],
     );
   } catch (e) {
     debugPrint('Async service initialization error: $e');
@@ -128,29 +127,17 @@ class _AuthGate extends ConsumerStatefulWidget {
 }
 
 class _AuthGateState extends ConsumerState<_AuthGate> {
-  bool _initialCheckDone = false;
-
+  // Pure switch — no loading branch. The splash is the only loading screen
+  // and only completes once auth has resolved, so by the time this gate
+  // mounts we already know whether the user is signed in. Subsequent
+  // `isLoading` toggles (sign-in, sign-out) are handled inside the
+  // destination pages, not here.
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authControllerProvider);
-
-    // Only show loading screen during initial session restore, not during login
-    if (authState.isLoading && !_initialCheckDone) {
-      return const Scaffold(
-        backgroundColor: Color(0xFF0A0A0A),
-        body: Center(child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
-      );
-    }
-
-    // After first load completes, never show the black loading screen again
-    if (!authState.isLoading && !_initialCheckDone) {
-      _initialCheckDone = true;
-    }
-
-    if (authState.user != null) {
+    final user = ref.watch(authControllerProvider).user;
+    if (user != null) {
       return MainNavPage(key: MainNavPage.globalKey);
     }
-
     return const LoginPage();
   }
 }

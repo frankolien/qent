@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/core/services/api_client.dart';
+import 'package:qent/core/utils/friendly_error.dart';
 import 'package:qent/features/booking/presentation/pages/booking_details_page.dart';
 import 'package:qent/features/car_details/domain/models/car_detail.dart';
 import 'package:qent/features/car_details/presentation/pages/reviews_page.dart';
@@ -425,7 +426,7 @@ class _CarDetailsPageState extends ConsumerState<CarDetailsPage> {
               } catch (e) {
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Could not start chat: $e')),
+                  SnackBar(content: Text(friendlyError(e, tag: 'CarDetails/chat'))),
                 );
               }
             },

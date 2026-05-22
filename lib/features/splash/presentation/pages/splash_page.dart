@@ -148,8 +148,12 @@ class _SplashPageState extends ConsumerState<SplashPage>
   }
 
   Future<void> _waitForAuthRestore() async {
+    // Poll until the AuthController finishes its session-restore. We wait
+    // up to ~12s — slightly longer than the controller's own 10s getProfile
+    // timeout — so a cold Render dyno never hands us off to the AuthGate
+    // while auth is still loading (which would flash a black screen).
     await Future.delayed(const Duration(milliseconds: 100));
-    for (int i = 0; i < 50; i++) {
+    for (int i = 0; i < 120; i++) {
       if (!mounted) return;
       final state = ref.read(authControllerProvider);
       if (!state.isLoading) return;

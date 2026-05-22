@@ -77,7 +77,8 @@ class _EditorialIdentityPageState extends ConsumerState<EditorialIdentityPage>
     final shot = await picker.pickImage(
       source: ImageSource.camera,
       preferredCameraDevice: CameraDevice.front,
-      imageQuality: 85,
+      maxWidth: 1280,
+      imageQuality: 75,
     );
     if (shot == null) return;
     if (!mounted) return;
