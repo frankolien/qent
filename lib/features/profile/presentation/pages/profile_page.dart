@@ -103,11 +103,6 @@ class ProfilePage extends ConsumerWidget {
                 ),
               ),
               _buildDarkModeToggle(ref),
-              // Partner entry — label + behavior depends on whether the
-              // user is already a verified host. New users see "Become a
-               // partner" and start onboarding; verified hosts see a
-              // "Connected" confirmation snackbar and a separate "Add
-              // new listing" entry that jumps straight to Vehicle.
               Consumer(builder: (context, ref, _) {
                 final profile =
                     ref.watch(partnerProfileProvider).asData?.value;

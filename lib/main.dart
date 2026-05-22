@@ -127,11 +127,6 @@ class _AuthGate extends ConsumerStatefulWidget {
 }
 
 class _AuthGateState extends ConsumerState<_AuthGate> {
-  // Pure switch — no loading branch. The splash is the only loading screen
-  // and only completes once auth has resolved, so by the time this gate
-  // mounts we already know whether the user is signed in. Subsequent
-  // `isLoading` toggles (sign-in, sign-out) are handled inside the
-  // destination pages, not here.
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authControllerProvider).user;

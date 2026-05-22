@@ -3,21 +3,13 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
-/// Translate an exception into a short, human-friendly message safe to put
-/// into a SnackBar or auth error banner. The raw exception + stack are
-/// logged to the debug console so we don't lose any developer signal.
-///
-/// Keep messages short, calm, and action-oriented. Never expose Dart class
-/// names, URLs, ports, IPs, stack traces, or backend internals to users.
-///
-/// Pass a `tag` (e.g. 'Auth', 'PartnerV2') so debug logs are greppable.
+/// Maps an exception to a user-safe message. Raw error + stack go to debug logs.
 String friendlyError(Object error, {String tag = 'App', StackTrace? stack}) {
   if (kDebugMode) {
     debugPrint('[Qent $tag] $error');
     if (stack != null) debugPrint('$stack');
   }
 
-  // Network / connectivity
   if (error is SocketException) {
     return 'No internet connection. Check your network and try again.';
   }
@@ -31,9 +23,6 @@ String friendlyError(Object error, {String tag = 'App', StackTrace? stack}) {
     return 'Something went wrong. Please try again.';
   }
 
-  // Known backend error strings — pass through user-meaningful bits without
-  // leaking the wrapper text. The backend returns these as JSON `error`
-  // fields which the API client surfaces via the exception message.
   final msg = error.toString();
   final lower = msg.toLowerCase();
 

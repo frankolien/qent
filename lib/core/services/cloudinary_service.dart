@@ -3,16 +3,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
-/// Cloudinary uploader using **unsigned upload presets**.
-///
-/// The Cloudinary `api_secret` is no longer in the client — only the
-/// (public) cloud name and a named upload preset configured for unsigned
-/// uploads on the Cloudinary dashboard. The preset locks down what's
-/// allowed (folders, formats, size, transformations) so it's safe to
-/// ship the preset name in the bundle.
-///
-/// Any operation that requires the secret — deletion, admin moves — must
-/// happen on the Rust backend.
+/// Cloudinary uploader using unsigned upload presets. Operations requiring
+/// the API secret (delete, admin) must run on the backend, not here.
 class CloudinaryService {
   static final CloudinaryService _instance = CloudinaryService._internal();
   factory CloudinaryService() => _instance;
@@ -57,7 +49,7 @@ class CloudinaryService {
     );
   }
 
-  /// Upload a non-image file (audio, video, etc.) via Cloudinary's raw endpoint.
+  /// Upload a non-image file (audio, video, etc.) via the raw endpoint.
   Future<String?> uploadRaw({
     required File file,
     String? folder,

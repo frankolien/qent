@@ -1,59 +1,79 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:qent/core/utils/friendly_error.dart';
+import 'package:qent/features/auth/domain/models/auth_user.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/auth/presentation/controllers/auth_state.dart';
 import 'package:qent/features/home/presentation/providers/car_providers.dart';
 import 'package:qent/core/services/websocket_service.dart';
 import 'package:qent/features/chat/data/datasources/chat_cache.dart';
 
-/// Google Web client ID — used as `serverClientId` so the SDK returns an
-/// id_token signed for our backend. Must match (or be in) the GOOGLE_CLIENT_IDS
-/// env var the backend verifies tokens against.
+/// Google Web client ID. Must be in backend's GOOGLE_CLIENT_IDS allowlist.
 const _googleServerClientId =
     '482124898845-mgk3ufab64iv2nccmto8622t94u5c1hi.apps.googleusercontent.com';
+
+const _cachedUserPrefsKey = 'auth.cached_user_v1';
 
 class AuthController extends Notifier<AuthState> {
   @override
   AuthState build() {
-    // Start with loading = true so splash screen waits for us
-    Future.microtask(() => _tryRestoreSession());
+    Future.microtask(_tryRestoreSession);
     return AuthState.initial().copyWith(isLoading: true);
   }
 
   Future<void> _tryRestoreSession() async {
     final dataSource = ref.read(apiAuthDataSourceProvider);
-    if (dataSource.isAuthenticated) {
-      try {
-        // Hard timeout so a cold/flaky backend (Render free tier sometimes
-        // spins up for 30-60s) never leaves the user stuck on a black
-        // spinner forever. If the profile fetch can't complete in 10s, we
-        // fall through to login — the user can always re-auth.
-        final user = await dataSource.getProfile().timeout(
-          const Duration(seconds: 10),
-        );
-        if (user != null) {
-          state = state.copyWith(isLoading: false, user: user);
-          ref.read(wsServiceProvider).connect();
-          return;
-        } else {
-          await dataSource.signOut();
-        }
-      } on TimeoutException {
-        debugPrint('[Qent Auth] getProfile timed out — falling through');
-        // Don't sign out: token is probably still valid, the network was
-        // just slow. User lands on login but the saved token is preserved
-        // for the next launch.
-      } catch (e) {
-        // Token might be expired, clear it
+    if (!dataSource.isAuthenticated) {
+      state = state.copyWith(isLoading: false);
+      return;
+    }
+
+    final cached = await _loadCachedUser();
+    if (cached != null) {
+      state = state.copyWith(isLoading: false, user: cached);
+      ref.read(wsServiceProvider).connect();
+    } else {
+      state = state.copyWith(isLoading: true);
+    }
+
+    unawaited(_refreshSessionInBackground());
+  }
+
+  Future<void> _refreshSessionInBackground() async {
+    final dataSource = ref.read(apiAuthDataSourceProvider);
+    try {
+      final user = await dataSource.getProfile().timeout(
+            const Duration(seconds: 10),
+          );
+      if (user == null) {
         await dataSource.signOut();
+        await _clearCachedUser();
+        state = state.copyWith(isLoading: false, clearUser: true);
+        return;
+      }
+      await _cacheUser(user);
+      state = state.copyWith(isLoading: false, user: user);
+      ref.read(wsServiceProvider).connect();
+    } on TimeoutException {
+      debugPrint('[Qent Auth] background refresh timed out');
+      state = state.copyWith(isLoading: false);
+    } catch (e) {
+      debugPrint('[Qent Auth] background refresh failed: $e');
+      // Keep cached user on transient errors; only sign out if we never had one.
+      if (state.user == null) {
+        await dataSource.signOut();
+        await _clearCachedUser();
+        state = state.copyWith(isLoading: false, clearUser: true);
+      } else {
+        state = state.copyWith(isLoading: false);
       }
     }
-    state = state.copyWith(isLoading: false);
   }
 
   Future<void> signIn({required String email, required String password}) async {
@@ -64,6 +84,7 @@ class AuthController extends Notifier<AuthState> {
         email: email,
         password: password,
       );
+      await _cacheUser(user);
       state = state.copyWith(isLoading: false, user: user);
       ref.read(wsServiceProvider).connect();
     } catch (e, st) {
@@ -74,11 +95,7 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
-  /// Launch the native Apple Sign-In flow and exchange the returned
-  /// identityToken for our own JWT via the backend.
-  ///
-  /// Apple only returns the user's given/family name on the *first* sign-in
-  /// ever — we forward it to the backend so it lands on the new account.
+  /// Apple only returns givenName/familyName on the first authorization ever.
   Future<void> signInWithApple() async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
@@ -105,10 +122,10 @@ class AuthController extends Notifier<AuthState> {
         fullName: fullName.isEmpty ? null : fullName,
         email: credential.email,
       );
+      await _cacheUser(user);
       state = state.copyWith(isLoading: false, user: user);
       ref.read(wsServiceProvider).connect();
     } on SignInWithAppleAuthorizationException catch (e) {
-      // User-cancelled should be silent, not an error banner.
       if (e.code == AuthorizationErrorCode.canceled) {
         state = state.copyWith(isLoading: false);
       } else {
@@ -122,9 +139,6 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
-  /// Launch the native Google Sign-In flow and exchange the returned ID token
-  /// for our backend JWT. Works on iOS + Android. Web is unsupported here
-  /// (would need the GIS JS API).
   Future<void> signInWithGoogle() async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
@@ -133,12 +147,10 @@ class AuthController extends Notifier<AuthState> {
         scopes: ['email', 'profile'],
       );
 
-      // Make sure no stale account is cached from a previous run.
       await googleSignIn.signOut();
 
       final account = await googleSignIn.signIn();
       if (account == null) {
-        // User cancelled — silent, not an error.
         state = state.copyWith(isLoading: false);
         return;
       }
@@ -155,6 +167,7 @@ class AuthController extends Notifier<AuthState> {
         fullName: account.displayName,
         email: account.email,
       );
+      await _cacheUser(user);
       state = state.copyWith(isLoading: false, user: user);
       ref.read(wsServiceProvider).connect();
     } catch (e, st) {
@@ -180,6 +193,7 @@ class AuthController extends Notifier<AuthState> {
         fullName: fullName,
         country: country,
       );
+      await _cacheUser(user);
       state = state.copyWith(isLoading: false, user: user);
       ref.read(wsServiceProvider).connect();
     } catch (e, st) {
@@ -195,10 +209,10 @@ class AuthController extends Notifier<AuthState> {
     try {
       final user = await dataSource.getProfile();
       if (user != null) {
+        await _cacheUser(user);
         state = state.copyWith(user: user);
       }
     } catch (e) {
-      // Soft-fail: keep stale profile, but log so the issue is visible.
       debugPrint('[AuthController] refreshProfile failed: $e');
     }
   }
@@ -214,14 +228,12 @@ class AuthController extends Notifier<AuthState> {
     try {
       final dataSource = ref.read(apiAuthDataSourceProvider);
       await dataSource.signOut();
+      await _clearCachedUser();
       ref.read(wsServiceProvider).disconnect();
 
-      // Clear all cached data from the previous user
       ref.invalidate(carsProvider);
       ref.invalidate(favoriteCarsProvider);
       ref.invalidate(favoriteIdsProvider);
-      // Wipe the on-disk chat cache so the next user doesn't see the
-      // previous user's conversations + messages on launch.
       unawaited(ref.read(chatCacheProvider).clearAll());
 
       state = state.copyWith(isLoading: false, clearUser: true);
@@ -230,6 +242,36 @@ class AuthController extends Notifier<AuthState> {
         isLoading: false,
         errorMessage: friendlyError(e, tag: 'Auth/signOut', stack: st),
       );
+    }
+  }
+
+  Future<AuthUser?> _loadCachedUser() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_cachedUserPrefsKey);
+      if (raw == null || raw.isEmpty) return null;
+      return AuthUser.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    } catch (e) {
+      debugPrint('[Qent Auth] cache load failed: $e');
+      return null;
+    }
+  }
+
+  Future<void> _cacheUser(AuthUser user) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_cachedUserPrefsKey, jsonEncode(user.toJson()));
+    } catch (e) {
+      debugPrint('[Qent Auth] cache write failed: $e');
+    }
+  }
+
+  Future<void> _clearCachedUser() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_cachedUserPrefsKey);
+    } catch (e) {
+      debugPrint('[Qent Auth] cache clear failed: $e');
     }
   }
 }

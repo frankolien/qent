@@ -115,10 +115,6 @@ class _EditorialPhotosPageState extends ConsumerState<EditorialPhotosPage> {
     if (source == null) return;
 
     final picker = ImagePicker();
-    // Cap on-device before upload. iPhone shoots 4032×3024 (~5 MB) which
-    // takes a minute+ to push over LTE for no visible quality gain at
-    // listing-card sizes. 1920px wide + quality 75 lands around 400-800 KB
-    // and finishes in seconds.
     final picked = await picker.pickImage(
       source: source,
       maxWidth: 1920,

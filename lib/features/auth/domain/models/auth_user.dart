@@ -61,6 +61,23 @@ class AuthUser {
     };
   }
 
+  /// Round-trippable JSON in the backend's snake_case shape.
+  Map<String, dynamic> toJson() {
+    return {
+      'id': uid,
+      'email': email,
+      'full_name': fullName,
+      'phone': phone,
+      'role': role,
+      'profile_photo_url': profilePhotoUrl,
+      'verification_status': verificationStatus,
+      'wallet_balance': walletBalance,
+      'is_active': isActive,
+      'country': country,
+      'created_at': createdAt.toIso8601String(),
+    };
+  }
+
   /// Convert to UserProfile for backward compatibility.
   /// This allows existing code that uses UserProfile to keep working.
   Map<String, dynamic> toUserProfileMap() {

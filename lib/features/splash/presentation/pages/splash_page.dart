@@ -107,21 +107,17 @@ class _SplashPageState extends ConsumerState<SplashPage>
   }
 
   Future<void> _navigate() async {
-    final minDelay = Future.delayed(const Duration(milliseconds: 2500));
-    await _waitForAuthRestore();
-    await minDelay;
-
+    await Future.delayed(const Duration(milliseconds: 1500));
     if (!mounted) return;
 
-    // If onComplete callback is set, use AuthGate pattern (survives hot reload)
     if (widget.onComplete != null) {
       final prefs = await SharedPreferences.getInstance();
       final hasSeenOnboarding = prefs.getBool('has_seen_onboarding') ?? false;
-      final authState = ref.read(authControllerProvider);
+      final hasUser = ref.read(authControllerProvider).user != null;
 
       if (!mounted) return;
 
-      if (!hasSeenOnboarding && authState.user == null) {
+      if (!hasSeenOnboarding && !hasUser) {
         Navigator.of(context).pushReplacementNamed('/onboarding');
       } else {
         widget.onComplete!();
@@ -129,14 +125,14 @@ class _SplashPageState extends ConsumerState<SplashPage>
       return;
     }
 
-    final authState = ref.read(authControllerProvider);
     final prefs = await SharedPreferences.getInstance();
     final hasSeenOnboarding = prefs.getBool('has_seen_onboarding') ?? false;
+    final hasUser = ref.read(authControllerProvider).user != null;
 
     if (!mounted) return;
 
     final String route;
-    if (authState.user != null) {
+    if (hasUser) {
       route = '/home';
     } else if (hasSeenOnboarding) {
       route = '/login';
@@ -145,20 +141,6 @@ class _SplashPageState extends ConsumerState<SplashPage>
     }
 
     Navigator.of(context).pushReplacementNamed(route);
-  }
-
-  Future<void> _waitForAuthRestore() async {
-    // Poll until the AuthController finishes its session-restore. We wait
-    // up to ~12s — slightly longer than the controller's own 10s getProfile
-    // timeout — so a cold Render dyno never hands us off to the AuthGate
-    // while auth is still loading (which would flash a black screen).
-    await Future.delayed(const Duration(milliseconds: 100));
-    for (int i = 0; i < 120; i++) {
-      if (!mounted) return;
-      final state = ref.read(authControllerProvider);
-      if (!state.isLoading) return;
-      await Future.delayed(const Duration(milliseconds: 100));
-    }
   }
 
   @override
