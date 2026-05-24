@@ -210,9 +210,30 @@ class PartnerV2DataSource {
     );
   }
 
-  /// POST /api/partner/listings/:id/submit — Step 06 (Success). Flips
-  /// the listing from draft → submitted, returns the row including
-  /// the auto-minted application_ref.
+  Future<PartnerListing> setListingPricing({
+    required String listingId,
+    required double pricePerDay,
+    required String location,
+    double? latitude,
+    double? longitude,
+    String? description,
+  }) async {
+    final r = await _api.post(
+      '/partner/listings/$listingId/pricing',
+      body: {
+        'price_per_day': pricePerDay,
+        'location': location,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
+        if (description != null && description.isNotEmpty) 'description': description,
+      },
+    );
+    if (!r.isSuccess) {
+      throw Exception('setListingPricing: ${r.errorMessage}');
+    }
+    return PartnerListing.fromJson(r.body as Map<String, dynamic>);
+  }
+
   Future<PartnerListing> submitListing({required String listingId}) async {
     final r = await _api.post('/partner/listings/$listingId/submit');
     if (!r.isSuccess) {

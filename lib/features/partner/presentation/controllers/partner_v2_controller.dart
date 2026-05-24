@@ -166,6 +166,27 @@ class PartnerV2Controller {
   /// Step 06 — flip the listing from draft → submitted. Returns the
   /// updated row so the success screen can display the application
   /// reference (`QP-XXXXX`).
+  Future<PartnerListing> saveListingPricing({
+    required String listingId,
+    required double pricePerDay,
+    required String location,
+    double? latitude,
+    double? longitude,
+    String? description,
+  }) async {
+    final l = await _ds.setListingPricing(
+      listingId: listingId,
+      pricePerDay: pricePerDay,
+      location: location,
+      latitude: latitude,
+      longitude: longitude,
+      description: description,
+    );
+    _ref.invalidate(partnerDraftListingProvider);
+    _ref.invalidate(partnerListingsProvider);
+    return l;
+  }
+
   Future<PartnerListing> submitListing({required String listingId}) async {
     final l = await _ds.submitListing(listingId: listingId);
     _ref.invalidate(partnerDraftListingProvider);

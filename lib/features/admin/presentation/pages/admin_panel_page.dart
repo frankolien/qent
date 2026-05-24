@@ -30,6 +30,14 @@ final adminAnalyticsProvider = FutureProvider<Map<String, dynamic>>((ref) async 
   throw Exception(resp.errorMessage);
 });
 
+final adminPartnerListingsProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final client = ref.watch(apiClientProvider);
+  final resp = await client.get('/admin/partner-listings');
+  if (resp.isSuccess) return (resp.body as List).cast<Map<String, dynamic>>();
+  throw Exception(resp.errorMessage);
+});
+
 // ─── Admin Panel Page ─────────────────────────────────────
 
 class AdminPanelPage extends ConsumerStatefulWidget {
@@ -45,7 +53,7 @@ class _AdminPanelPageState extends ConsumerState<AdminPanelPage> with SingleTick
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() => setState(() {}));
   }
 
@@ -59,6 +67,7 @@ class _AdminPanelPageState extends ConsumerState<AdminPanelPage> with SingleTick
     ref.invalidate(adminCarsProvider);
     ref.invalidate(adminUsersProvider);
     ref.invalidate(adminAnalyticsProvider);
+    ref.invalidate(adminPartnerListingsProvider);
   }
 
   @override
@@ -76,6 +85,7 @@ class _AdminPanelPageState extends ConsumerState<AdminPanelPage> with SingleTick
                 _buildCarsTab(),
                 _buildUsersTab(),
                 _buildPendingTab(),
+                _buildPartnersTab(),
               ][_tabController.index],
             ),
           ],
@@ -169,7 +179,12 @@ class _AdminPanelPageState extends ConsumerState<AdminPanelPage> with SingleTick
           unselectedLabelColor: Colors.grey[600],
           labelStyle: GoogleFonts.roboto(fontSize: 13, fontWeight: FontWeight.w600),
           dividerColor: Colors.transparent,
-          tabs: const [Tab(text: 'Cars'), Tab(text: 'Users'), Tab(text: 'Pending')],
+          tabs: const [
+            Tab(text: 'Cars'),
+            Tab(text: 'Users'),
+            Tab(text: 'Pending'),
+            Tab(text: 'Partners'),
+          ],
         ),
       ),
     );
@@ -332,6 +347,215 @@ class _AdminPanelPageState extends ConsumerState<AdminPanelPage> with SingleTick
       },
       loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF1A1A1A))),
       error: (e, _) => _empty('Failed to load'),
+    );
+  }
+
+  // ─── Partners Tab (partner v2 listings) ─────────────────
+
+  Widget _buildPartnersTab() {
+    final async = ref.watch(adminPartnerListingsProvider);
+    return async.when(
+      data: (listings) {
+        if (listings.isEmpty) return _empty('No partner submissions');
+        return ListView.builder(
+          padding: const EdgeInsets.all(20),
+          itemCount: listings.length,
+          itemBuilder: (_, i) => _buildPartnerCard(listings[i]),
+        );
+      },
+      loading: () => const Center(
+          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF1A1A1A))),
+      error: (e, _) => _empty('Failed to load: $e'),
+    );
+  }
+
+  Widget _buildPartnerCard(Map<String, dynamic> l) {
+    final status = (l['listing_status'] as String? ?? '').toLowerCase();
+    final isPending = status == 'submitted' || status == 'in_review';
+    final photos = (l['photos'] as List?) ?? const [];
+    final photo = photos.isNotEmpty ? photos.first as String : null;
+    final profile = (l['profile'] as Map?) ?? const {};
+    final user = (l['user'] as Map?) ?? const {};
+    final hostName = profile['legal_full_name'] ??
+        user['full_name'] ??
+        'Unknown';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isPending ? const Color(0xFFFFF3E0) : const Color(0xFFF2F2F2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: photo != null
+                    ? CachedNetworkImage(
+                        imageUrl: photo,
+                        width: 64,
+                        height: 50,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => _imgPlaceholder(),
+                        errorWidget: (_, __, ___) => _imgPlaceholder(),
+                      )
+                    : _imgPlaceholder(),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${l['brand']} ${l['model']}',
+                      style: GoogleFonts.roboto(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF1A1A1A),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$hostName · ${l['application_ref'] ?? ''}',
+                      style: GoogleFonts.roboto(fontSize: 11, color: Colors.grey[600]),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        _statusChip(status),
+                        const SizedBox(width: 6),
+                        _statusChip(l['tier'] ?? 'regular'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              if (isPending) ...[
+                _actionBtn(Icons.check_rounded, const Color(0xFF2E7D32),
+                    () => _approvePartnerListing(l['id'])),
+                const SizedBox(width: 6),
+                _actionBtn(Icons.close_rounded, Colors.red,
+                    () => _rejectPartnerListing(l['id'])),
+              ],
+            ],
+          ),
+          const SizedBox(height: 10),
+          _kvRow('Plate', l['plate_number'] ?? '—'),
+          _kvRow('DL #', profile['drivers_license_number'] ?? '—'),
+          _kvRow('Email', profile['contract_email'] ?? '—'),
+          _kvRow('Phone', profile['phone'] ?? '—'),
+          if ((l['rejection_reason'] ?? '').toString().isNotEmpty)
+            _kvRow('Rejected', l['rejection_reason']),
+          if (photos.length > 1) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 56,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: photos.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 6),
+                itemBuilder: (_, i) => ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: CachedNetworkImage(
+                    imageUrl: photos[i] as String,
+                    width: 72,
+                    height: 56,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => _imgPlaceholder(),
+                    errorWidget: (_, __, ___) => _imgPlaceholder(),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _kvRow(String k, dynamic v) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 64,
+            child: Text(k,
+                style: GoogleFonts.roboto(fontSize: 11, color: Colors.grey[500])),
+          ),
+          Expanded(
+            child: Text('$v',
+                style: GoogleFonts.roboto(
+                    fontSize: 12, color: const Color(0xFF1A1A1A))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _approvePartnerListing(String id) async {
+    HapticFeedback.mediumImpact();
+    final client = ref.read(apiClientProvider);
+    final resp = await client.post('/admin/partner-listings/$id/approve');
+    if (resp.isSuccess) {
+      _showToast('Listing approved');
+      ref.invalidate(adminPartnerListingsProvider);
+    } else {
+      _showToast(resp.errorMessage, isError: true);
+    }
+  }
+
+  Future<void> _rejectPartnerListing(String id) async {
+    HapticFeedback.mediumImpact();
+    final reason = await _promptReason();
+    if (reason == null) return;
+    final client = ref.read(apiClientProvider);
+    final resp = await client.post(
+      '/admin/partner-listings/$id/reject',
+      body: {'reason': reason},
+    );
+    if (resp.isSuccess) {
+      _showToast('Listing rejected');
+      ref.invalidate(adminPartnerListingsProvider);
+    } else {
+      _showToast(resp.errorMessage, isError: true);
+    }
+  }
+
+  Future<String?> _promptReason() async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Reject reason', style: GoogleFonts.roboto(fontSize: 16)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            hintText: 'Visible to the host',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Reject'),
+          ),
+        ],
+      ),
     );
   }
 

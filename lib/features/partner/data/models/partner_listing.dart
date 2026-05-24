@@ -39,6 +39,13 @@ class PartnerListing {
   final String? insurancePolicyNumber;
   final bool insuranceNiidVerified;
 
+  // Step 07 — Pricing
+  final double? pricePerDay;
+  final String? location;
+  final double? latitude;
+  final double? longitude;
+  final String? description;
+
   /// One of: draft | submitted | in_review | approved | rejected.
   final String listingStatus;
   final String? rejectionReason;
@@ -70,6 +77,11 @@ class PartnerListing {
     this.insuranceCertificateUrl,
     this.insurancePolicyNumber,
     this.insuranceNiidVerified = false,
+    this.pricePerDay,
+    this.location,
+    this.latitude,
+    this.longitude,
+    this.description,
     this.listingStatus = 'draft',
     this.rejectionReason,
   });
@@ -106,6 +118,11 @@ class PartnerListing {
       insuranceCertificateUrl: json['insurance_certificate_url'] as String?,
       insurancePolicyNumber: json['insurance_policy_number'] as String?,
       insuranceNiidVerified: json['insurance_niid_verified'] == true,
+      pricePerDay: (json['price_per_day'] as num?)?.toDouble(),
+      location: json['location'] as String?,
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
+      description: json['description'] as String?,
       listingStatus: json['listing_status']?.toString() ?? 'draft',
       rejectionReason: json['rejection_reason'] as String?,
     );

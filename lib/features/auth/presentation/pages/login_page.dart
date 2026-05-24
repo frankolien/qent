@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/auth/presentation/pages/signup_page.dart' show validateEmail; // email typo validator
 import 'package:qent/core/theme/app_theme.dart';
@@ -407,9 +408,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           const SizedBox(height: 12),
         ],
         _buildSocialButton(
-          icon: Icons.g_mobiledata,
+          leading: SvgPicture.asset('assets/images/google_logo.svg',
+              width: 20, height: 20),
           label: 'Continue with Google',
-          iconSize: 28,
           onPressed: _handleGoogleSignIn,
         ),
       ],
@@ -425,7 +426,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Widget _buildSocialButton({
-    required IconData icon,
+    IconData? icon,
+    Widget? leading,
     required String label,
     required VoidCallback onPressed,
     double iconSize = 22,
@@ -447,7 +449,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: iconSize),
+            leading ?? Icon(icon, size: iconSize),
             const SizedBox(width: 10),
             Text(
               label,

@@ -8,7 +8,7 @@ import 'package:qent/features/partner/presentation/controllers/partner_v2_contro
 import 'package:qent/features/partner/presentation/pages/v2/editorial_owner_page.dart'
     show EditorialHeader, EditorialStepLabel, EditorialContinueButton;
 import 'package:qent/features/partner/presentation/pages/v2/editorial_palette.dart';
-import 'package:qent/features/partner/presentation/pages/v2/editorial_success_page.dart';
+import 'package:qent/features/partner/presentation/pages/v2/editorial_pricing_page.dart';
 
 /// Step 05 — "One last look." Liveness / face match screen.
 ///
@@ -118,7 +118,7 @@ class _EditorialIdentityPageState extends ConsumerState<EditorialIdentityPage>
 
   void _onContinue() {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const EditorialSuccessPage()),
+      MaterialPageRoute(builder: (_) => const EditorialPricingPage()),
     );
   }
 
