@@ -9,15 +9,18 @@ import 'package:qent/firebase_options.dart';
 import 'package:qent/core/services/api_client.dart';
 import 'package:qent/core/services/cloudinary_service.dart';
 import 'package:qent/core/services/notification_service.dart';
+import 'package:qent/core/services/privy_manager.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:qent/features/auth/presentation/pages/login_page.dart';
+import 'package:qent/features/auth/presentation/pages/privy_login_page.dart';
 import 'package:qent/features/auth/presentation/pages/signup_page.dart';
 import 'package:qent/features/home/presentation/pages/main_nav_page.dart';
 import 'package:qent/features/onboarding/presentation/pages/onboarding_screen.dart';
 import 'package:qent/features/partner/presentation/pages/partner_onboarding_welcome_page.dart';
 import 'package:qent/features/splash/presentation/pages/splash_page.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
+import 'package:qent/features/countries/presentation/pages/country_picker_page.dart';
 
 bool _servicesInitialized = false;
 
@@ -49,6 +52,12 @@ void main() async {
         ? prodUrl
         : (dotenv.env['API_BASE_URL'] ?? prodUrl),
   );
+
+  // V2 §6.4 — bring up the Privy SDK so the auth gate can render
+  // the Privy login as soon as the splash finishes. Init is best-
+  // effort: if PRIVY_APP_ID is missing, PrivyLoginPage shows a
+  // "not configured" banner instead of crashing.
+  await privyManager.initialize();
 
   // Load the saved theme BEFORE the first frame so we never paint with the
   // wrong colors. Defaults to ThemeMode.system for first-time users.
@@ -100,9 +109,11 @@ class _MainAppState extends ConsumerState<MainApp> {
       home: _showedSplash ? const _AuthGate() : _buildSplashThenGate(),
       routes: {
         '/onboarding': (context) => const OnboardingScreen(),
-        '/login': (context) => const LoginPage(),
+        '/login': (context) => const PrivyLoginPage(),
+        '/login/legacy': (context) => const LoginPage(),
         '/signup': (context) => const SignUpPage(),
         '/home': (context) => MainNavPage(key: MainNavPage.globalKey),
+        '/country-picker': (context) => const CountryPickerPage(),
         '/partner/onboarding': (context) => const PartnerOnboardingWelcomePage(),
       },
     );
@@ -130,9 +141,16 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authControllerProvider).user;
-    if (user != null) {
-      return MainNavPage(key: MainNavPage.globalKey);
+    if (user == null) {
+      return const PrivyLoginPage();
     }
-    return const LoginPage();
+    // V2 §6.3 — if we have a session but no country yet (Privy users
+    // start with country=null), force the picker before letting them
+    // into the app. V1 users carry a legacy country so they skip past
+    // this gate.
+    if (user.country == null || user.country!.trim().isEmpty) {
+      return const CountryPickerPage();
+    }
+    return MainNavPage(key: MainNavPage.globalKey);
   }
 }

@@ -122,6 +122,39 @@ class ApiAuthDataSource {
     return user;
   }
 
+  /// V2 §6.4 — exchange a Privy session JWT for a Qent JWT. The
+  /// backend verifies the token against Privy's JWKS, finds-or-
+  /// creates the user, provisions an embedded wallet on first sign-
+  /// in, and returns our standard AuthResponseWithRefresh shape.
+  Future<AuthUser> signInWithPrivy({required String privyToken}) async {
+    _log('> Sign in with Privy');
+    final sw = Stopwatch()..start();
+
+    final response = await _client.post(
+      '/auth/privy',
+      body: {'privy_token': privyToken},
+      auth: false,
+    );
+    sw.stop();
+
+    if (!response.isSuccess) {
+      _log(
+        'FAIL: Privy sign in failed (${sw.elapsedMilliseconds}ms): ${response.errorMessage}',
+      );
+      throw Exception(response.errorMessage);
+    }
+
+    final data = response.body;
+    await _client.setToken(data['token']);
+    final user = AuthUser.fromJson(data['user']);
+    unawaited(NotificationService().registerCurrentDeviceWithBackend());
+    _log(
+      'OK: Signed in via Privy as ${user.email} | uid: ${user.uid} (${sw.elapsedMilliseconds}ms)',
+    );
+
+    return user;
+  }
+
   /// Sign up with email and password. Returns AuthUser with JWT token.
   Future<AuthUser> signUpWithEmailAndPassword({
     required String email,

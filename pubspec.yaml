@@ -67,6 +67,10 @@ dependencies:
   google_sign_in: 6.2.1
   device_info_plus: ^13.1.0
   cupertino_native: ^0.1.1
+  # V2 §6 — Privy embedded wallet auth (replaces V1 email/Apple/Google).
+  privy_flutter: ^0.10.0
+  # V2 §6.7 — Sumsub mobile SDK for inline KYC verification.
+  flutter_idensic_mobile_sdk_plugin: ^1.44.1
 
 dev_dependencies:
   flutter_test:

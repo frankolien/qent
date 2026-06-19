@@ -42,6 +42,20 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- V2 §6.4 — Privy OAuth redirect. The scheme must match
+             `appUrlScheme` in PrivyAuthService and the value in .env
+             (PRIVY_OAUTH_SCHEME=qentauth). -->
+        <activity
+            android:name="io.privy.sdk.oAuth.PrivyRedirectActivity"
+            android:exported="true"
+            android:launchMode="singleTask">
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="qentauth" />
+            </intent-filter>
+        </activity>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

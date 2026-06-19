@@ -110,7 +110,9 @@ class ApiClient {
       if (queryParams != null) {
         uri = uri.replace(queryParameters: queryParams);
       }
-      final response = await http.get(uri, headers: _headers(auth: auth));
+      final response = await http
+          .get(uri, headers: _headers(auth: auth))
+          .timeout(const Duration(seconds: 15));
       stopwatch.stop();
       final apiResponse = ApiResponse.fromHttpResponse(response);
       _logResponse('GET', url, response.statusCode, apiResponse.body, stopwatch.elapsed);
@@ -132,11 +134,13 @@ class ApiClient {
     _logRequest('POST', url, body: body, auth: auth);
     final stopwatch = Stopwatch()..start();
     try {
-      final response = await http.post(
-        Uri.parse(url),
-        headers: _headers(auth: auth),
-        body: body != null ? jsonEncode(body) : null,
-      );
+      final response = await http
+          .post(
+            Uri.parse(url),
+            headers: _headers(auth: auth),
+            body: body != null ? jsonEncode(body) : null,
+          )
+          .timeout(const Duration(seconds: 15));
       stopwatch.stop();
       final apiResponse = ApiResponse.fromHttpResponse(response);
       _logResponse('POST', url, response.statusCode, apiResponse.body, stopwatch.elapsed);

@@ -1,6 +1,12 @@
 # Uncomment this line to define a global platform for your project
 platform :ios, '17.0'
 
+# CocoaPods sources. Sumsub hosts IdensicMobileSDK in its own spec
+# repo, not the public trunk — both must be declared explicitly the
+# moment any non-trunk source is used.
+source 'https://github.com/CocoaPods/Specs.git'
+source 'https://github.com/SumSubstance/Specs.git'
+
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 

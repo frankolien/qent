@@ -38,6 +38,19 @@
 				<string>com.googleusercontent.apps.482124898845-4rj56f9so0mo9im44i2bq6kst2283ene</string>
 			</array>
 		</dict>
+		<!-- V2 §6.4 — Privy OAuth redirect URL scheme. Must match the
+		     `appUrlScheme` passed to `Privy.oAuth.login` and the value
+		     of PRIVY_OAUTH_SCHEME in .env. -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>qent.privy.oauth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>qentauth</string>
+			</array>
+		</dict>
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>

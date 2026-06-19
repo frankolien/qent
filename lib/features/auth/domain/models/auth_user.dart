@@ -10,7 +10,7 @@ class AuthUser {
   final String verificationStatus;
   final double walletBalance;
   final bool isActive;
-  final String country;
+  final String? country;
   final DateTime createdAt;
 
   AuthUser({
@@ -23,7 +23,7 @@ class AuthUser {
     required this.verificationStatus,
     required this.walletBalance,
     required this.isActive,
-    required this.country,
+    this.country,
     required this.createdAt,
   });
 
@@ -38,7 +38,7 @@ class AuthUser {
       verificationStatus: json['verification_status'] ?? 'Pending',
       walletBalance: (json['wallet_balance'] as num?)?.toDouble() ?? 0.0,
       isActive: json['is_active'] ?? true,
-      country: json['country'] ?? 'Nigeria',
+      country: json['country'] as String?,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : DateTime.now(),

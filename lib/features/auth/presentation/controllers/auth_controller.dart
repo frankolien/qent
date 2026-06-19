@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:privy_flutter/privy_flutter.dart' hide AuthState;
+import 'package:qent/core/services/privy_manager.dart';
 import 'package:qent/core/utils/friendly_error.dart';
 import 'package:qent/features/auth/domain/models/auth_user.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
@@ -174,6 +176,132 @@ class AuthController extends Notifier<AuthState> {
       state = state.copyWith(
         isLoading: false,
         errorMessage: friendlyError(e, tag: 'Auth/google', stack: st),
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------
+  // V2 §6.4 — Privy auth flows. Each one (a) runs the Privy SDK call,
+  // (b) reads the resulting access token, (c) exchanges it for a
+  // Qent JWT via `/api/auth/privy`. All three end the same way, so
+  // the exchange is factored out.
+  // ---------------------------------------------------------------
+
+  Future<void> _completePrivyExchange(PrivyUser user) async {
+    final token = await privyManager.tokenFromUser(user);
+    if (token == null || token.isEmpty) {
+      throw Exception('Privy did not return an access token');
+    }
+    final dataSource = ref.read(apiAuthDataSourceProvider);
+    final authUser = await dataSource.signInWithPrivy(privyToken: token);
+    await _cacheUser(authUser);
+    state = state.copyWith(isLoading: false, user: authUser);
+    ref.read(wsServiceProvider).connect();
+  }
+
+  Future<void> signInWithPrivyOAuth(OAuthProvider provider) async {
+    if (!privyManager.isReady) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage:
+            privyManager.initErrorMessage ?? 'Privy not configured',
+      );
+      return;
+    }
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final result = await privyManager.privy.oAuth.login(
+        provider: provider,
+        appUrlScheme: privyManager.oAuthScheme,
+      );
+
+      Object? userOrError = result;
+      PrivyUser? user;
+      String? errorMessage;
+      result.fold(
+        onSuccess: (u) => user = u,
+        onFailure: (e) => errorMessage = e.message,
+      );
+      userOrError = userOrError; // silence unused
+
+      if (user != null) {
+        await _completePrivyExchange(user!);
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: errorMessage ?? 'Privy sign-in failed',
+        );
+      }
+    } catch (e, st) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: friendlyError(e, tag: 'Auth/privy-oauth', stack: st),
+      );
+    }
+  }
+
+  /// Step 1 of email magic-link — kicks off the OTP send. The page
+  /// then asks the user for the code and calls
+  /// [confirmPrivyEmailCode].
+  Future<bool> sendPrivyEmailCode(String email) async {
+    if (!privyManager.isReady) {
+      state = state.copyWith(
+        errorMessage: privyManager.initErrorMessage ?? 'Privy not configured',
+      );
+      return false;
+    }
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    bool ok = false;
+    String? errorMessage;
+    try {
+      final result = await privyManager.privy.email.sendCode(email);
+      result.fold(
+        onSuccess: (_) => ok = true,
+        onFailure: (e) => errorMessage = e.message,
+      );
+    } catch (e, st) {
+      errorMessage = friendlyError(e, tag: 'Auth/privy-email-send', stack: st);
+    }
+    state = state.copyWith(isLoading: false, errorMessage: errorMessage);
+    return ok;
+  }
+
+  Future<void> confirmPrivyEmailCode({
+    required String email,
+    required String code,
+  }) async {
+    if (!privyManager.isReady) {
+      state = state.copyWith(
+        errorMessage: privyManager.initErrorMessage ?? 'Privy not configured',
+      );
+      return;
+    }
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final result = await privyManager.privy.email.loginWithCode(
+        code: code,
+        email: email,
+      );
+
+      PrivyUser? user;
+      String? errorMessage;
+      result.fold(
+        onSuccess: (u) => user = u,
+        onFailure: (e) => errorMessage = e.message,
+      );
+
+      if (user != null) {
+        await _completePrivyExchange(user!);
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: errorMessage ?? 'Wrong or expired code',
+        );
+      }
+    } catch (e, st) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: friendlyError(e, tag: 'Auth/privy-email-confirm', stack: st),
       );
     }
   }
