@@ -6,15 +6,15 @@ import 'package:image_picker/image_picker.dart';
 import 'package:qent/core/services/cloudinary_service.dart';
 import 'package:qent/core/utils/friendly_error.dart';
 import 'package:qent/features/partner/data/models/partner_listing.dart';
-import 'package:qent/features/partner/presentation/controllers/partner_v2_controller.dart';
-import 'package:qent/features/partner/presentation/pages/v2/editorial_pricing_page.dart';
-import 'package:qent/features/partner/presentation/pages/v2/editorial_owner_page.dart'
+import 'package:qent/features/partner/presentation/controllers/partner_onboarding_controller.dart';
+import 'package:qent/features/partner/presentation/pages/editorial/editorial_pricing_page.dart';
+import 'package:qent/features/partner/presentation/pages/editorial/editorial_owner_page.dart'
     show
         EditorialHeader,
         EditorialStepLabel,
         EditorialField,
         EditorialContinueButton;
-import 'package:qent/features/partner/presentation/pages/v2/editorial_palette.dart';
+import 'package:qent/features/partner/presentation/pages/editorial/editorial_palette.dart';
 
 /// Step 04b — owner consent. Conditionally entered when the docs
 /// step's "I'm the registered owner" toggle was off (server flips
@@ -121,7 +121,7 @@ class _EditorialOwnerConsentPageState
     }
     setState(() => _submitting = true);
     try {
-      await ref.read(partnerV2ControllerProvider).submitOwnerConsent(
+      await ref.read(partnerOnboardingControllerProvider).submitOwnerConsent(
             listingId: _listingId!,
             ownerRelationship: _relationship,
             ownerConsentLetterUrl: _consentLetterUrl,

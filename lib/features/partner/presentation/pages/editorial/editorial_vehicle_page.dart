@@ -3,15 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:qent/core/utils/friendly_error.dart';
 import 'package:qent/features/partner/data/models/partner_listing.dart';
-import 'package:qent/features/partner/presentation/controllers/partner_v2_controller.dart';
-import 'package:qent/features/partner/presentation/pages/v2/editorial_owner_page.dart'
+import 'package:qent/features/partner/presentation/controllers/partner_onboarding_controller.dart';
+import 'package:qent/features/partner/presentation/pages/editorial/editorial_owner_page.dart'
     show
         EditorialHeader,
         EditorialStepLabel,
         EditorialField,
         EditorialContinueButton;
-import 'package:qent/features/partner/presentation/pages/v2/editorial_palette.dart';
-import 'package:qent/features/partner/presentation/pages/v2/editorial_photos_page.dart';
+import 'package:qent/features/partner/presentation/pages/editorial/editorial_palette.dart';
+import 'package:qent/features/partner/presentation/pages/editorial/editorial_photos_page.dart';
 
 /// Step 02 — "What are you listing?" Tier-aware brand grid + model /
 /// year / color / plate fields. Posts to `/api/partner/listings` and
@@ -127,7 +127,7 @@ class _EditorialVehiclePageState extends ConsumerState<EditorialVehiclePage> {
     try {
       final yearText = _yearCtrl.text.trim();
       final year = yearText.isEmpty ? null : int.tryParse(yearText);
-      await ref.read(partnerV2ControllerProvider).saveVehicleStep(
+      await ref.read(partnerOnboardingControllerProvider).saveVehicleStep(
             tier: _tier,
             brand: _brand!,
             model: _modelCtrl.text.trim(),

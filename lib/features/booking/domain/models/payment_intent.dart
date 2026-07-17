@@ -32,7 +32,7 @@ class PaymentIntentResponse {
 
   factory PaymentIntentResponse.fromJson(Map<String, dynamic> json) {
     // Backend returns a flat PaymentIntent struct from POST
-    // /v2/bookings/:id/pay. Tolerate an older nested shape (in case
+    // /bookings/:id/pay-usdc. Tolerate an older nested shape (in case
     // some response wraps under `payment_intent`) by merging.
     final nested = (json['payment_intent'] as Map?)?.cast<String, dynamic>();
     final src = <String, dynamic>{...json, if (nested != null) ...nested};

@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/core/theme/app_theme.dart';
-import 'package:qent/features/booking/data/datasources/booking_v2_datasource.dart';
+import 'package:qent/features/booking/data/datasources/booking_pay_datasource.dart';
 import 'package:qent/features/booking/domain/models/payment_intent.dart';
 import 'package:qent/features/booking/presentation/pages/booking_success_page.dart';
 import 'package:qent/features/home/domain/models/car.dart';
@@ -55,7 +55,7 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage>
 
   Future<void> _waitForConfirmation() async {
     try {
-      await BookingV2DataSource().waitForPaid(
+      await BookingPayDataSource().waitForPaid(
         bookingId: widget.intent.bookingId,
       );
       if (!mounted) return;
@@ -67,7 +67,7 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage>
           ),
         ),
       );
-    } on BookingV2Exception catch (e) {
+    } on BookingPayException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } catch (e) {
       if (mounted) {

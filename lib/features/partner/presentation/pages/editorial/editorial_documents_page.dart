@@ -7,15 +7,15 @@ import 'package:qent/core/services/cloudinary_service.dart';
 import 'package:qent/core/utils/friendly_error.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/kyc/presentation/pages/kyc_launcher_page.dart';
-import 'package:qent/features/partner/data/datasources/partner_v2_datasource.dart';
+import 'package:qent/features/partner/data/datasources/partner_onboarding_datasource.dart';
 import 'package:qent/features/partner/data/models/partner_listing.dart';
 import 'package:qent/features/partner/data/models/partner_profile.dart';
-import 'package:qent/features/partner/presentation/controllers/partner_v2_controller.dart';
-import 'package:qent/features/partner/presentation/pages/v2/editorial_owner_consent_page.dart';
-import 'package:qent/features/partner/presentation/pages/v2/editorial_owner_page.dart'
+import 'package:qent/features/partner/presentation/controllers/partner_onboarding_controller.dart';
+import 'package:qent/features/partner/presentation/pages/editorial/editorial_owner_consent_page.dart';
+import 'package:qent/features/partner/presentation/pages/editorial/editorial_owner_page.dart'
     show EditorialHeader, EditorialStepLabel, EditorialContinueButton;
-import 'package:qent/features/partner/presentation/pages/v2/editorial_palette.dart';
-import 'package:qent/features/partner/presentation/pages/v2/editorial_pricing_page.dart';
+import 'package:qent/features/partner/presentation/pages/editorial/editorial_palette.dart';
+import 'package:qent/features/partner/presentation/pages/editorial/editorial_pricing_page.dart';
 
 /// Step 04 — vehicle documents + Sumsub identity gate.
 ///
@@ -182,7 +182,7 @@ class _EditorialDocumentsPageState
           _slots.firstWhere((s) => s.kind == _DocKind.vehicleRegistration);
       final ins = _slots.firstWhere((s) => s.kind == _DocKind.insurance);
       final policy = _policyCtrl.text.trim();
-      final out = await ref.read(partnerV2ControllerProvider).submitListingDocs(
+      final out = await ref.read(partnerOnboardingControllerProvider).submitListingDocs(
             listingId: _listingId!,
             vehicleRegistrationUrl: reg.remoteUrl,
             insuranceCertificateUrl: ins.remoteUrl,

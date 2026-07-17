@@ -1,4 +1,4 @@
-/// V2 §7 — single result row returned by GET /api/v2/cars/search.
+/// V2 §7 — single result row returned by GET /api/cars/search.
 ///
 /// Slimmer than the V1 `Car` model — only the fields the discovery
 /// card needs. Detail view still hits /api/cars/{id} for the full

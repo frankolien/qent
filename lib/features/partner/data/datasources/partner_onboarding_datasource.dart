@@ -4,9 +4,9 @@ import 'package:qent/features/partner/data/models/partner_profile.dart';
 
 /// Thin wrapper over `ApiClient` for the partner v2 endpoints. Keeps
 /// JSON shape concerns out of controllers/UI.
-class PartnerV2DataSource {
+class PartnerOnboardingDataSource {
   final ApiClient _api;
-  PartnerV2DataSource({ApiClient? api}) : _api = api ?? ApiClient();
+  PartnerOnboardingDataSource({ApiClient? api}) : _api = api ?? ApiClient();
 
   /// GET /api/partner/profile — returns null when the user hasn't
   /// started onboarding yet (server replies 404).

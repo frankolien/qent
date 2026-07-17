@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:qent/features/partner/presentation/pages/v2/editorial_owner_page.dart';
+import 'package:qent/features/partner/presentation/pages/editorial/editorial_owner_page.dart';
 
 class PartnerOnboardingWelcomePage extends StatelessWidget {
   const PartnerOnboardingWelcomePage({super.key});

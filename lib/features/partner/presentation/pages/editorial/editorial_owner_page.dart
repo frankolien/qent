@@ -6,9 +6,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:qent/core/services/cloudinary_service.dart';
 import 'package:qent/core/utils/friendly_error.dart';
 import 'package:qent/features/partner/data/models/partner_profile.dart';
-import 'package:qent/features/partner/presentation/controllers/partner_v2_controller.dart';
-import 'package:qent/features/partner/presentation/pages/v2/editorial_email_verify_page.dart';
-import 'package:qent/features/partner/presentation/pages/v2/editorial_palette.dart';
+import 'package:qent/features/partner/presentation/controllers/partner_onboarding_controller.dart';
+import 'package:qent/features/partner/presentation/pages/editorial/editorial_email_verify_page.dart';
+import 'package:qent/features/partner/presentation/pages/editorial/editorial_palette.dart';
 
 /// Step 01 of the Editorial partner onboarding flow — "Tell us who's
 /// behind the wheel." Cream background, serif italic emphasis, posts
@@ -101,7 +101,7 @@ class _EditorialOwnerPageState extends ConsumerState<EditorialOwnerPage> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _submitting = true);
     try {
-      await ref.read(partnerV2ControllerProvider).saveOwnerStep(
+      await ref.read(partnerOnboardingControllerProvider).saveOwnerStep(
             legalFullName: _nameCtrl.text.trim(),
             contractEmail: _emailCtrl.text.trim(),
             phone: _phoneCtrl.text.trim(),

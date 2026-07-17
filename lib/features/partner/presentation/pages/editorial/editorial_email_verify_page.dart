@@ -4,11 +4,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:qent/core/services/email_verification_service.dart';
-import 'package:qent/features/partner/presentation/controllers/partner_v2_controller.dart';
-import 'package:qent/features/partner/presentation/pages/v2/editorial_owner_page.dart'
+import 'package:qent/features/partner/presentation/controllers/partner_onboarding_controller.dart';
+import 'package:qent/features/partner/presentation/pages/editorial/editorial_owner_page.dart'
     show EditorialHeader, EditorialStepLabel, EditorialContinueButton;
-import 'package:qent/features/partner/presentation/pages/v2/editorial_palette.dart';
-import 'package:qent/features/partner/presentation/pages/v2/editorial_vehicle_page.dart';
+import 'package:qent/features/partner/presentation/pages/editorial/editorial_palette.dart';
+import 'package:qent/features/partner/presentation/pages/editorial/editorial_vehicle_page.dart';
 
 /// Sub-step under Step 01 — confirm the contract email by entering the
 /// 4-digit code Resend mails to the address. Header still reads
@@ -137,7 +137,7 @@ class _EditorialEmailVerifyPageState
       // OTP confirmed — flip the partner-side flag so downstream steps
       // know the contract email is good.
       await ref
-          .read(partnerV2ControllerProvider)
+          .read(partnerOnboardingControllerProvider)
           .markEmailVerified(widget.email);
       if (!mounted) return;
       Navigator.of(context).pushReplacement(

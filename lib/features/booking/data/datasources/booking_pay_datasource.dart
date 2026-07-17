@@ -6,9 +6,9 @@ import 'package:qent/features/booking/domain/models/payment_intent.dart';
 /// V2 USDC payment surface — bolts onto V1's booking lifecycle.
 /// V1 still creates bookings via `POST /bookings`. This data source
 /// only handles the *pay step* on an approved booking.
-class BookingV2DataSource {
+class BookingPayDataSource {
   final ApiClient _client;
-  BookingV2DataSource({ApiClient? client}) : _client = client ?? ApiClient();
+  BookingPayDataSource({ApiClient? client}) : _client = client ?? ApiClient();
 
   void _log(String m) {
     if (kDebugMode) debugPrint('[Qent BookingV2] $m');
@@ -20,10 +20,10 @@ class BookingV2DataSource {
   Future<PaymentIntentResponse> requestPaymentIntent({
     required String bookingId,
   }) async {
-    _log('> POST /v2/bookings/$bookingId/pay');
-    final resp = await _client.post('/v2/bookings/$bookingId/pay');
+    _log('> POST /bookings/$bookingId/pay-usdc');
+    final resp = await _client.post('/bookings/$bookingId/pay-usdc');
     if (!resp.isSuccess) {
-      throw BookingV2Exception(resp.statusCode, resp.errorMessage);
+      throw BookingPayException(resp.statusCode, resp.errorMessage);
     }
     return PaymentIntentResponse.fromJson(resp.body as Map<String, dynamic>);
   }
@@ -35,13 +35,13 @@ class BookingV2DataSource {
     required String txHash,
     required String fromAddress,
   }) async {
-    _log('> POST /v2/payments/$paymentId/submit-tx ${txHash.substring(0, 10)}…');
+    _log('> POST /payments/$paymentId/submit-tx ${txHash.substring(0, 10)}…');
     final resp = await _client.post(
-      '/v2/payments/$paymentId/submit-tx',
+      '/payments/$paymentId/submit-tx',
       body: {'tx_hash': txHash, 'from_address': fromAddress},
     );
     if (!resp.isSuccess) {
-      throw BookingV2Exception(resp.statusCode, resp.errorMessage);
+      throw BookingPayException(resp.statusCode, resp.errorMessage);
     }
   }
 
@@ -65,22 +65,22 @@ class BookingV2DataSource {
           return status;
         }
         if (status == 'cancelled' || status == 'refunded') {
-          throw BookingV2Exception(409, 'Booking $status');
+          throw BookingPayException(409, 'Booking $status');
         }
       }
       await Future.delayed(pollEvery);
     }
-    throw BookingV2Exception(
+    throw BookingPayException(
       408,
       'Payment confirmation timed out. Pull to refresh and check status.',
     );
   }
 }
 
-class BookingV2Exception implements Exception {
+class BookingPayException implements Exception {
   final int statusCode;
   final String message;
-  BookingV2Exception(this.statusCode, this.message);
+  BookingPayException(this.statusCode, this.message);
   bool get isNotApproved => statusCode == 409;
   bool get isNotConfigured => statusCode == 503;
   @override

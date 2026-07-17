@@ -1,12 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:qent/features/partner/data/datasources/partner_v2_datasource.dart';
+import 'package:qent/features/partner/data/datasources/partner_onboarding_datasource.dart';
 import 'package:qent/features/partner/data/models/partner_listing.dart';
 import 'package:qent/features/partner/data/models/partner_profile.dart';
 
 /// Singleton-ish data source. No state of its own beyond the global
 /// `ApiClient`, so a plain `Provider` is fine.
-final partnerV2DataSourceProvider = Provider<PartnerV2DataSource>((ref) {
-  return PartnerV2DataSource();
+final partnerOnboardingDataSourceProvider = Provider<PartnerOnboardingDataSource>((ref) {
+  return PartnerOnboardingDataSource();
 });
 
 /// Reactive cache of the current user's partner profile. `null` data
@@ -17,7 +17,7 @@ final partnerV2DataSourceProvider = Provider<PartnerV2DataSource>((ref) {
 /// the next listing.
 final partnerProfileProvider = FutureProvider<PartnerProfile?>((ref) async {
   ref.keepAlive();
-  return ref.read(partnerV2DataSourceProvider).fetchProfile();
+  return ref.read(partnerOnboardingDataSourceProvider).fetchProfile();
 });
 
 /// Reactive cache of the host's current draft listing. `null` means
@@ -27,7 +27,7 @@ final partnerProfileProvider = FutureProvider<PartnerProfile?>((ref) async {
 final partnerDraftListingProvider =
     FutureProvider<PartnerListing?>((ref) async {
   ref.keepAlive();
-  return ref.read(partnerV2DataSourceProvider).fetchDraftListing();
+  return ref.read(partnerOnboardingDataSourceProvider).fetchDraftListing();
 });
 
 /// All listings owned by the host, newest first. Powers the host
@@ -35,16 +35,16 @@ final partnerDraftListingProvider =
 final partnerListingsProvider =
     FutureProvider<List<PartnerListing>>((ref) async {
   ref.keepAlive();
-  return ref.read(partnerV2DataSourceProvider).fetchListings();
+  return ref.read(partnerOnboardingDataSourceProvider).fetchListings();
 });
 
 /// Action controller — exposes the mutating calls. Each step page calls
 /// the relevant method and awaits the result to navigate forward.
-class PartnerV2Controller {
+class PartnerOnboardingController {
   final Ref _ref;
-  PartnerV2Controller(this._ref);
+  PartnerOnboardingController(this._ref);
 
-  PartnerV2DataSource get _ds => _ref.read(partnerV2DataSourceProvider);
+  PartnerOnboardingDataSource get _ds => _ref.read(partnerOnboardingDataSourceProvider);
 
   Future<PartnerProfile> saveOwnerStep({
     required String legalFullName,
@@ -199,6 +199,6 @@ class PartnerV2Controller {
   }
 }
 
-final partnerV2ControllerProvider = Provider<PartnerV2Controller>((ref) {
-  return PartnerV2Controller(ref);
+final partnerOnboardingControllerProvider = Provider<PartnerOnboardingController>((ref) {
+  return PartnerOnboardingController(ref);
 });

@@ -50,7 +50,7 @@ class DiscoveryQuery {
       );
 }
 
-/// Fires GET /api/v2/cars/search whenever the query changes. Pull-to-
+/// Fires GET /api/cars/search whenever the query changes. Pull-to-
 /// refresh in the page calls `ref.invalidate(discoverySearchProvider(q))`.
 final discoverySearchProvider = FutureProvider.autoDispose
     .family<List<CarSearchHit>, DiscoveryQuery>((ref, query) async {

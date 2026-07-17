@@ -7,7 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:qent/core/services/api_client.dart';
 import 'package:qent/core/widgets/profile_image_widget.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
-import 'package:qent/features/booking/data/datasources/booking_v2_datasource.dart';
+import 'package:qent/features/booking/data/datasources/booking_pay_datasource.dart';
 import 'package:qent/features/booking/presentation/pages/booking_confirm_page.dart';
 import 'package:qent/features/chat/presentation/controllers/chat_controller.dart';
 import 'package:qent/features/chat/presentation/pages/chat_detail_page.dart';
@@ -122,7 +122,7 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
     HapticFeedback.mediumImpact();
     setState(() => _isPaying = true);
     try {
-      final intent = await BookingV2DataSource()
+      final intent = await BookingPayDataSource()
           .requestPaymentIntent(bookingId: widget.trip.id);
       if (!mounted) return;
       await Navigator.of(context).push(
@@ -138,7 +138,7 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
       // Confirm/wait/success pages handle their own navigation; on
       // return, refresh the trip so the new status renders.
       if (mounted) await _refreshFromBackend();
-    } on BookingV2Exception catch (e) {
+    } on BookingPayException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

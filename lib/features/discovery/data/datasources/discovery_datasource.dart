@@ -39,9 +39,9 @@ class DiscoveryDataSource {
     if (maxPriceUsdc != null) params['max_price_usdc'] = maxPriceUsdc.toString();
     if (sortBy != null && sortBy.isNotEmpty) params['sort_by'] = sortBy;
 
-    _log('> GET /v2/cars/search $params');
+    _log('> GET /cars/search $params');
     final resp = await _client.get(
-      '/v2/cars/search',
+      '/cars/search',
       auth: false,
       queryParams: params,
     );

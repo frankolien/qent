@@ -3,11 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:qent/core/utils/friendly_error.dart';
 import 'package:qent/features/partner/data/models/partner_listing.dart';
-import 'package:qent/features/partner/presentation/controllers/partner_v2_controller.dart';
-import 'package:qent/features/partner/presentation/pages/v2/editorial_owner_page.dart'
+import 'package:qent/features/partner/presentation/controllers/partner_onboarding_controller.dart';
+import 'package:qent/features/partner/presentation/pages/editorial/editorial_owner_page.dart'
     show EditorialHeader, EditorialStepLabel, EditorialField, EditorialContinueButton;
-import 'package:qent/features/partner/presentation/pages/v2/editorial_palette.dart';
-import 'package:qent/features/partner/presentation/pages/v2/editorial_success_page.dart';
+import 'package:qent/features/partner/presentation/pages/editorial/editorial_palette.dart';
+import 'package:qent/features/partner/presentation/pages/editorial/editorial_success_page.dart';
 
 class EditorialPricingPage extends ConsumerStatefulWidget {
   const EditorialPricingPage({super.key});
@@ -57,7 +57,7 @@ class _EditorialPricingPageState extends ConsumerState<EditorialPricingPage> {
 
     setState(() => _submitting = true);
     try {
-      await ref.read(partnerV2ControllerProvider).saveListingPricing(
+      await ref.read(partnerOnboardingControllerProvider).saveListingPricing(
             listingId: _listingId!,
             pricePerDay: price,
             location: _locationCtrl.text.trim(),

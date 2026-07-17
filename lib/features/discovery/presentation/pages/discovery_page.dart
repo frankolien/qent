@@ -7,7 +7,7 @@ import 'package:qent/features/countries/presentation/pages/country_picker_page.d
 import 'package:qent/features/discovery/domain/models/car_search_hit.dart';
 import 'package:qent/features/discovery/presentation/providers/discovery_providers.dart';
 
-/// V2 §7 — primary discovery screen. Hits /api/v2/cars/search filtered
+/// V2 §7 — primary discovery screen. Hits /api/cars/search filtered
 /// by the user's saved country. Minimum-filter version for Week 1; the
 /// full §7.7 filter sheet (transmission, fuel, instant-book, distance)
 /// lands in Week 5.

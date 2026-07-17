@@ -2,7 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qent/core/theme/app_theme.dart';
-import 'package:qent/features/booking/data/datasources/booking_v2_datasource.dart';
+import 'package:qent/features/booking/data/datasources/booking_pay_datasource.dart';
 import 'package:qent/features/booking/data/services/usdc_transfer_service.dart';
 import 'package:qent/features/booking/domain/models/payment_intent.dart';
 import 'package:qent/features/booking/presentation/pages/booking_waiting_page.dart';
@@ -33,7 +33,7 @@ class _BookingConfirmPageState extends ConsumerState<BookingConfirmPage> {
   bool _busy = false;
   String? _error;
 
-  final _bookings = BookingV2DataSource();
+  final _bookings = BookingPayDataSource();
   final _usdc = UsdcTransferService();
 
   Future<void> _payWithWallet() async {
