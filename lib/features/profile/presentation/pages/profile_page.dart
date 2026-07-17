@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:qent/core/widgets/profile_image_widget.dart';
+import 'package:qent/features/auth/domain/models/auth_user.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/profile/presentation/pages/edit_profile_page.dart';
 import 'package:qent/features/favorites/presentation/pages/favorites_page.dart';
@@ -104,14 +105,14 @@ class ProfilePage extends ConsumerWidget {
               ),
               _buildDarkModeToggle(ref),
               Consumer(builder: (context, ref, _) {
-                final profile =
-                    ref.watch(partnerProfileProvider).asData?.value;
                 final listings = ref
                         .watch(partnerListingsProvider)
                         .asData
                         ?.value ??
                     const [];
-                final isVerified = profile?.identityStatus == 'verified';
+                final tier =
+                    ref.watch(authControllerProvider).user?.kycTier ?? 0;
+                final isVerified = tier >= 1;
                 final hasLiveListing = listings.any(
                   (l) => l.listingStatus == 'approved',
                 );
@@ -204,41 +205,91 @@ class ProfilePage extends ConsumerWidget {
     final fullName = authState.user?.fullName ?? 'User';
     final email = authState.user?.email ?? '';
     final currentUserId = userId ?? authState.user?.uid;
+    final completion = _profileCompletion(authState.user);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
-          // Profile photo with camera icon
-          Stack(
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.grey[200]!, width: 2),
-                ),
-                child: ProfileImageWidget(
-                  userId: currentUserId ?? '',
-                  imageUrl: authState.user?.profilePhotoUrl,
-                  size: 72,
-                  showEditIcon: false,
-                ),
-              ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: Container(
-                  width: 26,
-                  height: 26,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
+          // Profile photo with completion ring + camera icon.
+          GestureDetector(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const EditProfilePage()),
+            ),
+            child: SizedBox(
+              width: 84,
+              height: 84,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Ring — fills as the profile fields fill.
+                  SizedBox(
+                    width: 84,
+                    height: 84,
+                    child: CircularProgressIndicator(
+                      value: completion.ratio,
+                      strokeWidth: 2.5,
+                      backgroundColor: Colors.grey[200],
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        completion.isComplete
+                            ? const Color(0xFF22C55E)
+                            : context.textPrimary,
+                      ),
+                    ),
                   ),
-                  child: const Icon(Icons.camera_alt, size: 13, color: Colors.black54),
-                ),
+                  ProfileImageWidget(
+                    userId: currentUserId ?? '',
+                    imageUrl: authState.user?.profilePhotoUrl,
+                    size: 72,
+                    showEditIcon: false,
+                  ),
+                  if (!completion.isComplete)
+                    Positioned(
+                      bottom: -2,
+                      right: -2,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: context.textPrimary,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: context.bgPrimary, width: 2),
+                        ),
+                        child: Text(
+                          '${completion.percent}%',
+                          style: GoogleFonts.roboto(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: context.bgPrimary,
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF22C55E),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: context.bgPrimary, width: 2),
+                        ),
+                        child: const Icon(
+                          Icons.check,
+                          size: 12,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                ],
               ),
-            ],
+            ),
           ),
           const SizedBox(width: 14),
           // Name and email
@@ -511,4 +562,28 @@ class ProfilePage extends ConsumerWidget {
       },
     );
   }
+
+  /// Counts the four profile fields we nudge renters to complete:
+  /// full name, phone, profile photo, country. KYC verification is
+  /// tracked separately because it has its own flow.
+  ProfileCompletion _profileCompletion(AuthUser? user) {
+    if (user == null) return const ProfileCompletion(filled: 0, total: 4);
+    var filled = 0;
+    if (user.fullName.trim().isNotEmpty && user.fullName.trim() != 'User') {
+      filled++;
+    }
+    if ((user.phone ?? '').trim().isNotEmpty) filled++;
+    if ((user.profilePhotoUrl ?? '').trim().isNotEmpty) filled++;
+    if ((user.country ?? '').trim().isNotEmpty) filled++;
+    return ProfileCompletion(filled: filled, total: 4);
+  }
+}
+
+class ProfileCompletion {
+  final int filled;
+  final int total;
+  const ProfileCompletion({required this.filled, required this.total});
+  double get ratio => total == 0 ? 0 : filled / total;
+  int get percent => (ratio * 100).round();
+  bool get isComplete => filled >= total;
 }

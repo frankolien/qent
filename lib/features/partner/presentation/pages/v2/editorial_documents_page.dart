@@ -5,23 +5,25 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:qent/core/services/cloudinary_service.dart';
 import 'package:qent/core/utils/friendly_error.dart';
+import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
+import 'package:qent/features/kyc/presentation/pages/kyc_launcher_page.dart';
+import 'package:qent/features/partner/data/datasources/partner_v2_datasource.dart';
 import 'package:qent/features/partner/data/models/partner_listing.dart';
 import 'package:qent/features/partner/data/models/partner_profile.dart';
 import 'package:qent/features/partner/presentation/controllers/partner_v2_controller.dart';
-import 'package:qent/features/partner/presentation/pages/v2/editorial_identity_page.dart';
 import 'package:qent/features/partner/presentation/pages/v2/editorial_owner_consent_page.dart';
 import 'package:qent/features/partner/presentation/pages/v2/editorial_owner_page.dart'
     show EditorialHeader, EditorialStepLabel, EditorialContinueButton;
 import 'package:qent/features/partner/presentation/pages/v2/editorial_palette.dart';
+import 'package:qent/features/partner/presentation/pages/v2/editorial_pricing_page.dart';
 
-/// Step 04 — "Three quick papers." Documents step.
+/// Step 04 — vehicle documents + Sumsub identity gate.
 ///
-/// Each slot uploads one image to Cloudinary. On Continue the URLs +
-/// the host's "I'm the registered owner" declaration + insurance
-/// policy number are POSTed to `/partner/listings/:id/docs`. The
-/// server runs Prembly DL and plate verification synchronously and
-/// returns whether the conditional 04b owner-consent branch should
-/// fire.
+/// Driver identity is now handled out-of-band by Sumsub (the renter
+/// KYC launcher); this page only collects the two vehicle papers
+/// (C of R + insurance) and the host's "I'm the registered owner"
+/// declaration. Continue is gated on `kyc_tier >= 1` so a host that
+/// hasn't completed Sumsub gets an inline launcher card instead.
 class EditorialDocumentsPage extends ConsumerStatefulWidget {
   const EditorialDocumentsPage({super.key});
 
@@ -30,10 +32,7 @@ class EditorialDocumentsPage extends ConsumerStatefulWidget {
       _EditorialDocumentsPageState();
 }
 
-/// What backend field this slot ultimately writes. We use a tag rather
-/// than an index so the order in `_slots` can be tweaked without the
-/// submit logic getting confused.
-enum _DocKind { driversLicense, vehicleRegistration, insurance }
+enum _DocKind { vehicleRegistration, insurance }
 
 class _DocSlot {
   final _DocKind kind;
@@ -52,11 +51,6 @@ class _EditorialDocumentsPageState
     extends ConsumerState<EditorialDocumentsPage> {
   final _slots = <_DocSlot>[
     _DocSlot(
-      kind: _DocKind.driversLicense,
-      title: "Driver's licence",
-      subtitle: 'Front photo · JPG or PDF',
-    ),
-    _DocSlot(
       kind: _DocKind.vehicleRegistration,
       title: 'Vehicle registration',
       subtitle: 'C of R · we cross-check the plate',
@@ -71,7 +65,6 @@ class _EditorialDocumentsPageState
   final _policyCtrl = TextEditingController();
   bool _isRegisteredOwner = true;
   String? _listingId;
-  DateTime? _dlDob;
   bool _hydrated = false;
   bool _submitting = false;
 
@@ -87,14 +80,8 @@ class _EditorialDocumentsPageState
     if (listing == null) return; // need a listing id to submit anything
     _hydrated = true;
     _listingId = listing.id;
-    if (profile != null) {
-      _dlDob = profile.driversLicenseDob;
-      if (profile.driversLicenseFrontUrl != null) {
-        _slots
-            .firstWhere((s) => s.kind == _DocKind.driversLicense)
-            .remoteUrl = profile.driversLicenseFrontUrl;
-      }
-    }
+    // profile is intentionally unused now — DL fields aren't collected
+    // here anymore.
     if (listing.vehicleRegistrationUrl != null) {
       _slots
           .firstWhere((s) => s.kind == _DocKind.vehicleRegistration)
@@ -151,16 +138,13 @@ class _EditorialDocumentsPageState
     }
   }
 
-  Future<void> _pickDob() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _dlDob ?? DateTime(now.year - 30),
-      firstDate: DateTime(now.year - 90),
-      lastDate: now,
-      helpText: "DRIVER'S DATE OF BIRTH",
+  /// Push the renter-style KYC launcher. On return, refreshProfile()
+  /// has already run inside the launcher; the watcher in build() will
+  /// rebuild with the new tier.
+  Future<void> _startIdentityVerification() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const KycLauncherPage()),
     );
-    if (picked != null && mounted) setState(() => _dlDob = picked);
   }
 
   Future<void> _onContinue() async {
@@ -173,7 +157,7 @@ class _EditorialDocumentsPageState
     }
     if (!_allUploaded) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Upload all three documents to continue')),
+        const SnackBar(content: Text('Upload both documents to continue')),
       );
       return;
     }
@@ -185,39 +169,45 @@ class _EditorialDocumentsPageState
       );
       return;
     }
-    if (_dlDob == null) {
+    final tier = ref.read(authControllerProvider).user?.kycTier ?? 0;
+    if (tier < 1) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Add the driver's date of birth")),
+        const SnackBar(content: Text('Verify your identity first')),
       );
       return;
     }
     setState(() => _submitting = true);
     try {
-      final dl = _slots.firstWhere((s) => s.kind == _DocKind.driversLicense);
       final reg =
           _slots.firstWhere((s) => s.kind == _DocKind.vehicleRegistration);
       final ins = _slots.firstWhere((s) => s.kind == _DocKind.insurance);
       final policy = _policyCtrl.text.trim();
       final out = await ref.read(partnerV2ControllerProvider).submitListingDocs(
             listingId: _listingId!,
-            driversLicenseFrontUrl: dl.remoteUrl,
-            driversLicenseDob: _dlDob,
             vehicleRegistrationUrl: reg.remoteUrl,
             insuranceCertificateUrl: ins.remoteUrl,
             insurancePolicyNumber: policy.isEmpty ? null : policy,
             isRegisteredOwner: _isRegisteredOwner,
           );
       if (!mounted) return;
-      // Branch based on the server's decision (which mirrors the
-      // host's declaration for now — Prembly's plate endpoint doesn't
-      // expose registered owner so we trust the toggle).
+      // Plate endpoint can't expose registered owner; the toggle
+      // alone drives the 04b branch.
       if (out.ownerConsentRequired) {
         Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const EditorialOwnerConsentPage()),
         );
       } else {
         Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const EditorialIdentityPage()),
+          MaterialPageRoute(builder: (_) => const EditorialPricingPage()),
+        );
+      }
+    } on PartnerDocsException catch (e) {
+      if (!mounted) return;
+      if (e.isIdentityRequired) {
+        await _startIdentityVerification();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
         );
       }
     } catch (e, st) {
@@ -247,7 +237,7 @@ class _EditorialDocumentsPageState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const EditorialHeader(stepIndex: 4, totalSteps: 6),
+            const EditorialHeader(stepIndex: 4, totalSteps: 5),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
@@ -267,14 +257,14 @@ class _EditorialDocumentsPageState
                       ),
                     ),
                     const SizedBox(height: 22),
+                    _buildIdentityCard(),
+                    const SizedBox(height: 16),
                     ..._slots.map((s) => Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child:
                               _DocCard(slot: s, onTap: () => _pickFor(s)),
                         )),
                     const SizedBox(height: 8),
-                    _buildDobRow(),
-                    const SizedBox(height: 16),
                     _buildPolicyField(),
                     const SizedBox(height: 16),
                     _buildOwnerToggle(),
@@ -287,7 +277,8 @@ class _EditorialDocumentsPageState
             EditorialContinueButton(
               label: 'Continue',
               onPressed: _onContinue,
-              enabled: _allUploaded && _dlDob != null,
+              enabled: _allUploaded &&
+                  (ref.watch(authControllerProvider).user?.kycTier ?? 0) >= 1,
               submitting: _submitting,
             ),
           ],
@@ -298,7 +289,7 @@ class _EditorialDocumentsPageState
 
   Widget _buildTitle() {
     return Text(
-      'Three quick\npapers.',
+      'Identity +\ntwo papers.',
       style: GoogleFonts.roboto(
         color: EditorialPalette.textPrimary,
         fontSize: 28,
@@ -309,53 +300,95 @@ class _EditorialDocumentsPageState
     );
   }
 
-  /// FRSC needs the licence holder's DOB to verify. We collect it
-  /// inline here so the host doesn't have to backtrack to the Owner
-  /// page just to fill it in.
-  Widget _buildDobRow() {
+  /// Sumsub identity gate. When `kyc_tier == 0` the card pushes the
+  /// renter KYC launcher; once the webhook flips the tier, the card
+  /// switches to a green "Identity verified" state. The backend
+  /// gates /partner/listings/:id/docs on the same flag, so this is
+  /// just a UX surface.
+  Widget _buildIdentityCard() {
+    final tier = ref.watch(authControllerProvider).user?.kycTier ?? 0;
+    final verified = tier >= 1;
     return GestureDetector(
-      onTap: _pickDob,
-      child: Container(
+      onTap: verified ? null : _startIdentityVerification,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: EditorialPalette.fieldBorder),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: verified
+                ? EditorialPalette.successAccent.withValues(alpha: 0.5)
+                : EditorialPalette.fieldBorder,
+          ),
         ),
         child: Row(
           children: [
-            const Icon(Icons.event_outlined,
-                size: 18, color: EditorialPalette.textSecondary),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: verified
+                    ? EditorialPalette.successFill
+                    : EditorialPalette.fieldFill,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                verified ? Icons.verified_rounded : Icons.badge_outlined,
+                color: verified
+                    ? EditorialPalette.successAccent
+                    : EditorialPalette.textPrimary,
+                size: 20,
+              ),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "DRIVER'S DATE OF BIRTH",
+                    verified ? 'Identity verified' : 'Verify your identity',
                     style: GoogleFonts.roboto(
-                      color: EditorialPalette.textMuted,
-                      fontSize: 10,
-                      letterSpacing: 1.6,
-                      fontWeight: FontWeight.w600,
+                      color: EditorialPalette.textPrimary,
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.2,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    _dlDob == null
-                        ? 'Tap to choose'
-                        : '${_dlDob!.year}-${_dlDob!.month.toString().padLeft(2, '0')}-${_dlDob!.day.toString().padLeft(2, '0')}',
+                    verified
+                        ? 'Sumsub confirmed your ID. You\'re cleared to host.'
+                        : 'Quick selfie + ID scan via Sumsub. ~60 seconds.',
                     style: GoogleFonts.roboto(
-                      color: EditorialPalette.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
+                      color: EditorialPalette.textSecondary,
+                      fontSize: 12.5,
+                      height: 1.4,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right,
-                color: EditorialPalette.textSecondary),
+            if (verified)
+              const Icon(Icons.check_circle,
+                  color: EditorialPalette.successAccent, size: 20)
+            else
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: EditorialPalette.textPrimary,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  'Start',
+                  style: GoogleFonts.roboto(
+                    color: Colors.white,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
           ],
         ),
       ),

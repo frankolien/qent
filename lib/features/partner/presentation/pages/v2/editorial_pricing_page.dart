@@ -103,14 +103,14 @@ class _EditorialPricingPageState extends ConsumerState<EditorialPricingPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const EditorialHeader(stepIndex: 6, totalSteps: 6),
+              const EditorialHeader(stepIndex: 5, totalSteps: 5),
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const EditorialStepLabel('STEP 06 · YOUR PRICE'),
+                      const EditorialStepLabel('STEP 05 · YOUR PRICE'),
                       const SizedBox(height: 18),
                       Text(
                         'Set your daily price\nand where the car is.',

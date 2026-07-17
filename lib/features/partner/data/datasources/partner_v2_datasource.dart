@@ -143,32 +143,22 @@ class PartnerV2DataSource {
   }
 
   /// POST /api/partner/listings/:id/docs — submit Step 05 documents.
-  /// Server runs Prembly DL + plate verification synchronously and
-  /// returns whether the conditional 04b owner-consent branch should
-  /// fire next.
+  /// Driver identity is verified out-of-band via Sumsub; server gates
+  /// this call on `kyc_tier >= 1` and returns 412 with
+  /// `verify_identity_required` if the host hasn't completed it. Plate
+  /// cross-check still runs synchronously via Prembly.
   Future<({
     PartnerListing listing,
-    bool driversLicenseVerified,
     bool vehiclePlateVerified,
     bool ownerConsentRequired,
   })> submitListingDocs({
     required String listingId,
-    String? driversLicenseFrontUrl,
-    String? driversLicenseBackUrl,
-    DateTime? driversLicenseDob,
     String? vehicleRegistrationUrl,
     String? insuranceCertificateUrl,
     String? insurancePolicyNumber,
     required bool isRegisteredOwner,
   }) async {
     final body = <String, dynamic>{
-      if (driversLicenseFrontUrl != null)
-        'drivers_license_front_url': driversLicenseFrontUrl,
-      if (driversLicenseBackUrl != null)
-        'drivers_license_back_url': driversLicenseBackUrl,
-      if (driversLicenseDob != null)
-        'drivers_license_dob':
-            driversLicenseDob.toIso8601String().split('T').first,
       if (vehicleRegistrationUrl != null)
         'vehicle_registration_url': vehicleRegistrationUrl,
       if (insuranceCertificateUrl != null)
@@ -179,34 +169,14 @@ class PartnerV2DataSource {
     };
     final r = await _api.post('/partner/listings/$listingId/docs', body: body);
     if (!r.isSuccess) {
-      throw Exception('submitListingDocs: ${r.errorMessage}');
+      throw PartnerDocsException(r.statusCode, r.errorMessage,
+          isIdentityRequired: r.statusCode == 412);
     }
     final json = r.body as Map<String, dynamic>;
     return (
       listing: PartnerListing.fromJson(json['listing'] as Map<String, dynamic>),
-      driversLicenseVerified: json['drivers_license_verified'] == true,
       vehiclePlateVerified: json['vehicle_plate_verified'] == true,
       ownerConsentRequired: json['owner_consent_required'] == true,
-    );
-  }
-
-  /// POST /api/partner/identity/scan — Step 05. For now the backend
-  /// records the selfie URL and stamps the profile `pending` —
-  /// admin/Smile finalisation happens later.
-  Future<({PartnerProfile profile, bool verified, double score})>
-      submitIdentityScan({
-    required String selfieUrl,
-  }) async {
-    final r = await _api
-        .post('/partner/identity/scan', body: {'selfie_url': selfieUrl});
-    if (!r.isSuccess) {
-      throw Exception('submitIdentityScan: ${r.errorMessage}');
-    }
-    final json = r.body as Map<String, dynamic>;
-    return (
-      profile: PartnerProfile.fromJson(json['profile'] as Map<String, dynamic>),
-      verified: json['verified'] == true,
-      score: (json['score'] as num?)?.toDouble() ?? 0,
     );
   }
 
@@ -268,4 +238,17 @@ class PartnerV2DataSource {
     final json = r.body as Map<String, dynamic>;
     return PartnerListing.fromJson(json['listing'] as Map<String, dynamic>);
   }
+}
+
+/// Raised when /partner/listings/:id/docs rejects the submit. The
+/// 412 path (`verify_identity_required`) is the one the UI cares
+/// about — it means the host hasn't finished Sumsub yet.
+class PartnerDocsException implements Exception {
+  final int statusCode;
+  final String message;
+  final bool isIdentityRequired;
+  PartnerDocsException(this.statusCode, this.message,
+      {this.isIdentityRequired = false});
+  @override
+  String toString() => message;
 }

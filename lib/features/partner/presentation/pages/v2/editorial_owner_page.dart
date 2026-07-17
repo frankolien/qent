@@ -143,7 +143,7 @@ class _EditorialOwnerPageState extends ConsumerState<EditorialOwnerPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const EditorialHeader(stepIndex: 1, totalSteps: 6),
+              const EditorialHeader(stepIndex: 1, totalSteps: 5),
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),

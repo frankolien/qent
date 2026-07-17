@@ -7,11 +7,13 @@ import 'package:intl/intl.dart';
 import 'package:qent/core/services/api_client.dart';
 import 'package:qent/core/widgets/profile_image_widget.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
+import 'package:qent/features/booking/data/datasources/booking_v2_datasource.dart';
+import 'package:qent/features/booking/presentation/pages/booking_confirm_page.dart';
 import 'package:qent/features/chat/presentation/controllers/chat_controller.dart';
 import 'package:qent/features/chat/presentation/pages/chat_detail_page.dart';
+import 'package:qent/features/home/domain/models/car.dart';
 import 'package:qent/features/trips/presentation/pages/trips_page.dart';
 import 'package:qent/features/reviews/presentation/pages/leave_review_page.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:qent/core/theme/app_theme.dart';
 
 class TripDetailPage extends ConsumerStatefulWidget {
@@ -112,81 +114,49 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
     }
   }
 
+  /// V2 USDC swap — same Pay Now button, Privy / Base instead of
+  /// Paystack. Backend computes the intent and we hand the user to
+  /// BookingConfirmPage which drives the rest (biometric → tx →
+  /// wait → success).
   Future<void> _initiatePayment() async {
     HapticFeedback.mediumImpact();
     setState(() => _isPaying = true);
     try {
-      final response = await ApiClient().post(
-        '/payments/initiate',
-        body: {'booking_id': widget.trip.id},
-      );
+      final intent = await BookingV2DataSource()
+          .requestPaymentIntent(bookingId: widget.trip.id);
       if (!mounted) return;
-      if (response.isSuccess) {
-        final url = response.body['authorization_url'] as String?;
-        final reference = response.body['reference'] as String?;
-        if (url != null && url.isNotEmpty) {
-          await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-          if (!mounted) return;
-
-          // Try server-side verify first
-          if (reference != null) {
-            await Future.delayed(const Duration(seconds: 2));
-            if (!mounted) return;
-            final verifyResp = await ApiClient().post(
-              '/payments/verify',
-              body: {'reference': reference},
-            );
-            if (verifyResp.isSuccess && verifyResp.body['status'] == 'success') {
-              await _refreshFromBackend();
-              if (mounted && _status == 'confirmed') {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Payment successful!'),
-                    backgroundColor: const Color(0xFF2E7D32),
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                );
-              }
-              return;
-            }
-          }
-
-          // Fallback: poll until status flips to confirmed
-          for (int i = 0; i < 5; i++) {
-            await Future.delayed(const Duration(seconds: 3));
-            if (!mounted) return;
-            await _refreshFromBackend();
-            if (_status == 'confirmed') {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Payment successful!'),
-                    backgroundColor: const Color(0xFF2E7D32),
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                );
-              }
-              return;
-            }
-          }
-        }
-      } else {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => BookingConfirmPage(
+            car: _carForBookingConfirm(),
+            intent: intent,
+            pickupDate: DateTime.tryParse(widget.trip.startDate) ?? DateTime.now(),
+            returnDate: DateTime.tryParse(widget.trip.endDate) ?? DateTime.now(),
+          ),
+        ),
+      );
+      // Confirm/wait/success pages handle their own navigation; on
+      // return, refresh the trip so the new status renders.
+      if (mounted) await _refreshFromBackend();
+    } on BookingV2Exception catch (e) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(response.errorMessage),
+            content: Text(e.message),
             backgroundColor: Colors.red[700],
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
-    } catch (e) {
+    } catch (e, st) {
+      // Surface the underlying class + message so the next failure
+      // doesn't hide behind "Payment failed."
+      debugPrint('[Qent Trip/pay] ${e.runtimeType}: $e\n$st');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Payment failed. Please try again.'),
+            content: Text('Payment failed: $e'),
             backgroundColor: Colors.red[700],
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -196,6 +166,25 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
     } finally {
       if (mounted) setState(() => _isPaying = false);
     }
+  }
+
+  /// BookingConfirmPage takes a `Car`; we only have a `TripBooking`
+  /// here. Build a minimal shim with the fields the confirm page
+  /// actually reads (name, photos).
+  Car _carForBookingConfirm() {
+    final photo = widget.trip.carPhoto ?? '';
+    return Car(
+      id: widget.trip.carId,
+      name: widget.trip.carName,
+      brand: '',
+      imageUrl: photo,
+      rating: 0,
+      location: widget.trip.carLocation ?? '',
+      seats: 0,
+      pricePerDay: widget.trip.pricePerDay,
+      photos: photo.isEmpty ? const [] : [photo],
+      hostId: widget.trip.hostId,
+    );
   }
 
   Future<void> _performHostAction(String action, String confirmTitle, String confirmBody) async {
@@ -403,10 +392,19 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
 
                   const SizedBox(height: 16),
 
-                  // Payment card
+                  // Payment card \u2014 V2 bookings settle in USDC; fall
+                  // back to legacy NGN for pre-V2 rows.
                   _buildInfoCard('Payment', [
-                    _infoRow('Rate', '\u20a6${formatter.format(trip.pricePerDay.toInt())}/day'),
-                    _infoRow('Total', '\u20a6${formatter.format(trip.totalAmount.toInt())}'),
+                    if (trip.totalUsdc > 0) ...[
+                      _infoRow(
+                        'Rate',
+                        '\$${(trip.totalUsdc / (trip.totalDays == 0 ? 1 : trip.totalDays)).toStringAsFixed(2)}/day',
+                      ),
+                      _infoRow('Total', '\$${trip.totalUsdc.toStringAsFixed(2)} USDC'),
+                    ] else ...[
+                      _infoRow('Rate', '\u20a6${formatter.format(trip.pricePerDay.toInt())}/day'),
+                      _infoRow('Total', '\u20a6${formatter.format(trip.totalAmount.toInt())}'),
+                    ],
                     _infoRow('Booking ID', '#${trip.id.length > 8 ? trip.id.substring(0, 8) : trip.id}'),
                   ]),
 
@@ -476,20 +474,20 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
         subtitle: _status == 'approved'
             ? 'Complete payment to confirm booking'
             : 'Payment received',
-        isDone: ['confirmed', 'active', 'completed'].contains(_status),
+        isDone: ['confirmed', 'paid', 'active', 'completed'].contains(_status),
         isCurrent: _status == 'approved',
       ));
     }
 
     // Step 4: Pickup
-    if (!['pending', 'rejected', 'cancelled', 'approved'].contains(_status)) {
+    if (!['pending', 'pending_payment', 'rejected', 'cancelled', 'approved'].contains(_status)) {
       steps.add(_TimelineStep(
         title: 'Pickup',
-        subtitle: _status == 'confirmed'
+        subtitle: (_status == 'confirmed' || _status == 'paid')
             ? 'Coordinate with host'
             : 'Car picked up',
         isDone: ['active', 'completed'].contains(_status),
-        isCurrent: _status == 'confirmed',
+        isCurrent: _status == 'confirmed' || _status == 'paid',
       ));
     }
 
@@ -651,13 +649,22 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
   Widget _buildBottomActions() {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
     // Only renters can cancel; hosts use Accept/Decline from the dashboard
-    final canCancel = !_isHost && ['pending', 'approved', 'confirmed'].contains(_status);
+    final canCancel = !_isHost &&
+        ['pending', 'approved', 'pending_payment', 'confirmed', 'paid']
+            .contains(_status);
     final canMessage = !['cancelled', 'rejected'].contains(_status);
     final messageLabel = _isHost ? 'Message Renter' : 'Message Host';
-    final canPay = !_isHost && _status == 'approved';
+    // Renter can pay when host has approved, OR resume an in-flight
+    // payment attempt (server-side `requestPaymentIntent` is idempotent
+    // — same booking returns the same intent).
+    final canPay = !_isHost && (_status == 'approved' || _status == 'pending_payment');
 
     // Host handover/return actions
-    final canConfirmPickup = _isHost && _status == 'confirmed';
+    // V1 status was `confirmed` post-Paystack; V2 USDC flow lands the
+    // booking in `paid`. Either means money is in escrow → host can
+    // hand over the car.
+    final canConfirmPickup =
+        _isHost && (_status == 'confirmed' || _status == 'paid');
     final canConfirmReturn = _isHost && _status == 'active';
     final hasHostAction = canConfirmPickup || canConfirmReturn;
     final canReview = _status == 'completed';
@@ -871,7 +878,8 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
     return switch (status) {
       'pending' => (label: 'Pending Approval', bgColor: const Color(0xFFFFF3E0), textColor: const Color(0xFFE65100)),
       'approved' => (label: 'Approved — Ready to Pay', bgColor: const Color(0xFFE3F2FD), textColor: const Color(0xFF1565C0)),
-      'confirmed' => (label: 'Paid — Awaiting Pickup', bgColor: const Color(0xFFE8F5E9), textColor: const Color(0xFF2E7D32)),
+      'confirmed' || 'paid' => (label: 'Paid — Awaiting Pickup', bgColor: const Color(0xFFE8F5E9), textColor: const Color(0xFF2E7D32)),
+      'pending_payment' => (label: 'Awaiting Payment', bgColor: const Color(0xFFFFF3E0), textColor: const Color(0xFFE65100)),
       'active' => (label: 'Trip Active', bgColor: const Color(0xFFE8F5E9), textColor: const Color(0xFF2E7D32)),
       'completed' => (label: 'Trip Completed', bgColor: const Color(0xFFF5F5F5), textColor: const Color(0xFF616161)),
       'cancelled' => (label: 'Cancelled', bgColor: const Color(0xFFFFEBEE), textColor: const Color(0xFFC62828)),

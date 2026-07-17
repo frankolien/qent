@@ -4,8 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:qent/core/services/api_client.dart';
 import 'package:qent/features/auth/presentation/providers/auth_providers.dart';
 import 'package:qent/features/booking/domain/models/booking_form.dart';
-import 'package:qent/features/home/presentation/pages/main_nav_page.dart';
 import 'package:qent/features/home/domain/models/car.dart';
+import 'package:qent/features/home/presentation/pages/main_nav_page.dart';
 import 'package:qent/features/search/presentation/widgets/custom_date_range_picker.dart';
 import 'package:qent/features/search/presentation/widgets/location_picker.dart';
 import 'package:qent/core/theme/app_theme.dart';
@@ -29,9 +29,7 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
   final _contactController = TextEditingController();
   final _locationController = TextEditingController();
 
-  bool _bookWithDriver = false;
   bool _isLoading = false;
-  Gender? _selectedGender;
   RentalDuration? _selectedRentalDuration;
   DateTime? _pickupDate;
   DateTime? _returnDate;
@@ -41,7 +39,6 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
   List<BookedDateRange> _bookedDates = [];
 
   // Validation error messages for non-FormField widgets
-  String? _genderError;
   String? _dateError;
   String? _locationError;
 
@@ -105,9 +102,6 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
           _totalPrice = basePrice * (days > 0 ? days : 1);
       }
 
-      if (_bookWithDriver) {
-        _totalPrice += 100;
-      }
     } else {
       _totalPrice = widget.car.pricePerDay;
     }
@@ -117,14 +111,6 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
 
   bool _validateForm() {
     bool isValid = _formKey.currentState!.validate();
-
-    // Validate gender
-    if (_selectedGender == null) {
-      setState(() => _genderError = 'Please select your gender');
-      isValid = false;
-    } else {
-      setState(() => _genderError = null);
-    }
 
     // Validate dates
     if (_pickupDate == null || _returnDate == null) {
@@ -167,12 +153,8 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
       });
 
       if (!mounted) return;
-
       if (response.isSuccess) {
-        // Booking created as 'pending' — host needs to approve before payment
-        if (mounted) {
-          _showBookingSubmittedDialog();
-        }
+        _showBookingSubmittedDialog();
       } else {
         _showError(response.errorMessage);
       }
@@ -181,18 +163,6 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red[700],
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
   }
 
   void _showBookingSubmittedDialog() {
@@ -207,23 +177,37 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 72, height: 72,
+                width: 72,
+                height: 72,
                 decoration: BoxDecoration(
                   color: const Color(0xFF22C55E).withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.check_circle_rounded, color: Color(0xFF22C55E), size: 44),
+                child: const Icon(
+                  Icons.check_circle_rounded,
+                  color: Color(0xFF22C55E),
+                  size: 44,
+                ),
               ),
               const SizedBox(height: 20),
               const Text(
                 'Booking Submitted!',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A)),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF1A1A1A),
+                ),
               ),
               const SizedBox(height: 10),
               Text(
-                'Your booking request has been sent to the host. You\'ll be notified once they accept, then you can proceed to pay.',
+                "Your booking request has been sent to the host. "
+                "You'll be notified once they accept, then you can proceed to pay.",
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.grey[600], height: 1.5),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                  height: 1.5,
+                ),
               ),
               const SizedBox(height: 24),
               SizedBox(
@@ -231,17 +215,24 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.of(ctx).pop();
-                    // Pop back to car detail or home
                     Navigator.of(context).popUntil((route) => route.isFirst);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1A1A1A),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                     elevation: 0,
                   ),
-                  child: const Text('Back to Home', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                  child: const Text(
+                    'Back to Home',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 10),
@@ -253,12 +244,28 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
                 },
                 child: Text(
                   'View My Trips',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[700]),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[700],
+                  ),
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red[700],
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
       ),
     );
   }
@@ -353,11 +360,7 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 24),
-                      _buildBookWithDriverSection(),
-                      const SizedBox(height: 24),
                       _buildUserInfoSection(),
-                      const SizedBox(height: 24),
-                      _buildGenderSection(),
                       const SizedBox(height: 24),
                       _buildRentalDateSection(),
                       const SizedBox(height: 24),
@@ -469,63 +472,6 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
     );
   }
 
-  Widget _buildBookWithDriverSection() {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: context.inputBg,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: context.bgPrimary,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(Icons.person_rounded, size: 22, color: context.textPrimary),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Book with driver',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: context.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Don\'t have a driver? Book with driver.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[500],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Switch(
-            value: _bookWithDriver,
-            onChanged: (value) {
-              setState(() {
-                _bookWithDriver = value;
-                _calculateTotal();
-              });
-            },
-            activeColor: const Color(0xFF1A1A1A),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildUserInfoSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -617,82 +563,6 @@ class _BookingDetailsPageState extends ConsumerState<BookingDetailsPage> {
     );
   }
 
-  Widget _buildGenderSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Gender',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: context.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(child: _buildGenderButton('Male', Icons.male, Gender.male)),
-            const SizedBox(width: 10),
-            Expanded(child: _buildGenderButton('Female', Icons.female, Gender.female)),
-            const SizedBox(width: 10),
-            Expanded(child: _buildGenderButton('Others', Icons.transgender, Gender.others)),
-          ],
-        ),
-        if (_genderError != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 8, left: 12),
-            child: Text(
-              _genderError!,
-              style: const TextStyle(fontSize: 11, color: Colors.red),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildGenderButton(String label, IconData icon, Gender gender) {
-    final isSelected = _selectedGender == gender;
-    final hasError = _genderError != null;
-
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedGender = gender;
-          _genderError = null;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? (context.isDark ? const Color(0xFF22C55E) : const Color(0xFF1A1A1A)) : context.inputBg,
-          borderRadius: BorderRadius.circular(14),
-          border: hasError && !isSelected
-              ? Border.all(color: Colors.red.withValues(alpha: 0.5), width: 1)
-              : (!isSelected ? Border.all(color: context.inputBorder) : null),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              color: isSelected ? (context.isDark ? Colors.black : Colors.white) : Colors.grey[600],
-              size: 18,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: isSelected ? (context.isDark ? Colors.black : Colors.white) : Colors.grey[700],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildRentalDateSection() {
     return Column(

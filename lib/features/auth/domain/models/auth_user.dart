@@ -11,6 +11,7 @@ class AuthUser {
   final double walletBalance;
   final bool isActive;
   final String? country;
+  final int kycTier;
   final DateTime createdAt;
 
   AuthUser({
@@ -24,6 +25,7 @@ class AuthUser {
     required this.walletBalance,
     required this.isActive,
     this.country,
+    this.kycTier = 0,
     required this.createdAt,
   });
 
@@ -39,6 +41,7 @@ class AuthUser {
       walletBalance: (json['wallet_balance'] as num?)?.toDouble() ?? 0.0,
       isActive: json['is_active'] ?? true,
       country: json['country'] as String?,
+      kycTier: (json['kyc_tier'] as num?)?.toInt() ?? 0,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : DateTime.now(),
@@ -57,6 +60,7 @@ class AuthUser {
       'walletBalance': walletBalance,
       'isActive': isActive,
       'country': country,
+      'kycTier': kycTier,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -74,6 +78,7 @@ class AuthUser {
       'wallet_balance': walletBalance,
       'is_active': isActive,
       'country': country,
+      'kyc_tier': kycTier,
       'created_at': createdAt.toIso8601String(),
     };
   }

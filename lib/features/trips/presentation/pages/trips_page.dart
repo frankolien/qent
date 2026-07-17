@@ -20,6 +20,7 @@ class TripBooking {
   final String endDate;
   final int totalDays;
   final double totalAmount;
+  final double totalUsdc;
   final double pricePerDay;
   final String status;
   final String createdAt;
@@ -37,6 +38,7 @@ class TripBooking {
     required this.endDate,
     required this.totalDays,
     required this.totalAmount,
+    required this.totalUsdc,
     required this.pricePerDay,
     required this.status,
     required this.createdAt,
@@ -56,16 +58,40 @@ class TripBooking {
       endDate: json['end_date'] ?? '',
       totalDays: json['total_days'] ?? 0,
       totalAmount: (json['total_amount'] as num?)?.toDouble() ?? 0.0,
+      // V2 §9.2 — backend returns `total_usdc` as a decimal string.
+      totalUsdc: _parseDec(json['total_usdc']),
       pricePerDay: (json['price_per_day'] as num?)?.toDouble() ?? 0.0,
       status: json['status'] ?? 'pending',
       createdAt: json['created_at'] ?? '',
     );
   }
 
-  bool get isUpcoming =>
-      ['pending', 'approved', 'confirmed'].contains(status);
-  bool get isActive => status == 'active';
-  bool get isPast => ['completed', 'cancelled', 'rejected'].contains(status);
+  static double _parseDec(dynamic v) {
+    if (v == null) return 0;
+    if (v is num) return v.toDouble();
+    if (v is String) return double.tryParse(v) ?? 0;
+    return 0;
+  }
+
+  // V2 §5.2 — `pending_payment` and `paid` join the V1 pre-trip
+  // statuses. `no_show` / `failed_handover` are terminal failures
+  // and live in the past bucket.
+  bool get isUpcoming => const [
+        'pending_payment',
+        'paid',
+        'pending',
+        'approved',
+        'confirmed',
+      ].contains(status);
+  bool get isActive => status == 'active' || status == 'in_progress';
+  bool get isPast => const [
+        'completed',
+        'cancelled',
+        'rejected',
+        'refunded',
+        'no_show',
+        'failed_handover',
+      ].contains(status);
 }
 
 class TripsPage extends StatefulWidget {
@@ -362,8 +388,13 @@ class _TripsPageState extends State<TripsPage>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      // V2 \u2014 bookings store the charge in USDC.
+                      // Fall back to legacy total_amount when total_usdc
+                      // is zero (V1-era rows that were never backfilled).
                       Text(
-                        '\u20a6${formatter.format(trip.totalAmount.toInt())}',
+                        trip.totalUsdc > 0
+                            ? '\$${trip.totalUsdc.toStringAsFixed(2)} USDC'
+                            : '\u20a6${formatter.format(trip.totalAmount.toInt())}',
                         style: GoogleFonts.roboto(fontSize: 18, fontWeight: FontWeight.w700, color: context.textPrimary),
                       ),
                       Row(
@@ -395,6 +426,8 @@ class _TripsPageState extends State<TripsPage>
 
   ({String label, Color bgColor, Color textColor}) _statusStyle(String status) {
     return switch (status) {
+      'pending_payment' => (label: 'Payment Pending', bgColor: const Color(0xFFFFF3E0), textColor: const Color(0xFFE65100)),
+      'paid' => (label: 'Awaiting Pickup', bgColor: const Color(0xFFE8F5E9), textColor: const Color(0xFF2E7D32)),
       'pending' => (label: 'Pending Approval', bgColor: const Color(0xFFFFF3E0), textColor: const Color(0xFFE65100)),
       'approved' => (label: 'Ready to Pay', bgColor: const Color(0xFFE3F2FD), textColor: const Color(0xFF1565C0)),
       'confirmed' => (label: 'Awaiting Pickup', bgColor: const Color(0xFFE8F5E9), textColor: const Color(0xFF2E7D32)),
@@ -402,6 +435,9 @@ class _TripsPageState extends State<TripsPage>
       'completed' => (label: 'Completed', bgColor: const Color(0xFFF5F5F5), textColor: const Color(0xFF616161)),
       'cancelled' => (label: 'Cancelled', bgColor: const Color(0xFFFFEBEE), textColor: const Color(0xFFC62828)),
       'rejected' => (label: 'Declined by Host', bgColor: const Color(0xFFFFEBEE), textColor: const Color(0xFFC62828)),
+      'refunded' => (label: 'Refunded', bgColor: const Color(0xFFF5F5F5), textColor: const Color(0xFF616161)),
+      'no_show' => (label: 'No-show', bgColor: const Color(0xFFFFEBEE), textColor: const Color(0xFFC62828)),
+      'failed_handover' => (label: 'Handover Failed', bgColor: const Color(0xFFFFEBEE), textColor: const Color(0xFFC62828)),
       _ => (label: status, bgColor: Colors.grey[100]!, textColor: Colors.grey[600]!),
     };
   }

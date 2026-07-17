@@ -119,19 +119,15 @@ class PartnerV2Controller {
     _ref.invalidate(partnerProfileProvider);
   }
 
-  /// Step 05 — submit documents. Server runs Prembly DL + plate
-  /// verifications synchronously and returns whether the 04b owner-
-  /// consent branch should fire next.
+  /// Step 05 — submit vehicle documents. Driver identity is verified
+  /// out-of-band via Sumsub; server returns 412 if the host hasn't
+  /// finished it. Plate cross-check still runs synchronously.
   Future<({
     PartnerListing listing,
-    bool driversLicenseVerified,
     bool vehiclePlateVerified,
     bool ownerConsentRequired,
   })> submitListingDocs({
     required String listingId,
-    String? driversLicenseFrontUrl,
-    String? driversLicenseBackUrl,
-    DateTime? driversLicenseDob,
     String? vehicleRegistrationUrl,
     String? insuranceCertificateUrl,
     String? insurancePolicyNumber,
@@ -139,9 +135,6 @@ class PartnerV2Controller {
   }) async {
     final out = await _ds.submitListingDocs(
       listingId: listingId,
-      driversLicenseFrontUrl: driversLicenseFrontUrl,
-      driversLicenseBackUrl: driversLicenseBackUrl,
-      driversLicenseDob: driversLicenseDob,
       vehicleRegistrationUrl: vehicleRegistrationUrl,
       insuranceCertificateUrl: insuranceCertificateUrl,
       insurancePolicyNumber: insurancePolicyNumber,
@@ -150,16 +143,6 @@ class PartnerV2Controller {
     _ref.invalidate(partnerProfileProvider);
     _ref.invalidate(partnerDraftListingProvider);
     _ref.invalidate(partnerListingsProvider);
-    return out;
-  }
-
-  /// Step 05 — submit the selfie URL after the local liveness flow.
-  /// Backend marks the profile `pending` (Smile review). Returns the
-  /// updated profile + a mock score for now.
-  Future<({PartnerProfile profile, bool verified, double score})>
-      submitIdentityScan({required String selfieUrl}) async {
-    final out = await _ds.submitIdentityScan(selfieUrl: selfieUrl);
-    _ref.invalidate(partnerProfileProvider);
     return out;
   }
 

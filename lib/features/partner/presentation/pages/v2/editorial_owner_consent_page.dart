@@ -7,7 +7,7 @@ import 'package:qent/core/services/cloudinary_service.dart';
 import 'package:qent/core/utils/friendly_error.dart';
 import 'package:qent/features/partner/data/models/partner_listing.dart';
 import 'package:qent/features/partner/presentation/controllers/partner_v2_controller.dart';
-import 'package:qent/features/partner/presentation/pages/v2/editorial_identity_page.dart';
+import 'package:qent/features/partner/presentation/pages/v2/editorial_pricing_page.dart';
 import 'package:qent/features/partner/presentation/pages/v2/editorial_owner_page.dart'
     show
         EditorialHeader,
@@ -132,7 +132,7 @@ class _EditorialOwnerConsentPageState
           );
       if (!mounted) return;
       Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const EditorialIdentityPage()),
+        MaterialPageRoute(builder: (_) => const EditorialPricingPage()),
       );
     } catch (e, st) {
       if (!mounted) return;
@@ -160,7 +160,7 @@ class _EditorialOwnerConsentPageState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const EditorialHeader(stepIndex: 4, totalSteps: 6),
+              const EditorialHeader(stepIndex: 4, totalSteps: 5),
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),

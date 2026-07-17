@@ -72,6 +72,13 @@ dependencies:
   # V2 §6.7 — Sumsub mobile SDK for inline KYC verification.
   flutter_idensic_mobile_sdk_plugin: ^1.44.1
 
+# Pinned: path_provider_foundation 2.6.0+ uses the `objective_c`
+# Dart FFI package which fails to load on iOS Simulator 26.x
+# (RuntimeRoot path bug). 2.4.x is the last release that doesn't
+# depend on it. Drop this override once Flutter ships a fix.
+dependency_overrides:
+  path_provider_foundation: 2.4.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
